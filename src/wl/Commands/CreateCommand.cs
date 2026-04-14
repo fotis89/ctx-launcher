@@ -7,11 +7,11 @@ public class CreateCommand(WorkspaceService workspaces)
 {
     public void Execute(string name)
     {
-        name = PathHelper.Slugify(name);
-        var existing = workspaces.LoadWorkspace(name);
+        var slug = PathHelper.Slugify(name);
+        var existing = workspaces.LoadWorkspace(slug);
         if (existing is not null)
         {
-            Console.Error.WriteLine($"Workspace '{name}' already exists.");
+            Console.Error.WriteLine($"Workspace '{slug}' already exists.");
             return;
         }
 
@@ -52,12 +52,12 @@ public class CreateCommand(WorkspaceService workspaces)
             }
         }
 
-        workspaces.CreateWorkspace(name, primaryRepo, additionalDirs);
+        workspaces.CreateWorkspace(slug, primaryRepo, additionalDirs, name);
 
         var root = workspaces.GetWorkspacesRoot();
         Console.WriteLine();
-        Console.WriteLine($"  Workspace created: {Path.Combine(root, name)}");
-        Console.WriteLine($"  Edit instructions.md, then run: wl launch {name}");
+        Console.WriteLine($"  Workspace created: {Path.Combine(root, slug)}");
+        Console.WriteLine($"  Edit instructions.md, then run: wl launch {slug}");
         Console.WriteLine();
         Console.WriteLine("  Tip: Run 'wl setup' to enable tab completion.");
     }

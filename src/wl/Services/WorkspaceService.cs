@@ -63,10 +63,10 @@ public class WorkspaceService
         return LoadWorkspaceFromPath(folderPath, jsonPath);
     }
 
-    public void CreateWorkspace(string name, string primaryRepo, List<string> additionalDirs)
+    public void CreateWorkspace(string slug, string primaryRepo, List<string> additionalDirs, string? displayName = null)
     {
         var root = GetWorkspacesRoot();
-        var folderPath = Path.Combine(root, name);
+        var folderPath = Path.Combine(root, slug);
 
         Directory.CreateDirectory(folderPath);
         Directory.CreateDirectory(Path.Combine(folderPath, "prompts"));
@@ -74,7 +74,7 @@ public class WorkspaceService
 
         var ws = new Workspace
         {
-            Name = name,
+            Name = displayName ?? slug,
             PrimaryRepo = primaryRepo,
             AdditionalDirs = additionalDirs
         };
@@ -82,18 +82,19 @@ public class WorkspaceService
         var json = JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace);
         File.WriteAllText(Path.Combine(folderPath, "workspace.json"), json);
 
-        var template = """
-            # Project Context
+        var template =
+"""
+# Project Context
 
-            ## What this project does
-            (describe your project)
+## What this project does
+(describe your project)
 
-            ## Related directories
-            (what the additional folders contain and how they relate)
+## Related directories
+(what the additional folders contain and how they relate)
 
-            ## Guidelines for the AI
-            (any preferences for how the AI should work in this project)
-            """;
+## Guidelines for the AI
+(any preferences for how the AI should work in this project)
+""";
         File.WriteAllText(Path.Combine(folderPath, "instructions.md"), template);
     }
 

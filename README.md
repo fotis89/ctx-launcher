@@ -2,7 +2,7 @@
 
 > Like `docker-compose` for AI coding sessions. Define your workspace once, start a fully configured session anywhere.
 
-Create a workspace from any existing Claude Code session by asking Claude to `/create-workspace`, then launch it:
+Create a workspace from any existing Claude Code session by asking Claude to `/wl-create-workspace`, then launch it:
 
 ```
 wl launch fullstack-platform
@@ -97,7 +97,7 @@ wl launch my-project
 Run `wl setup` to install:
 
 - **Tab completion** for PowerShell or Bash (workspace names, prompt slugs, flags)
-- **`/create-workspace` Claude skill** (mentioned above)
+- **`/wl-create-workspace` Claude skill** (mentioned above)
 
 ## Commands
 

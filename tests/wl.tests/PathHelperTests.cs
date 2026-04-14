@@ -43,13 +43,6 @@ public class PathHelperTests
     }
 
     [Fact]
-    public void QuotePath_AlreadyQuoted_NoChange()
-    {
-        var result = PathHelper.QuotePath("\"C:\\My Projects\\repo\"");
-        Assert.Equal("\"C:\\My Projects\\repo\"", result);
-    }
-
-    [Fact]
     public void ValidatePath_ExistingPath_ReturnsTrue()
     {
         var (exists, resolved) = PathHelper.ValidatePath(_home);

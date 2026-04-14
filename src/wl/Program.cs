@@ -8,12 +8,8 @@ var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
 var launchService = new LaunchService();
 
-// ─── Shared completion source ───
-
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
-
-// ─── Commands ───
 
 var root = new RootCommand("wl — AI context launcher for Claude Code");
 

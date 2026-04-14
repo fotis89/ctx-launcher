@@ -22,7 +22,8 @@ public class LaunchService
             var (exists, resolved) = PathHelper.ValidatePath(dir);
             if (exists)
             {
-                args.Add($"--add-dir {PathHelper.QuotePath(resolved)}");
+                args.Add("--add-dir");
+                args.Add(resolved);
             }
             else
             {
@@ -30,16 +31,18 @@ public class LaunchService
             }
         }
 
-        args.Add($"--add-dir {PathHelper.QuotePath(ws.FolderPath)}");
+        args.Add("--add-dir");
+        args.Add(ws.FolderPath);
 
         if (File.Exists(ws.InstructionsPath))
         {
-            args.Add($"--append-system-prompt-file {PathHelper.QuotePath(ws.InstructionsPath)}");
+            args.Add("--append-system-prompt-file");
+            args.Add(ws.InstructionsPath);
         }
 
         if (!string.IsNullOrEmpty(prompt))
         {
-            args.Add(PathHelper.QuotePath(prompt));
+            args.Add(prompt);
         }
 
         return (args, skippedDirs);
@@ -48,20 +51,23 @@ public class LaunchService
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false)
     {
         var (args, _) = BuildClaudeArgs(ws, prompt, yolo);
-        return $"claude {string.Join(" \\\n       ", args)}";
+        var quoted = args.Select(a => a.StartsWith("--") ? a : PathHelper.QuotePath(a));
+        return $"claude {string.Join(" ", quoted)}";
     }
 
-    public void Launch(Workspace ws, string? prompt = null, bool yolo = false)
+    public void Launch(Workspace ws, List<string> args)
     {
-        var (args, _) = BuildClaudeArgs(ws, prompt, yolo);
-
         var psi = new ProcessStartInfo
         {
             FileName = "claude",
-            Arguments = string.Join(" ", args),
             WorkingDirectory = PathHelper.ResolveTilde(ws.PrimaryRepo),
             UseShellExecute = false,
         };
+
+        foreach (var arg in args)
+        {
+            psi.ArgumentList.Add(arg);
+        }
 
         var process = Process.Start(psi);
         process?.WaitForExit();

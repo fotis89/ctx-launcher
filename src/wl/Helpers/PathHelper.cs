@@ -17,11 +17,6 @@ public static partial class PathHelper
 
     public static string QuotePath(string path)
     {
-        if (path.StartsWith('"') && path.EndsWith('"'))
-        {
-            return path;
-        }
-
         if (path.Contains(' '))
         {
             return $"\"{path}\"";
