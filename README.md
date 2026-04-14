@@ -5,10 +5,13 @@
 Create a workspace from any existing Claude Code session by asking Claude to `/create-workspace`, then launch it:
 
 ```
-wl launch fullstack
+wl launch fullstack-platform
 ```
 
-Each workspace is a persistent AI development environment that lives outside your repositories — combining multi-repo context, external folders, instructions, skills, and saved prompts. Workspaces can represent projects or workflows, such as feature development, bug fixing, or live issue debugging, each with its own tailored context.
+![demo](docs/demo.gif)
+
+Each workspace is a persistent AI development environment that lives outside your repositories, combining multi-repo context, system instructions, skills, prompts, and working directories (notes, state, external docs). Workspaces can represent projects or workflows, such as feature development, bug fixing, or live issue debugging, each with its own tailored context.
+
 ---
 
 ## Why not just CLAUDE.md?
@@ -26,24 +29,16 @@ ctx-launcher bundles all of this into a workspace that lives outside your repos 
 
 ## Before and after
 
-**Before:** Re-open Claude Code, re-add repos, re-load specs, re-explain architecture, re-state conventions — every session starts from scratch.
+**Before:** Re-open Claude Code, re-add repos, re-load specs, re-explain architecture, re-state conventions. Every session starts from scratch.
 
-**After:** `wl launch fullstack`
+**After:** `wl launch fullstack-platform`
 
 ```
   Launching: Fullstack Platform
   Repo: D:\repos\backend-api
-  Instructions: 12 lines
-  Skills: /run-tests
-  Dirs: +2 additional
-```
-
-Switch between workspaces instantly:
-
-```
-$ wl launch data-pipeline
-$ wl launch fullstack
-$ wl launch              # re-opens last workspace
+  Instructions: 23 lines
+  Skills: /analyze-logs, /architecture-review, /run-tests
+  Dirs: +3 additional
 ```
 
 ---
@@ -53,7 +48,7 @@ $ wl launch              # re-opens last workspace
 Workspaces live under `~/.ai-workspaces/`:
 
 ```
-~/.ai-workspaces/fullstack/
+~/.ai-workspaces/fullstack-platform/
 ├── workspace.json           # repos + related folders
 ├── instructions.md          # instructions loaded into the session
 ├── prompts/                 # reusable task prompts
@@ -67,23 +62,24 @@ When you run `wl launch`, ctx-launcher:
 3. Attaches repos, folders, instructions, and skills
 4. Starts a fully configured Claude Code session
 
-Your repos stay clean — no AI config committed, no team friction.
+Your repos stay clean. No AI config committed, no team friction.
 
 <details>
 <summary>What happens under the hood</summary>
 
 ```
 claude --add-dir "D:\repos\frontend-app" \
-       --add-dir "C:\...\api-specs" \
-       --add-dir "~/.ai-workspaces/fullstack" \
-       --append-system-prompt-file "~/.ai-workspaces/fullstack/instructions.md"
+       --add-dir "D:\repos\shared-lib" \
+       --add-dir "D:\specs\api-docs" \
+       --add-dir "~/.ai-workspaces/fullstack-platform" \
+       --append-system-prompt-file "~/.ai-workspaces/fullstack-platform/instructions.md"
 ```
 
 Use `wl which <name>` to preview the resolved configuration for any workspace.
 
 </details>
 
-ctx-launcher is not a script runner — it's a workspace composition system for AI coding sessions. It manages a persistent layer of repos, folders, instructions, skills, and prompts that survives across sessions and projects. Define context once, reuse it forever.
+ctx-launcher is not a script runner, it's a workspace composition system for AI coding sessions. It manages a persistent layer of repos, folders, instructions, skills, and prompts that survives across sessions and projects. Define context once, reuse it forever.
 
 ---
 
@@ -138,7 +134,8 @@ wl launch <name> -p <prompt>   # start session with a saved prompt or raw text
   "primaryRepo": "D:\\repos\\backend-api",
   "additionalDirs": [
     "D:\\repos\\frontend-app",
-    "C:\\Users\\you\\Documents\\api-specs"
+    "D:\\repos\\shared-lib",
+    "D:\\specs\\api-docs"
   ]
 }
 ```
@@ -170,7 +167,7 @@ cd ctx-launcher
 dotnet publish src/wl -c Release -r win-x64
 ```
 
-Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB, Native AOT) — copy it to a directory in your PATH.
+Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB, Native AOT), copy it to a directory in your PATH.
 
 ## Running tests
 
