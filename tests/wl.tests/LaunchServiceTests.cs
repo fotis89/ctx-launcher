@@ -29,7 +29,7 @@ public class LaunchServiceTests
         var ws = MakeWorkspace();
         var (args, _) = _service.BuildClaudeArgs(ws);
 
-        Assert.Single(args, a => a.Contains("--add-dir"));
+        Assert.Single(args, a => a == "--add-dir");
         Assert.Contains(args, a => a.Contains(ws.FolderPath));
     }
 
@@ -43,10 +43,9 @@ public class LaunchServiceTests
             var ws = MakeWorkspace(additionalDirs: [tempDir]);
             var (args, _) = _service.BuildClaudeArgs(ws);
 
-            var addDirArgs = args.Where(a => a.Contains("--add-dir")).ToList();
-            Assert.Equal(2, addDirArgs.Count);
-            Assert.Contains(addDirArgs, a => a.Contains(tempDir));
-            Assert.Contains(addDirArgs, a => a.Contains(ws.FolderPath));
+            Assert.Equal(2, args.Count(a => a == "--add-dir"));
+            Assert.Contains(args, a => a.Contains(tempDir));
+            Assert.Contains(args, a => a.Contains(ws.FolderPath));
         }
         finally
         {
@@ -60,9 +59,8 @@ public class LaunchServiceTests
         var ws = MakeWorkspace(additionalDirs: [@"C:\this\does\not\exist\at\all"]);
         var (args, _) = _service.BuildClaudeArgs(ws);
 
-        var addDirArgs = args.Where(a => a.Contains("--add-dir")).ToList();
-        Assert.Single(addDirArgs);
-        Assert.Contains(ws.FolderPath, addDirArgs[0]);
+        Assert.Single(args, a => a == "--add-dir");
+        Assert.Contains(args, a => a.Contains(ws.FolderPath));
     }
 
     [Fact]
@@ -71,16 +69,17 @@ public class LaunchServiceTests
         var ws = MakeWorkspace();
         var (args, _) = _service.BuildClaudeArgs(ws, "do the thing");
 
-        Assert.Contains("\"do the thing\"", args.Last());
+        Assert.Equal("do the thing", args.Last());
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithoutPrompt_NoTrailingArg()
+    public void BuildClaudeArgs_WithoutPrompt_NoTrailingPromptArg()
     {
         var ws = MakeWorkspace();
         var (args, _) = _service.BuildClaudeArgs(ws);
 
-        Assert.All(args, a => Assert.Contains("--", a));
+        // Last arg should be a path (the workspace folder), not a prompt string
+        Assert.Contains(ws.FolderPath, args.Last());
     }
 
     [Fact]
@@ -121,7 +120,7 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_PathWithSpaces_Quoted()
+    public void BuildClaudeArgs_PathWithSpaces_RawUnquoted()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl test dir " + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
@@ -131,7 +130,25 @@ public class LaunchServiceTests
             var (args, _) = _service.BuildClaudeArgs(ws);
 
             var folderArg = args.First(a => a.Contains(tempDir));
-            Assert.Contains("\"", folderArg);
+            Assert.DoesNotContain("\"", folderArg);
+        }
+        finally
+        {
+            Directory.Delete(tempDir);
+        }
+    }
+
+    [Fact]
+    public void BuildCommandString_PathWithSpaces_Quoted()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl test dir " + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var ws = MakeWorkspace(folderPath: tempDir);
+            var cmd = _service.BuildCommandString(ws);
+
+            Assert.Contains($"\"{tempDir}\"", cmd);
         }
         finally
         {

@@ -53,9 +53,14 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine($"  Prompts:   {string.Join(", ", savedPrompts.Select(p => p.Slug))}");
         }
 
+        if (ws.Yolo)
+        {
+            Console.WriteLine($"  Permissions: yolo");
+        }
+
         Console.WriteLine();
         Console.WriteLine("  Command:");
-        Console.WriteLine($"    {launcher.BuildCommandString(ws)}");
+        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo)}");
         Console.WriteLine();
     }
 }

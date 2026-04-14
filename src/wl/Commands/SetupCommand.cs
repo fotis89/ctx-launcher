@@ -38,7 +38,7 @@ public class SetupCommand
         Console.WriteLine("  Note: cmd.exe does not support tab completion.");
         Console.WriteLine("  Use PowerShell or Bash for the best experience.");
         Console.WriteLine();
-        Console.Write("  Install automatically? (y/n): ");
+        Console.Write("  Install tab completion automatically? (y/n): ");
         var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
 
         if (answer == "y")
@@ -73,17 +73,18 @@ public class SetupCommand
             Path.Combine(documentsPath, "WindowsPowerShell"),
         };
 
-        var snippet = """
+        var snippet =
+"""
 
-            # wl tab completion
-            Register-ArgumentCompleter -CommandName wl -Native -ScriptBlock {
-                param($wordToComplete, $commandAst, $cursorPosition)
-                $ast = $commandAst.ToString()
-                wl "[suggest:$cursorPosition]" "$ast" | ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-                }
-            }
-            """;
+# wl tab completion
+Register-ArgumentCompleter -CommandName wl -Native -ScriptBlock {
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $ast = $commandAst.ToString()
+    wl "[suggest:$cursorPosition]" "$ast" | ForEach-Object {
+        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+    }
+}
+""";
 
         foreach (var psProfileDir in profiles)
         {
@@ -107,15 +108,16 @@ public class SetupCommand
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var bashrc = Path.Combine(home, ".bashrc");
 
-        var snippet = """
+        var snippet =
+"""
 
-            # wl tab completion
-            _wl_completions() {
-                local completions=$(wl "[suggest:${COMP_POINT}]" "${COMP_LINE}" 2>/dev/null)
-                COMPREPLY=($(compgen -W "$completions" -- "${COMP_WORDS[$COMP_CWORD]}"))
-            }
-            complete -F _wl_completions wl
-            """;
+# wl tab completion
+_wl_completions() {
+    local completions=$(wl "[suggest:${COMP_POINT}]" "${COMP_LINE}" 2>/dev/null)
+    COMPREPLY=($(compgen -W "$completions" -- "${COMP_WORDS[$COMP_CWORD]}"))
+}
+complete -F _wl_completions wl
+""";
 
         if (File.Exists(bashrc) && File.ReadAllText(bashrc).Contains("_wl_completions"))
         {
@@ -131,60 +133,61 @@ public class SetupCommand
     private static void InstallClaudeSkill()
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var skillDir = Path.Combine(home, ".claude", "skills", "create-workspace");
+        var skillDir = Path.Combine(home, ".claude", "skills", "wl-create-workspace");
         var skillFile = Path.Combine(skillDir, "SKILL.md");
 
         if (File.Exists(skillFile))
         {
-            Console.WriteLine("  Claude skill /create-workspace already installed.");
+            Console.WriteLine("  Claude skill /wl-create-workspace already installed.");
             return;
         }
 
         Directory.CreateDirectory(skillDir);
 
-        var content = """
-            ---
-            name: create-workspace
-            description: Create an AI workspace for the wl launcher tool
-            allowed-tools: Bash(wl *) Write Read
-            ---
+        var content =
+"""
+---
+name: wl-create-workspace
+description: Create an AI workspace for the wl launcher tool
+allowed-tools: Bash(wl *) Write Read
+---
 
-            Create a new workspace for the `wl` AI context launcher. The user will tell you the workspace name, which repo it's for, and what related folders to include.
+Create a new workspace for the `wl` AI context launcher. The user will tell you the workspace name, which repo it's for, and what related folders to include.
 
-            ## Steps
+## Steps
 
-            1. Create the workspace folder at `~/.ai-workspaces/<name>/`
-            2. Write `workspace.json` with:
-               ```json
-               {
-                 "name": "<display name>",
-                 "primaryRepo": "<repo path>",
-                 "additionalDirs": ["<dir1>", "<dir2>"],
-                 "yolo": false
-               }
-               ```
-               - `yolo`: When `true`, launches Claude with `--dangerously-skip-permissions` (no tool approval prompts). Ask the user if they want YOLO mode enabled.
-            3. Write `instructions.md` with context about the project — what it does, what the related dirs contain, and guidelines for working with it. Ask the user what to include.
-            4. Create empty `prompts/` and `.claude/skills/` directories
-            5. Optionally create saved prompts in `prompts/<slug>.md` with frontmatter:
-               ```markdown
-               ---
-               label: <display label>
-               ---
-               <prompt text>
-               ```
-            6. Optionally create skills in `.claude/skills/<name>/SKILL.md`
-            7. Verify with `wl which <name>` to confirm everything is valid
+1. Create the workspace folder at `~/.ai-workspaces/<name>/`
+2. Write `workspace.json` with:
+   ```json
+   {
+     "name": "<display name>",
+     "primaryRepo": "<repo path>",
+     "additionalDirs": ["<dir1>", "<dir2>"],
+     "yolo": false
+   }
+   ```
+   - `yolo`: When `true`, launches Claude with `--dangerously-skip-permissions` (no tool approval prompts). Ask the user if they want YOLO mode enabled.
+3. Write `instructions.md` with context about the project — what it does, what the related dirs contain, and guidelines for working with it. Ask the user what to include.
+4. Create empty `prompts/` and `.claude/skills/` directories
+5. Optionally create saved prompts in `prompts/<slug>.md` with frontmatter:
+   ```markdown
+   ---
+   label: <display label>
+   ---
+   <prompt text>
+   ```
+6. Optionally create skills in `.claude/skills/<name>/SKILL.md`
+7. Verify with `wl which <name>` to confirm everything is valid
 
-            ## Output
-            After creating, show the user:
-            - The `wl which <name>` output
-            - Remind them to edit `instructions.md` if they want to add more context
-            - Tell them to run `wl launch <name>` to use it
-            """;
+## Output
+After creating, show the user:
+- The `wl which <name>` output
+- Remind them to edit `instructions.md` if they want to add more context
+- Tell them to run `wl launch <name>` to use it
+""";
 
         File.WriteAllText(skillFile, content);
-        Console.WriteLine($"  Claude skill installed: /create-workspace");
+        Console.WriteLine($"  Claude skill installed: /wl-create-workspace");
         Console.WriteLine("  Use it in any Claude Code session to create workspaces.");
     }
 }

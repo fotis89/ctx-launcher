@@ -40,7 +40,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         var skipPermissions = yolo || ws.Yolo;
-        var (_, skippedDirs) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions);
+        var (args, skippedDirs) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions);
 
         foreach (var dir in skippedDirs)
         {
@@ -85,6 +85,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         workspaces.SetLastUsed(name);
-        launcher.Launch(ws, resolvedPrompt, skipPermissions);
+        launcher.Launch(ws, args);
     }
 }
