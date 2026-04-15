@@ -1,30 +1,56 @@
 # ctx-launcher
 
-> Like `docker-compose` for AI coding sessions. Define your workspace once, start a fully configured session anywhere.
+> Stop re-explaining your project every time you start an AI session.
 
-Create a workspace from any existing Claude Code session by asking Claude to `/wl-create-workspace`, then launch it:
+Without it, every session starts the same way: re-attach directories, re-explain context, hope you don't mix tasks.
 
-```
-wl launch fullstack-platform
+With it:
+- one command per workspace
+- isolated context per task
+- instant resume
+
+A workspace is a named AI context: repos + instructions + notes + session state.
+
+Like `docker-compose` for AI coding sessions — define your workspace once, launch a fully configured session anywhere. Each workspace is isolated — switching workspaces is like switching to a different AI "brain".
+
+```bash
+# Feature work
+wl launch feature-auth
+
+# Debugging session
+wl launch bug-login-race
+
+# Switch back instantly
+wl launch feature-auth
 ```
 
 ![demo](docs/demo.gif)
 
-Each workspace is a persistent AI development environment that lives outside your repositories. Workspaces can represent projects or workflows — feature development, bug fixing, live issue debugging — each with its own tailored context.
+---
+
+## Claude integration
+
+After running `wl setup`, Claude can create and update workspaces from inside any session:
+
+> "This is getting complex — create a workspace for this"
+
+Claude will automatically scaffold a workspace from the current session, so the context, notes, and session state are preserved instead of staying inside a single chat.
 
 ---
 
-## Why not just CLAUDE.md?
+## What it solves
 
-`CLAUDE.md` works for single repos. Real-world workflows need more:
+**Separation** — Different tasks get different contexts. Same repos, different instructions, skills, and notes. Nothing gets committed to your repositories.
 
-**Multi-repo sessions** — You're working across repos that belong together (backend + frontend, service + shared libs) and want Claude to see the whole system — how the pieces fit — without re-attaching directories every session.
+**Persistence** — Each workspace tracks its own session independently. Come back tomorrow, switch to a different task, switch back — the context is still there.
 
-**Repo-clean customization** — You want to customize how Claude behaves (instructions, skills, workflows) without committing AI-specific config to your repositories. Useful for personal workflows, shared/company repos, or just keeping things clean.
+**Evolution** — `/wl-update-workspace` uses the current session's lessons learned to update your instructions, skills, and folders — so the AI doesn't make the same mistake twice in future sessions.
 
-**Persistent working directory (notes, state, docs)** — You need a place for things that don't belong in a repo: notes, specs, debugging state, scratch work. The workspace acts as a persistent working directory that's always attached to the session and survives across runs.
+---
 
-The "define once, launch anytime" part is the value across all three — you set it up once, and every session starts ready.
+## Install
+
+Download `wl.exe` from the [latest release](https://github.com/fotis89/ctx-launcher/releases/latest) and add it to your PATH.
 
 ---
 
@@ -45,52 +71,47 @@ Workspaces live under `~/.wl-workspaces/`. The workspace folder itself is attach
 ~/.wl-workspaces/fullstack-platform/
 ├── workspace.json           # repos, folders, settings
 ├── instructions.md          # system instructions for the session
-├── prompts/                 # reusable task prompts
 ├── .claude/skills/          # skills, not committed to your repo
 └── ...                      # notes, specs, scratch — anything you need
 ```
 
-**workspace.json** — defines the repos and directories attached to the session:
+**workspace.json** — repos, directories, and settings (`yolo`, `resume`).
+
+**instructions.md** — system instructions loaded into every session. Architecture context, conventions, how the repos relate to each other.
+
+**skills/** — workspace-scoped skills.
+
+Use `wl which <name>` to preview the resolved configuration for any workspace.
+
+<details>
+<summary>workspace.json example</summary>
 
 ```json
 {
   "name": "Fullstack Platform",
-  "primaryRepo": "D:\\repos\\backend-api",
+  "primaryRepo": "~/repos/backend-api",
   "additionalDirs": [
-    "D:\\repos\\frontend-app",
-    "D:\\repos\\shared-lib",
-    "D:\\specs\\api-docs"
+    "~/repos/frontend-app",
+    "~/repos/shared-lib",
+    "~/specs/api-docs"
   ],
   "yolo": false,
   "resume": false
 }
 ```
 
-Set `"yolo": true` to skip Claude's permission prompts for the workspace (or pass `--yolo` on the command line).
-Set `"resume": true` to always resume the previous session instead of starting fresh (or pass `--resume` on the command line).
+Set `"yolo": true` to skip Claude's permission prompts (or pass `--yolo`).
+Set `"resume": true` to always resume the previous session (or pass `--resume`).
 
-**instructions.md** — system instructions loaded into every session. Architecture context, conventions, how the repos relate to each other.
-
-**prompts/{slug}.md** — reusable task prompts with frontmatter:
-
-```markdown
----
-label: Review latest changes
----
-Review the latest changes and suggest improvements.
-```
-
-**.claude/skills/** — workspace-scoped skills (test runners, deploy helpers, review workflows).
-
-Use `wl which <name>` to preview the resolved configuration for any workspace.
+</details>
 
 <details>
 <summary>What happens under the hood</summary>
 
 ```
-claude --add-dir "D:\repos\frontend-app" \
-       --add-dir "D:\repos\shared-lib" \
-       --add-dir "D:\specs\api-docs" \
+claude --add-dir "~/repos/frontend-app" \
+       --add-dir "~/repos/shared-lib" \
+       --add-dir "~/specs/api-docs" \
        --add-dir "~/.wl-workspaces/fullstack-platform" \
        --append-system-prompt-file "~/.wl-workspaces/fullstack-platform/instructions.md"
 ```
@@ -102,17 +123,16 @@ claude --add-dir "D:\repos\frontend-app" \
 ## Commands
 
 ```
-wl launch [name]               # start a session (or last-used if no name)
-wl launch <name> --resume      # resume the previous session for this workspace
-wl launch <name> -p <prompt>   # start with a saved prompt or raw text
-wl launch <name> --yolo        # skip Claude permission prompts
-wl create <name>               # scaffold a new workspace for the current folder
+wl launch [name]           # start a session (or last-used if no name)
+  --resume, -r             # resume the previous session
+  --yolo                   # skip Claude permission prompts
 
-wl list                        # list all workspaces
-wl which <name>                # preview resolved config, validate paths
-wl edit <name>                 # open workspace folder in file explorer
+wl create <name>           # scaffold a new workspace for the current folder
+wl list                    # list all workspaces
+wl which <name>            # preview resolved config, validate paths
+wl edit <name>             # open workspace folder in file explorer
 
-wl setup                       # install /wl-create-workspace skill and optional tab completion
+wl setup                   # install tab completion and /wl-create-workspace skill
 ```
 
 ---
@@ -142,7 +162,7 @@ Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB), copy it to 
 
 ## Status
 
-v0.1.0 — initial release
+v0.3.0 — [latest release](https://github.com/fotis89/ctx-launcher/releases/latest)
 
 ## License
 
