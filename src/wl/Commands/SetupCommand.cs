@@ -136,12 +136,7 @@ complete -F _wl_completions wl
         var skillDir = Path.Combine(home, ".claude", "skills", "wl-create-workspace");
         var skillFile = Path.Combine(skillDir, "SKILL.md");
 
-        if (File.Exists(skillFile))
-        {
-            Console.WriteLine("  Claude skill /wl-create-workspace already installed.");
-            return;
-        }
-
+        var exists = File.Exists(skillFile);
         Directory.CreateDirectory(skillDir);
 
         var content =
@@ -196,7 +191,7 @@ Pick a slug that identifies the project, not the task. Use lowercase with hyphen
 
 After confirmation:
 
-1. Create `~/.ai-workspaces/<slug>/workspace.json`:
+1. Create `~/.wl-workspaces/<slug>/workspace.json`:
    ```json
    {
      "name": "<display name>",
@@ -243,7 +238,9 @@ Show `wl which <slug>` output and tell the user to run `wl launch <slug>`.
 """;
 
         File.WriteAllText(skillFile, content);
-        Console.WriteLine($"  Claude skill installed: /wl-create-workspace");
+        Console.WriteLine(exists
+            ? "  Claude skill /wl-create-workspace updated to latest version."
+            : "  Claude skill /wl-create-workspace installed.");
         Console.WriteLine("  Use it in any Claude Code session to create workspaces.");
     }
 }

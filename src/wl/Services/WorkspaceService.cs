@@ -16,7 +16,7 @@ public class WorkspaceService
             return _root;
         }
 
-        _root = PathHelper.ResolveTilde("~/.ai-workspaces");
+        _root = PathHelper.ResolveTilde("~/.wl-workspaces");
         Directory.CreateDirectory(_root);
         return _root;
     }

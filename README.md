@@ -33,16 +33,16 @@ The "define once, launch anytime" part is the value across all three — you set
 ```bash
 cd your-repo
 wl create my-project
-# Edit ~/.ai-workspaces/my-project/instructions.md
+# Edit ~/.wl-workspaces/my-project/instructions.md
 wl launch my-project
 ```
 
 ## How it works
 
-Workspaces live under `~/.ai-workspaces/`. The workspace folder itself is attached to every session as a working directory — Claude can read and write files there.
+Workspaces live under `~/.wl-workspaces/`. The workspace folder itself is attached to every session as a working directory — Claude can read and write files there.
 
 ```
-~/.ai-workspaces/fullstack-platform/
+~/.wl-workspaces/fullstack-platform/
 ├── workspace.json           # repos, folders, settings
 ├── instructions.md          # system instructions for the session
 ├── prompts/                 # reusable task prompts
@@ -89,8 +89,8 @@ Use `wl which <name>` to preview the resolved configuration for any workspace.
 claude --add-dir "D:\repos\frontend-app" \
        --add-dir "D:\repos\shared-lib" \
        --add-dir "D:\specs\api-docs" \
-       --add-dir "~/.ai-workspaces/fullstack-platform" \
-       --append-system-prompt-file "~/.ai-workspaces/fullstack-platform/instructions.md"
+       --add-dir "~/.wl-workspaces/fullstack-platform" \
+       --append-system-prompt-file "~/.wl-workspaces/fullstack-platform/instructions.md"
 ```
 
 </details>
