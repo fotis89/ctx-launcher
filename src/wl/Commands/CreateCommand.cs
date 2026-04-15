@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using wl.Helpers;
 using wl.Services;
 
@@ -15,24 +16,8 @@ public class CreateCommand(WorkspaceService workspaces)
             return;
         }
 
-        var cwd = Directory.GetCurrentDirectory();
-        string primaryRepo;
-
-        if (Directory.Exists(Path.Combine(cwd, ".git")))
-        {
-            primaryRepo = cwd;
-            Console.WriteLine($"  Detected git repo: {cwd}");
-        }
-        else
-        {
-            Console.Write("  Primary repo path: ");
-            primaryRepo = Console.ReadLine()?.Trim() ?? "";
-            if (string.IsNullOrEmpty(primaryRepo))
-            {
-                Console.Error.WriteLine("Primary repo path is required.");
-                return;
-            }
-        }
+        var primaryRepo = Directory.GetCurrentDirectory();
+        Console.WriteLine($"  Primary directory: {primaryRepo}");
 
         var additionalDirs = new List<string>();
         while (true)
@@ -54,11 +39,13 @@ public class CreateCommand(WorkspaceService workspaces)
 
         workspaces.CreateWorkspace(slug, primaryRepo, additionalDirs, name);
 
-        var root = workspaces.GetWorkspacesRoot();
+        var workspacePath = Path.Combine(workspaces.GetWorkspacesRoot(), slug);
         Console.WriteLine();
-        Console.WriteLine($"  Workspace created: {Path.Combine(root, slug)}");
+        Console.WriteLine($"  Workspace created: {workspacePath}");
         Console.WriteLine($"  Edit instructions.md, then run: wl launch {slug}");
         Console.WriteLine();
         Console.WriteLine("  Tip: Run 'wl setup' to enable tab completion.");
+
+        Process.Start(new ProcessStartInfo(workspacePath) { UseShellExecute = true });
     }
 }

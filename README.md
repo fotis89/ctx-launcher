@@ -10,76 +10,21 @@ wl launch fullstack-platform
 
 ![demo](docs/demo.gif)
 
-Each workspace is a persistent AI development environment that lives outside your repositories, combining multi-repo context, system instructions, skills, prompts, and working directories (notes, state, external docs). Workspaces can represent projects or workflows, such as feature development, bug fixing, or live issue debugging, each with its own tailored context.
+Each workspace is a persistent AI development environment that lives outside your repositories. Workspaces can represent projects or workflows — feature development, bug fixing, live issue debugging — each with its own tailored context.
 
 ---
 
 ## Why not just CLAUDE.md?
 
-`CLAUDE.md` works for single repos. Real-world workflows are multi-context:
+`CLAUDE.md` works for single repos. Real-world workflows need more:
 
-- **Multiple repos** (backend + frontend, service + shared libs)
-- **External folders** outside any repo (specs, docs, design files)
-- **Skills and prompts** you don't want committed to the repo
-- **Frequent project switching** throughout the day
+**Multi-repo sessions** — You're working across repos that belong together (backend + frontend, service + shared libs) and want Claude to see the whole system — how the pieces fit — without re-attaching directories every session.
 
-ctx-launcher bundles all of this into a workspace that lives outside your repos and starts a fully configured session in one command.
+**Repo-clean customization** — You want to customize how Claude behaves (instructions, skills, workflows) without committing AI-specific config to your repositories. Useful for personal workflows, shared/company repos, or just keeping things clean.
 
----
+**Persistent working directory (notes, state, docs)** — You need a place for things that don't belong in a repo: notes, specs, debugging state, scratch work. The workspace acts as a persistent working directory that's always attached to the session and survives across runs.
 
-## Before and after
-
-**Before:** Re-open Claude Code, re-add repos, re-load specs, re-explain architecture, re-state conventions. Every session starts from scratch.
-
-**After:** `wl launch fullstack-platform`
-
-```
-  Launching: Fullstack Platform
-  Repo: D:\repos\backend-api
-  Instructions: 23 lines
-  Skills: /analyze-logs, /architecture-review, /run-tests
-  Dirs: +3 additional
-```
-
----
-
-## How it works
-
-Workspaces live under `~/.ai-workspaces/`:
-
-```
-~/.ai-workspaces/fullstack-platform/
-├── workspace.json           # repos + related folders
-├── instructions.md          # instructions loaded into the session
-├── prompts/                 # reusable task prompts
-└── .claude/skills/          # skills, not committed to your repo
-```
-
-When you run `wl launch`, ctx-launcher:
-
-1. Reads the workspace definition
-2. Resolves and validates all paths
-3. Attaches repos, folders, instructions, and skills
-4. Starts a fully configured Claude Code session
-
-Your repos stay clean. No AI config committed, no team friction.
-
-<details>
-<summary>What happens under the hood</summary>
-
-```
-claude --add-dir "D:\repos\frontend-app" \
-       --add-dir "D:\repos\shared-lib" \
-       --add-dir "D:\specs\api-docs" \
-       --add-dir "~/.ai-workspaces/fullstack-platform" \
-       --append-system-prompt-file "~/.ai-workspaces/fullstack-platform/instructions.md"
-```
-
-Use `wl which <name>` to preview the resolved configuration for any workspace.
-
-</details>
-
-ctx-launcher is not a script runner, it's a workspace composition system for AI coding sessions. It manages a persistent layer of repos, folders, instructions, skills, and prompts that survives across sessions and projects. Define context once, reuse it forever.
+The "define once, launch anytime" part is the value across all three — you set it up once, and every session starts ready.
 
 ---
 
@@ -92,41 +37,20 @@ wl create my-project
 wl launch my-project
 ```
 
-## Setup
+## How it works
 
-Run `wl setup` to install:
-
-- **Tab completion** for PowerShell or Bash (workspace names, prompt slugs, flags)
-- **`/wl-create-workspace` Claude skill** (mentioned above)
-
-## Commands
-
-### Core
+Workspaces live under `~/.ai-workspaces/`. The workspace folder itself is attached to every session as a working directory — Claude can read and write files there.
 
 ```
-wl launch [name]          # start a workspace session (or last-used if no name)
-wl create <name>          # scaffold a new workspace from current repo
-wl list                   # list all workspaces
+~/.ai-workspaces/fullstack-platform/
+├── workspace.json           # repos, folders, settings
+├── instructions.md          # system instructions for the session
+├── prompts/                 # reusable task prompts
+├── .claude/skills/          # skills, not committed to your repo
+└── ...                      # notes, specs, scratch — anything you need
 ```
 
-### Inspect and manage
-
-```
-wl which <name>           # preview the resolved workspace config, validate paths
-wl edit <name>            # open workspace folder in file explorer
-```
-
-### Advanced
-
-```
-wl launch <name> -p <prompt>   # start session with a saved prompt or raw text
-```
-
----
-
-## Workspace format
-
-### workspace.json
+**workspace.json** — defines the repos and directories attached to the session:
 
 ```json
 {
@@ -136,23 +60,56 @@ wl launch <name> -p <prompt>   # start session with a saved prompt or raw text
     "D:\\repos\\frontend-app",
     "D:\\repos\\shared-lib",
     "D:\\specs\\api-docs"
-  ]
+  ],
+  "yolo": false
 }
 ```
 
-### instructions.md
+Set `"yolo": true` to skip Claude's permission prompts for the workspace (or pass `--yolo` on the command line).
 
-Plain markdown loaded as instructions into the session.
+**instructions.md** — system instructions loaded into every session. Architecture context, conventions, how the repos relate to each other.
 
-### prompts/{slug}.md
-
-Reusable task prompts:
+**prompts/{slug}.md** — reusable task prompts with frontmatter:
 
 ```markdown
 ---
 label: Review latest changes
 ---
 Review the latest changes and suggest improvements.
+```
+
+**.claude/skills/** — workspace-scoped skills (test runners, deploy helpers, review workflows).
+
+Use `wl which <name>` to preview the resolved configuration for any workspace.
+
+<details>
+<summary>What happens under the hood</summary>
+
+```
+claude --add-dir "D:\repos\frontend-app" \
+       --add-dir "D:\repos\shared-lib" \
+       --add-dir "D:\specs\api-docs" \
+       --add-dir "~/.ai-workspaces/fullstack-platform" \
+       --append-system-prompt-file "~/.ai-workspaces/fullstack-platform/instructions.md"
+```
+
+</details>
+
+---
+
+## Commands
+
+```
+wl launch [name]               # start a session (or last-used if no name)
+wl launch <name> -p <prompt>   # start with a saved prompt or raw text
+wl launch <name> --yolo        # skip Claude permission prompts
+wl create <name>               # scaffold a new workspace for the current folder
+
+wl list                        # list all workspaces
+wl which <name>                # preview resolved config, validate paths
+wl edit <name>                 # open workspace folder in file explorer
+
+wl setup                       # install /wl-create-workspace skill and optional tab completion
 ```
 
 ---
@@ -168,6 +125,8 @@ dotnet publish src/wl -c Release -r win-x64
 ```
 
 Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB, Native AOT), copy it to a directory in your PATH.
+
+> **`vswhere.exe` not recognized?** The Native AOT linker needs `vswhere.exe` on PATH. Run the publish command from a [Developer Command Prompt for Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell) or add `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to your PATH.
 
 ## Running tests
 

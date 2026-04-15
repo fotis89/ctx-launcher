@@ -148,16 +148,55 @@ complete -F _wl_completions wl
 """
 ---
 name: wl-create-workspace
-description: Create an AI workspace for the wl launcher tool
-allowed-tools: Bash(wl *) Write Read
+description: Create an AI workspace from the current session context for the wl launcher tool. Use this when the user wants to save their current project setup, reuse this context later, create a workspace, capture this session, or says anything about wl/workspace/launch configuration. Also trigger when the user has been working in a multi-repo or multi-folder setup and wants to persist it.
+allowed-tools: Bash(wl *) Write Read Glob Grep
 ---
 
-Create a new workspace for the `wl` AI context launcher. The user will tell you the workspace name, which repo it's for, and what related folders to include.
+Analyze the current session and propose a workspace for the `wl` AI context launcher. Be opinionated — propose your best guess, then let the user confirm or adjust. Do not ask open-ended questions.
 
-## Steps
+## Step 1: Gather context
 
-1. Create the workspace folder at `~/.ai-workspaces/<name>/`
-2. Write `workspace.json` with:
+Before proposing, silently gather:
+
+- **Primary repo**: the current working directory (check for `.git`)
+- **Additional dirs**: look for clues in the conversation — referenced paths, imports from other repos, external docs/specs mentioned, `--add-dir` flags used, OneDrive/shared folders discussed
+- **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
+- **Conventions**: coding style, architecture patterns, testing approach observed in the session
+- **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. These become skills.
+
+## Step 2: Propose
+
+Present a proposal with enough detail for the user to judge:
+
+```
+Proposed workspace: <slug>
+
+  Name:         <display name>
+  Primary repo: <path>
+  Additional:   <path1>, <path2> (or "none")
+  Yolo:         yes/no
+
+  Instructions will cover:
+    - <what the project is and how it's structured>
+    - <key conventions and architecture decisions>
+    - <debugging and workflow notes>
+
+  Skills to create:
+    - /<skill-1> — <what it does>
+    - /<skill-2> — <what it does>
+
+Does this look right? Any changes before I create it?
+```
+
+### Slug naming
+
+Pick a slug that identifies the project, not the task. Use lowercase with hyphens. Prefer short, recognizable names: `backend-api`, `fullstack-platform`, `data-pipeline`. If the user has been working across multiple repos, name it after the overall system, not one repo.
+
+## Step 3: Create the workspace
+
+After confirmation:
+
+1. Create `~/.ai-workspaces/<slug>/workspace.json`:
    ```json
    {
      "name": "<display name>",
@@ -166,24 +205,41 @@ Create a new workspace for the `wl` AI context launcher. The user will tell you 
      "yolo": false
    }
    ```
-   - `yolo`: When `true`, launches Claude with `--dangerously-skip-permissions` (no tool approval prompts). Ask the user if they want YOLO mode enabled.
-3. Write `instructions.md` with context about the project — what it does, what the related dirs contain, and guidelines for working with it. Ask the user what to include.
-4. Create empty `prompts/` and `.claude/skills/` directories
-5. Optionally create saved prompts in `prompts/<slug>.md` with frontmatter:
-   ```markdown
-   ---
-   label: <display label>
-   ---
-   <prompt text>
-   ```
-6. Optionally create skills in `.claude/skills/<name>/SKILL.md`
-7. Verify with `wl which <name>` to confirm everything is valid
+
+2. Write `instructions.md` — this is the most important file. It should contain:
+   - **System overview**: what the project is, what each repo/folder contains, how they relate
+   - **Architecture**: key patterns, folder structure, dependency direction
+   - **Conventions**: naming, formatting, testing expectations, commit style
+   - **Debugging**: where logs are, how to trace errors, common failure modes
+   - **Workflow**: how to build, test, deploy — the commands and the order
+
+   Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
+
+3. Create skills in `.claude/skills/<name>/SKILL.md` based on workflows you observed:
+   - Look for: test commands run, build steps, deployment, code review patterns, log analysis
+   - Each skill should be a concrete action, not a description. Include the actual commands, paths, and steps.
+   - Example triggers: `run-tests` (how to test this project), `deploy` (deployment steps), `review` (what to check in code review)
+   - Every skill needs `name`, `description`, and `allowed-tools` in frontmatter
+
+4. Create empty `prompts/` directory.
+
+5. Verify with `wl which <slug>`.
+
+## Skill format
+
+```markdown
+---
+name: <skill-name>
+description: <one line — what this skill does and when to use it>
+allowed-tools: <tools this skill needs>
+---
+
+<concrete instructions for Claude when this skill is invoked>
+```
 
 ## Output
-After creating, show the user:
-- The `wl which <name>` output
-- Remind them to edit `instructions.md` if they want to add more context
-- Tell them to run `wl launch <name>` to use it
+
+Show `wl which <slug>` output and tell the user to run `wl launch <slug>`.
 """;
 
         File.WriteAllText(skillFile, content);
