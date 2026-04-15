@@ -58,9 +58,15 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine($"  Permissions: yolo");
         }
 
+        if (ws.Resume)
+        {
+            Console.WriteLine($"  Resume: auto");
+        }
+
         Console.WriteLine();
         Console.WriteLine("  Command:");
-        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo)}");
+        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
+        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession)}");
         Console.WriteLine();
     }
 }

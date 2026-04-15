@@ -61,11 +61,13 @@ Workspaces live under `~/.wl-workspaces/`. The workspace folder itself is attach
     "D:\\repos\\shared-lib",
     "D:\\specs\\api-docs"
   ],
-  "yolo": false
+  "yolo": false,
+  "resume": false
 }
 ```
 
 Set `"yolo": true` to skip Claude's permission prompts for the workspace (or pass `--yolo` on the command line).
+Set `"resume": true` to always resume the previous session instead of starting fresh (or pass `--resume` on the command line).
 
 **instructions.md** — system instructions loaded into every session. Architecture context, conventions, how the repos relate to each other.
 
@@ -101,6 +103,7 @@ claude --add-dir "D:\repos\frontend-app" \
 
 ```
 wl launch [name]               # start a session (or last-used if no name)
+wl launch <name> --resume      # resume the previous session for this workspace
 wl launch <name> -p <prompt>   # start with a saved prompt or raw text
 wl launch <name> --yolo        # skip Claude permission prompts
 wl create <name>               # scaffold a new workspace for the current folder
