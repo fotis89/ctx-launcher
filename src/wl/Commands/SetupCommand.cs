@@ -158,6 +158,7 @@ Before proposing, silently gather:
 - **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
 - **Conventions**: coding style, architecture patterns, testing approach observed in the session
 - **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. These become skills.
+- **Existing docs**: check for `CLAUDE.md` files in the primary repo and additional dirs. These are already loaded by Claude Code automatically — workspace instructions must not duplicate them.
 
 ## Step 2: Propose
 
@@ -207,6 +208,8 @@ After confirmation:
    - **Conventions**: naming, formatting, testing expectations, commit style
    - **Debugging**: where logs are, how to trace errors, common failure modes
    - **Workflow**: how to build, test, deploy — the commands and the order
+
+   **Do not duplicate content from repo-level `CLAUDE.md` files.** Claude Code loads those automatically when working in a repo. Workspace instructions should only contain what `CLAUDE.md` doesn't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos. If a repo's `CLAUDE.md` already documents architecture, build commands, and conventions, don't repeat them — reference the repo by name and focus on the bigger picture.
 
    Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
 
