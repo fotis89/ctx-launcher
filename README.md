@@ -116,23 +116,26 @@ wl setup                       # install /wl-create-workspace skill and optional
 
 ## Build from source
 
-Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) and MSVC build tools (Visual Studio C++ workload).
+Requires [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 git clone https://github.com/fotis89/ctx-launcher.git
 cd ctx-launcher
+dotnet build        # build
+dotnet test         # run tests
+```
+
+### Publishing a native binary
+
+Publishing a self-contained native binary (AOT) additionally requires MSVC build tools. You can get these from [Visual Studio](https://visualstudio.microsoft.com/) (C++ workload) or the standalone [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022).
+
+```bash
 dotnet publish src/wl -c Release -r win-x64
 ```
 
-Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB, Native AOT), copy it to a directory in your PATH.
+Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB), copy it to a directory in your PATH.
 
-> **`vswhere.exe` not recognized?** The Native AOT linker needs `vswhere.exe` on PATH. Run the publish command from a [Developer Command Prompt for Visual Studio](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell) or add `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to your PATH.
-
-## Running tests
-
-```bash
-dotnet test
-```
+> **`vswhere.exe` not recognized?** Run from a [Developer Command Prompt](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell) or add `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to your PATH.
 
 ## Status
 
