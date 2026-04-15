@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher)
 {
-    public void Execute(string? name, string? promptArg, bool yolo = false)
+    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false)
     {
         if (name is null)
         {
@@ -40,7 +40,26 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         var skipPermissions = yolo || ws.Yolo;
-        var (args, skippedDirs) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions);
+        var shouldResume = resume || ws.Resume;
+
+        string? resumeSessionId = null;
+        if (shouldResume)
+        {
+            resumeSessionId = LaunchService.LoadLastSession(ws);
+            if (resumeSessionId is null)
+            {
+                if (resume)
+                {
+                    Console.Error.WriteLine("No previous session found for this workspace.");
+                    Console.Error.WriteLine("Run without --resume to start a new session.");
+                    return;
+                }
+
+                shouldResume = false;
+            }
+        }
+
+        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId);
 
         foreach (var dir in skippedDirs)
         {
@@ -77,14 +96,32 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             Console.WriteLine($"  Prompt: {(resolvedPrompt.Length > 60 ? resolvedPrompt[..57] + "..." : resolvedPrompt)}");
         }
 
-        Console.WriteLine();
-
-        if (skipPermissions)
+        if (shouldResume || skipPermissions || (ws.Resume && resumeSessionId is null))
         {
-            Console.WriteLine("  Permissions: skipped (yolo)");
+            Console.WriteLine();
+            if (skipPermissions)
+            {
+                Console.WriteLine("  Bypassing permissions");
+            }
+
+            if (shouldResume)
+            {
+                Console.WriteLine(ws.Resume ? "  Resuming session (auto)" : "  Resuming session");
+            }
+            else if (ws.Resume)
+            {
+                Console.WriteLine("  New session (no previous session to resume)");
+            }
         }
 
+        Console.WriteLine();
         workspaces.SetLastUsed(name);
+
+        if (newSessionId is not null)
+        {
+            LaunchService.SaveLastSession(ws, newSessionId);
+        }
+
         launcher.Launch(ws, args);
     }
 }

@@ -171,6 +171,7 @@ Proposed workspace: <slug>
   Primary repo: <path>
   Additional:   <path1>, <path2> (or "none")
   Yolo:         yes/no
+  Resume:       yes/no
 
   Instructions will cover:
     - <what the project is and how it's structured>
@@ -198,7 +199,8 @@ After confirmation:
      "name": "<display name>",
      "primaryRepo": "<repo path>",
      "additionalDirs": ["<dir1>", "<dir2>"],
-     "yolo": false
+     "yolo": false,
+     "resume": false
    }
    ```
 

@@ -34,13 +34,15 @@ promptOpt.CompletionSources.Add(ctx =>
     return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
 });
 var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Claude permission prompts" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt };
+var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
     var prompt = parseResult.GetValue(promptOpt);
     var yolo = parseResult.GetValue(yoloOpt);
-    new LaunchCommand(workspaceService, promptService, launchService).Execute(name, prompt, yolo);
+    var resume = parseResult.GetValue(resumeOpt);
+    new LaunchCommand(workspaceService, promptService, launchService).Execute(name, prompt, yolo, resume);
 });
 
 // create

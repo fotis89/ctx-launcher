@@ -8,6 +8,7 @@ public class Workspace
     public string PrimaryRepo { get; set; } = "";
     public List<string> AdditionalDirs { get; set; } = [];
     public bool Yolo { get; set; }
+    public bool Resume { get; set; }
 
     [JsonIgnore] public string FolderName => Path.GetFileName(FolderPath);
     [JsonIgnore] public string FolderPath { get; set; } = "";
