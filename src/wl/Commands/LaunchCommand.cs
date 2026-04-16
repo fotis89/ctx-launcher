@@ -41,6 +41,12 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
 
+        if (forceNew && resume)
+        {
+            Console.Error.WriteLine("Cannot use --new and --resume together.");
+            return;
+        }
+
         var skipPermissions = yolo || ws.Yolo;
         var shouldResume = !forceNew && (resume || ws.Resume);
 
