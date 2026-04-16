@@ -111,7 +111,12 @@ public class LaunchService
         }
         catch (System.ComponentModel.Win32Exception)
         {
-            Console.Error.WriteLine("Error: 'claude' not found in PATH. Is Claude Code installed?");
+            Console.Error.WriteLine("Error: 'claude' not found.");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("  Troubleshooting:");
+            Console.Error.WriteLine("  1. Open a new terminal and run: claude --version");
+            Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
+            Console.Error.WriteLine("  3. If not, install Claude Code and ensure 'claude' is in your PATH");
         }
     }
 }
