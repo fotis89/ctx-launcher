@@ -46,27 +46,22 @@ wl launch feature-work --resume
 
 ![demo](docs/demo.gif)
 
-### Example: debugging a production issue
-
-You're working on a feature, then a production bug comes in. Instead of losing context:
-
-```bash
-wl launch incident-response
-```
-
-Claude sees your logs, debugging notes, relevant repos, and incident-specific instructions. Fix the issue, then switch back:
-
-```bash
-wl launch feature-work --resume
-```
-
-Everything is exactly where you left it.
-
 ---
 
 ## Install
 
+```bash
+npm install -g ctx-launcher
+```
+
+Windows only for now. Requires [Node.js](https://nodejs.org).
+
+<details>
+<summary>Manual install</summary>
+
 Download `wl.exe` from the [latest release](https://github.com/fotis89/ctx-launcher/releases/latest) and add it to your PATH.
+
+</details>
 
 ---
 
