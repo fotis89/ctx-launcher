@@ -1,17 +1,17 @@
 # ctx-launcher - workspace manager for Claude Code sessions
 
-> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — context + history.
+[![npm](https://img.shields.io/npm/v/ctx-launcher)](https://npmjs.com/package/ctx-launcher)
 
-Claude keeps context, but it doesn't isolate workspaces.
+> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — per workstream.
+
+Claude keeps context, but it doesn't isolate workstreams.
 
 ctx-launcher (`wl`) gives each workspace an isolated, resumable environment:
 
 - Separate instructions, skills, and session per workspace
 - Combine multiple repos into one session
-- Resume any workspace by name — restores the exact session
+- Resume any workspace by name — restores the exact previous session
 - Custom instructions and skills without committing them to your repos
-
-Like `docker-compose` for AI coding sessions — reusable, isolated environments for Claude.
 
 ## Works with Claude
 
@@ -50,18 +50,18 @@ wl launch feature-work --resume
 
 ## Install
 
+### Recommended (npm)
+
 ```bash
 npm install -g ctx-launcher
+wl setup
 ```
 
-Windows only for now. Requires [Node.js](https://nodejs.org).
+Windows only for now. Requires [Node.js](https://nodejs.org). `wl setup` installs the Claude skills.
 
-<details>
-<summary>Manual install</summary>
+### Standalone binary (no Node.js)
 
-Download `wl.exe` from the [latest release](https://github.com/fotis89/ctx-launcher/releases/latest) and add it to your PATH.
-
-</details>
+Download `wl.exe` from the [latest GitHub release](https://github.com/fotis89/ctx-launcher/releases/latest) and add it to your PATH. Windows only for now.
 
 ---
 
@@ -87,7 +87,7 @@ wl launch [name]           # start a session (or last-used if no name)
   --yolo                   # skip Claude permission prompts
   -p <slug>                # start with a saved prompt
 
-wl create [name]           # create a workspace via Claude (name optional)
+wl create [name]           # create a workspace via Claude (/wl-create-workspace)
 wl list                    # list all workspaces
 wl which <name>            # preview resolved config, validate paths
 wl edit <name>             # open workspace folder in file explorer
