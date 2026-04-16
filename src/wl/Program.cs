@@ -36,14 +36,16 @@ promptOpt.CompletionSources.Add(ctx =>
 });
 var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Claude permission prompts" };
 var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt };
+var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session (overrides resume: true)" };
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
     var prompt = parseResult.GetValue(promptOpt);
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, versionService).Execute(name, prompt, yolo, resume);
+    var forceNew = parseResult.GetValue(newOpt);
+    new LaunchCommand(workspaceService, promptService, launchService, versionService).Execute(name, prompt, yolo, resume, forceNew);
 });
 
 // create
@@ -77,7 +79,7 @@ whichCmd.SetAction(parseResult =>
 });
 
 // setup
-var setupCmd = new Command("setup", "Install tab completion for your shell");
+var setupCmd = new Command("setup", "Install Claude skills and show tab completion setup");
 setupCmd.SetAction(_ => new SetupCommand(workspaceService, versionService).Execute());
 
 root.Add(launchCmd);

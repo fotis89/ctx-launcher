@@ -1,27 +1,28 @@
 # ctx-launcher
 
-> Stop re-explaining your project every time you start an AI session.
+> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — per task.
 
-Without it, every session starts the same way: re-attach directories, re-explain context, hope you don't mix tasks.
+ctx-launcher is a CLI tool (`wl`) for Claude Code. It lets you:
 
-With it:
-- one command per workspace
-- isolated context per task
-- instant resume
+- Add custom instructions and skills on top of your repos — without committing anything
+- Combine multiple repos into one session
+- Resume any task by name — no session IDs to remember
 
-A workspace is a named AI context: repos + instructions + notes + session state.
-
-Like `docker-compose` for AI coding sessions — define your workspace once, launch a fully configured session anywhere. Each workspace is isolated — switching workspaces is like switching to a different AI "brain".
+Like `docker-compose` for AI coding sessions. Define once, launch anywhere.
 
 ```bash
-# Feature work
-wl launch feature-auth
+# Create workspaces (you pick the name)
+wl create feature-work
+wl create incident-response
 
-# Debugging session
-wl launch bug-login-race
+# Launch a workspace — starts a configured Claude Code session
+wl launch feature-work
 
-# Switch back instantly (resume previous session)
-wl launch feature-auth --resume
+# Switch to a different workspace
+wl launch incident-response
+
+# Resume where you left off
+wl launch feature-work --resume
 ```
 
 ![demo](docs/demo.gif)
@@ -30,21 +31,10 @@ wl launch feature-auth --resume
 
 ## Claude integration
 
-After running `wl setup`, Claude can create and update workspaces from inside any session:
+After installing, run the `wl setup` command once to enable tab completion and two Claude skills:
 
-> "This is getting complex — create a workspace for this"
-
-Claude will automatically scaffold a workspace from the current session, so the context, notes, and session state are preserved instead of staying inside a single chat.
-
----
-
-## What it solves
-
-**Separation** — Different tasks get different contexts. Same repos, different instructions, skills, and notes. Nothing gets committed to your repositories.
-
-**Persistence** — Each workspace tracks its own session independently. Come back tomorrow, switch to a different task, switch back — the context is still there.
-
-**Evolution** — `/wl-update-workspace` uses the current session's lessons learned to update your instructions, skills, and folders — so improvements carry forward into future sessions.
+- **`/wl-create-workspace`** — ask Claude to create a workspace from your current session. It reads your repos, detects the project type, checks existing CLAUDE.md files, and proposes a workspace with instructions that don't duplicate what's already documented and skills based on workflows it observed.
+- **`/wl-update-workspace`** — ask Claude to check if your workspace still matches reality. It diffs instructions against the repo's current state, verifies skill commands still work, flags outdated paths, and proposes changes for you to review before applying.
 
 ---
 
@@ -56,75 +46,33 @@ Download `wl.exe` from the [latest release](https://github.com/fotis89/ctx-launc
 
 ## Quick start
 
+### Option A: Let Claude create your workspace
+
+1. Install `wl` and run `wl setup` to install the Claude skills
+2. Open Claude Code in your project and ask: `/wl-create-workspace`
+3. Claude analyzes the repo, proposes instructions and skills, and creates everything
+4. From now on: `wl launch my-project`
+5. As your project evolves, run `/wl-update-workspace` inside a session to keep instructions and skills in sync
+
+### Option B: Create manually
+
 ```bash
 cd your-repo
-wl create my-project
-# Edit ~/.wl-workspaces/my-project/instructions.md
+wl create my-project          # scaffolds ~/.wl-workspaces/my-project/
+```
+
+Edit `instructions.md` and add skills, then launch:
+
+```bash
 wl launch my-project
 ```
-
-## How it works
-
-Workspaces live under `~/.wl-workspaces/`. The workspace folder itself is attached to every session as a working directory — Claude can read and write files there.
-
-```
-~/.wl-workspaces/fullstack-platform/
-├── workspace.json           # repos, folders, settings
-├── instructions.md          # system instructions for the session
-├── .claude/skills/          # skills, not committed to your repo
-└── ...                      # notes, specs, scratch — anything you need
-```
-
-**workspace.json** — repos, directories, and settings (`yolo`, `resume`).
-
-**instructions.md** — system instructions loaded into every session. Architecture context, conventions, how the repos relate to each other.
-
-**skills/** — workspace-scoped skills.
-
-Use `wl which <name>` to preview the resolved configuration for any workspace.
-
-<details>
-<summary>workspace.json example</summary>
-
-```json
-{
-  "name": "Fullstack Platform",
-  "primaryRepo": "~/repos/backend-api",
-  "additionalDirs": [
-    "~/repos/frontend-app",
-    "~/repos/shared-lib",
-    "~/specs/api-docs"
-  ],
-  "yolo": false,
-  "resume": false
-}
-```
-
-Set `"yolo": true` to skip Claude's permission prompts (or pass `--yolo`).
-Set `"resume": true` to always resume the previous session (or pass `--resume`).
-
-</details>
-
-<details>
-<summary>What happens under the hood</summary>
-
-```
-claude --add-dir "~/repos/frontend-app" \
-       --add-dir "~/repos/shared-lib" \
-       --add-dir "~/specs/api-docs" \
-       --add-dir "~/.wl-workspaces/fullstack-platform" \
-       --append-system-prompt-file "~/.wl-workspaces/fullstack-platform/instructions.md"
-```
-
-</details>
-
----
 
 ## Commands
 
 ```
 wl launch [name]           # start a session (or last-used if no name)
-  --resume, -r             # resume the previous session
+  --resume, -r             # resume the previous session (automatic if resume: true)
+  --new, -n                # start fresh (overrides resume: true)
   --yolo                   # skip Claude permission prompts
 
 wl create <name>           # scaffold a new workspace for the current folder
@@ -132,8 +80,47 @@ wl list                    # list all workspaces
 wl which <name>            # preview resolved config, validate paths
 wl edit <name>             # open workspace folder in file explorer
 
-wl setup                   # install tab completion and /wl-create-workspace skill
+wl setup                   # install tab completion and Claude skills
 ```
+
+---
+
+## How it works
+
+Workspaces live under `~/.wl-workspaces/`, outside your repos. When you run `wl launch`, it starts Claude Code with your repos attached and the workspace folder as an additional working directory — Claude can read and write files there.
+
+```
+~/.wl-workspaces/my-project/
+├── workspace.json
+├── instructions.md
+└── .claude/skills/
+```
+
+**workspace.json** — the workspace definition. This is the only required file. It tells `wl` which repos to attach, which folders Claude can see, and how the session behaves.
+
+```json
+{
+  "name": "My Project",
+  "primaryRepo": "~/repos/backend-api",
+  "additionalDirs": [
+    "~/repos/frontend-app",
+    "~/repos/shared-lib"
+  ],
+  "yolo": false,
+  "resume": true
+}
+```
+
+- `primaryRepo` — Claude's working directory. This is where `git` commands run.
+- `additionalDirs` — extra folders Claude can see (other repos, docs, specs).
+- `yolo` — skip Claude's permission prompts (`--yolo`).
+- `resume` — automatically resume the last session instead of starting fresh (`--resume`).
+
+**instructions.md** — loaded as system instructions every session. Put context that CLAUDE.md doesn't cover — how repos relate, workspace-specific workflows, cross-repo conventions. Don't duplicate what's already in your repos' CLAUDE.md files.
+
+**.claude/skills/** — workspace-scoped slash commands. Work exactly like repo-level skills but live outside the repo. Useful for personal workflows, deploy scripts, review checklists — anything you don't want to commit.
+
+Use `wl which <name>` to preview the full resolved configuration.
 
 ---
 
@@ -150,19 +137,23 @@ dotnet test         # run tests
 
 ### Publishing a native binary
 
-Publishing a self-contained native binary (AOT) additionally requires MSVC build tools. You can get these from [Visual Studio](https://visualstudio.microsoft.com/) (C++ workload) or the standalone [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022).
+**Linux/macOS** — requires `clang` or `gcc`:
+
+```bash
+dotnet publish src/wl -c Release -r linux-x64    # or osx-x64 / osx-arm64
+```
+
+**Windows** — requires MSVC build tools ([Visual Studio](https://visualstudio.microsoft.com/) C++ workload or standalone [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)):
 
 ```bash
 dotnet publish src/wl -c Release -r win-x64
 ```
 
-Output: `src/wl/bin/Release/net10.0/win-x64/publish/wl.exe` (~4 MB), copy it to a directory in your PATH.
-
-> **`vswhere.exe` not recognized?** Run from a [Developer Command Prompt](https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell) or add `C:\Program Files (x86)\Microsoft Visual Studio\Installer` to your PATH.
+Output: ~4 MB native binary. Copy it to a directory in your PATH.
 
 ## Status
 
-v0.3.0 — [latest release](https://github.com/fotis89/ctx-launcher/releases/latest)
+v0.4.0 — [latest release](https://github.com/fotis89/ctx-launcher/releases/latest)
 
 ## License
 

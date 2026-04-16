@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, VersionService versionService)
 {
-    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false)
+    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
     {
         if (name is null)
         {
@@ -42,7 +42,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
 
         var skipPermissions = yolo || ws.Yolo;
-        var shouldResume = resume || ws.Resume;
+        var shouldResume = !forceNew && (resume || ws.Resume);
 
         string? resumeSessionId = null;
         if (shouldResume)
@@ -111,6 +111,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             if (shouldResume)
             {
                 Console.WriteLine(ws.Resume ? "  Resuming session (auto)" : "  Resuming session");
+                Console.WriteLine("  If session not found, run: wl launch --new");
             }
             else if (ws.Resume)
             {
