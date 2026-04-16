@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher)
+public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, VersionService versionService)
 {
     public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false)
     {
@@ -39,6 +39,8 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             resolvedPrompt = prompts.ResolvePrompt(ws, promptArg);
         }
 
+        var sharedDirResolved = workspaces.GetSharedDirIfExists();
+
         var skipPermissions = yolo || ws.Yolo;
         var shouldResume = resume || ws.Resume;
 
@@ -59,7 +61,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
         }
 
-        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId);
+        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved);
 
         foreach (var dir in skippedDirs)
         {
@@ -69,9 +71,11 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         var instructionLines = File.Exists(ws.InstructionsPath)
             ? File.ReadLines(ws.InstructionsPath).Count() : 0;
 
-        var skillNames = Directory.Exists(ws.SkillsPath)
-            ? Directory.GetDirectories(ws.SkillsPath).Select(Path.GetFileName).ToList()
-            : [];
+        var skillNames = WorkspaceService.ListSkillNames(ws.SkillsPath);
+        if (sharedDirResolved is not null)
+        {
+            skillNames.AddRange(WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath()));
+        }
 
         Console.WriteLine();
         Console.WriteLine($"  Launching: {ws.Name}");
@@ -112,6 +116,17 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             {
                 Console.WriteLine("  New session (no previous session to resume)");
             }
+        }
+
+        var installedVersion = versionService.GetInstalledVersion();
+        var currentVersion = versionService.GetCurrentVersion();
+        if (installedVersion is null)
+        {
+            Console.Error.WriteLine("  Hint: run 'wl setup' to install wl skills.");
+        }
+        else if (installedVersion != currentVersion)
+        {
+            Console.Error.WriteLine($"  Hint: run 'wl setup' to update skills ({installedVersion} → {currentVersion}).");
         }
 
         Console.WriteLine();

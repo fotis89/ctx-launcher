@@ -7,6 +7,7 @@ using wl.Services;
 var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
 var launchService = new LaunchService();
+var versionService = new VersionService(workspaceService);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
@@ -42,7 +43,7 @@ launchCmd.SetAction(parseResult =>
     var prompt = parseResult.GetValue(promptOpt);
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
-    new LaunchCommand(workspaceService, promptService, launchService).Execute(name, prompt, yolo, resume);
+    new LaunchCommand(workspaceService, promptService, launchService, versionService).Execute(name, prompt, yolo, resume);
 });
 
 // create
@@ -77,7 +78,7 @@ whichCmd.SetAction(parseResult =>
 
 // setup
 var setupCmd = new Command("setup", "Install tab completion for your shell");
-setupCmd.SetAction(_ => new SetupCommand().Execute());
+setupCmd.SetAction(_ => new SetupCommand(workspaceService, versionService).Execute());
 
 root.Add(launchCmd);
 root.Add(createCmd);
