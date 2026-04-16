@@ -6,7 +6,8 @@ using wl.Services;
 
 var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
-var launchService = new LaunchService();
+var claudeRunner = new ClaudeRunner();
+var launchService = new LaunchService(claudeRunner);
 var versionService = new VersionService(workspaceService);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
@@ -49,11 +50,11 @@ launchCmd.SetAction(parseResult =>
 });
 
 // create
-var createNameArg = new Argument<string>("name") { Description = "Workspace slug" };
-var createCmd = new Command("create", "Create a new workspace") { createNameArg };
+var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude will propose one)" };
+var createCmd = new Command("create", "Create a new workspace via Claude") { createNameArg };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService).Execute(parseResult.GetValue(createNameArg)!);
+    new CreateCommand(workspaceService, claudeRunner).Execute(parseResult.GetValue(createNameArg));
 });
 
 // list

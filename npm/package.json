@@ -1,6 +1,6 @@
 {
   "name": "ctx-launcher",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Workspace manager for Claude Code sessions",
   "bin": {
     "wl": "./bin/wl.exe"

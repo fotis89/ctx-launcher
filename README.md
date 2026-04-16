@@ -67,26 +67,16 @@ Download `wl.exe` from the [latest release](https://github.com/fotis89/ctx-launc
 
 ## Quick start
 
-### Option A: Let Claude create your workspace
-
 1. Install `wl` and run `wl setup` to install the Claude skills
-2. Open Claude Code in your project and ask: `/wl-create-workspace`
-3. Claude analyzes the repo, proposes instructions and skills, and creates everything
+2. In your project, run:
+   ```bash
+   wl create              # let Claude propose a name
+   # or
+   wl create my-project   # provide your own
+   ```
+3. Claude analyzes the repo, proposes instructions and skills, and creates the workspace
 4. From now on: `wl launch my-project`
 5. As your project evolves, run `/wl-update-workspace` inside a session to keep instructions and skills in sync
-
-### Option B: Create manually
-
-```bash
-cd your-repo
-wl create my-project          # scaffolds ~/.wl-workspaces/my-project/
-```
-
-Edit `instructions.md` and add skills, then launch:
-
-```bash
-wl launch my-project
-```
 
 ## Commands
 
@@ -97,7 +87,7 @@ wl launch [name]           # start a session (or last-used if no name)
   --yolo                   # skip Claude permission prompts
   -p <slug>                # start with a saved prompt
 
-wl create <name>           # scaffold a new workspace for the current folder
+wl create [name]           # create a workspace via Claude (name optional)
 wl list                    # list all workspaces
 wl which <name>            # preview resolved config, validate paths
 wl edit <name>             # open workspace folder in file explorer
