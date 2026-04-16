@@ -1,0 +1,21 @@
+{
+  "name": "ctx-launcher",
+  "version": "0.4.0",
+  "description": "Workspace manager for Claude Code sessions",
+  "bin": {
+    "wl": "./bin/wl.exe"
+  },
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["bin/"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fotis89/ctx-launcher.git"
+  },
+  "keywords": ["claude", "claude-code", "cli", "workspace", "ai"],
+  "license": "MIT",
+  "homepage": "https://github.com/fotis89/ctx-launcher#readme",
+  "bugs": {
+    "url": "https://github.com/fotis89/ctx-launcher/issues"
+  }
+}
