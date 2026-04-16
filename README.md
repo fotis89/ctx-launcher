@@ -1,10 +1,14 @@
 # ctx-launcher - workspace manager for Claude Code sessions
 
 [![npm](https://img.shields.io/npm/v/ctx-launcher)](https://npmjs.com/package/ctx-launcher)
+[![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — per workstream.
+> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — context and history per workstream.
 
 Claude keeps context, but it doesn't isolate workstreams.
+
+A workspace is a named, persistent Claude environment that combines repositories, custom instructions, skills, and session state so you can stop and resume work exactly where you left off.
 
 ctx-launcher (`wl`) gives each workspace an isolated, resumable environment:
 
@@ -50,32 +54,38 @@ wl launch feature-work --resume
 
 ## Install
 
-### Recommended (npm)
-
 ```bash
 npm install -g ctx-launcher
 wl setup
 ```
 
-Windows only for now. Requires [Node.js](https://nodejs.org). `wl setup` installs the Claude skills.
+Windows only for now. Requires [Node.js](https://nodejs.org).
 
-### Standalone binary (no Node.js)
-
-Download `wl.exe` from the [latest GitHub release](https://github.com/fotis89/ctx-launcher/releases/latest) and add it to your PATH. Windows only for now.
+`wl setup` is required — it installs the two Claude skills described above. Without it, `wl create` has no way to scaffold a workspace.
 
 ---
 
 ## Quick start
 
-1. Install `wl` and run `wl setup` to install the Claude skills
-2. In your project, run:
+1. Install:
+   ```bash
+   npm install -g ctx-launcher
+   ```
+2. Install the Claude skills:
+   ```bash
+   wl setup
+   ```
+3. In your project, create a workspace:
    ```bash
    wl create              # let Claude propose a name
    # or
    wl create my-project   # provide your own
    ```
-3. Claude analyzes the repo, proposes instructions and skills, and creates the workspace
-4. From now on: `wl launch my-project`
+   Claude opens interactively, analyzes your repo, proposes a workspace, and waits for your confirmation before creating it.
+4. Launch:
+   ```bash
+   wl launch my-project
+   ```
 5. As your project evolves, run `/wl-update-workspace` inside a session to keep instructions and skills in sync
 
 ## Commands
