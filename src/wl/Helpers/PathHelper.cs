@@ -31,6 +31,64 @@ public static partial class PathHelper
         return (Directory.Exists(resolved) || File.Exists(resolved), resolved);
     }
 
+    public static string? FindOnPath(string fileName, string? pathEnv = null)
+    {
+        pathEnv ??= Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(pathEnv))
+        {
+            return null;
+        }
+
+        foreach (var entry in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var dir = entry.Trim('"');
+            if (dir.Length == 0)
+            {
+                continue;
+            }
+
+            var candidate = Path.Combine(dir, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    public static string? FindCommandOnPath(string commandName, string? pathEnv = null, string? pathExtEnv = null)
+    {
+        if (!OperatingSystem.IsWindows() || Path.HasExtension(commandName))
+        {
+            return FindOnPath(commandName, pathEnv);
+        }
+
+        pathExtEnv ??= Environment.GetEnvironmentVariable("PATHEXT");
+        if (string.IsNullOrWhiteSpace(pathExtEnv))
+        {
+            pathExtEnv = ".COM;.EXE;.BAT;.CMD";
+        }
+
+        var seenExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var extension in pathExtEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var normalized = extension.StartsWith('.') ? extension : "." + extension;
+            if (!seenExtensions.Add(normalized))
+            {
+                continue;
+            }
+
+            var match = FindOnPath(commandName + normalized, pathEnv);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return FindOnPath(commandName, pathEnv);
+    }
+
     public static string Slugify(string name)
     {
         var slug = name.ToLowerInvariant();

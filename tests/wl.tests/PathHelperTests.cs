@@ -66,6 +66,121 @@ public class PathHelperTests
     }
 
     [Fact]
+    public void FindOnPath_WhenFileExists_ReturnsFullPath()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var filePath = Path.Combine(tempDir, "claude.cmd");
+            File.WriteAllText(filePath, "@echo off");
+
+            var result = PathHelper.FindOnPath("claude.cmd", tempDir);
+
+            Assert.Equal(filePath, result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void FindOnPath_WithQuotedEntry_ReturnsFullPath()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl test path " + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var filePath = Path.Combine(tempDir, "claude.cmd");
+            File.WriteAllText(filePath, "@echo off");
+
+            var result = PathHelper.FindOnPath("claude.cmd", $"\"{tempDir}\"");
+
+            Assert.Equal(filePath, result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void FindOnPath_WhenFileMissing_ReturnsNull()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var result = PathHelper.FindOnPath("claude.cmd", tempDir);
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void FindCommandOnPath_HonorsPathextOrder()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var comPath = Path.Combine(tempDir, "claude.com");
+            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            File.WriteAllText(comPath, "");
+            File.WriteAllText(cmdPath, "@echo off");
+
+            var result = PathHelper.FindCommandOnPath("claude", tempDir, ".CMD;.COM");
+
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.NotNull(result);
+                Assert.Equal(cmdPath, result, ignoreCase: true, ignoreLineEndingDifferences: false, ignoreWhiteSpaceDifferences: false);
+            }
+            else
+            {
+                Assert.Null(result);
+            }
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void FindCommandOnPath_NormalizesPathextEntriesWithoutDots()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            File.WriteAllText(cmdPath, "@echo off");
+
+            var result = PathHelper.FindCommandOnPath("claude", tempDir, "CMD");
+
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.NotNull(result);
+                Assert.Equal(cmdPath, result, ignoreCase: true, ignoreLineEndingDifferences: false, ignoreWhiteSpaceDifferences: false);
+            }
+            else
+            {
+                Assert.Null(result);
+            }
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void Slugify_SimpleString_Lowercases()
     {
         Assert.Equal("my-api", PathHelper.Slugify("My-API"));

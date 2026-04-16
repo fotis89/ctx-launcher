@@ -1,14 +1,27 @@
 using System.Diagnostics;
 
+using wl.Helpers;
+
 namespace wl.Services;
 
 public class ClaudeRunner
 {
+    public static string ResolveExecutable(string? pathEnv = null, string? pathExtEnv = null)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return "claude";
+        }
+
+        return PathHelper.FindCommandOnPath("claude", pathEnv, pathExtEnv)
+            ?? "claude";
+    }
+
     public virtual void Run(string workingDirectory, IEnumerable<string> args)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = "claude",
+            FileName = ResolveExecutable(),
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
         };
@@ -29,7 +42,7 @@ public class ClaudeRunner
             Console.Error.WriteLine("  Troubleshooting:");
             Console.Error.WriteLine("  1. Open a new terminal and run: claude --version");
             Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
-            Console.Error.WriteLine("  3. If not, install Claude Code and ensure 'claude' is in your PATH");
+            Console.Error.WriteLine("  3. If not, install Claude Code and ensure its CLI is in your PATH");
         }
     }
 }
