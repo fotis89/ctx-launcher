@@ -1,14 +1,33 @@
-# ctx-launcher
+# ctx-launcher - workspace manager for Claude Code sessions
 
-> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — per task.
+> CLAUDE.md gives you context per repo. Sessions give you history. Workspaces give you both — context + history.
 
-ctx-launcher is a CLI tool (`wl`) for Claude Code. It lets you:
+Claude keeps context, but it doesn't isolate workspaces.
 
-- Add custom instructions and skills on top of your repos — without committing anything
+ctx-launcher (`wl`) gives each workspace an isolated, resumable environment:
+
+- Separate instructions, skills, and session per workspace
 - Combine multiple repos into one session
-- Resume any task by name — no session IDs to remember
+- Resume any workspace by name — restores the exact session
+- Custom instructions and skills without committing them to your repos
 
-Like `docker-compose` for AI coding sessions. Define once, launch anywhere.
+Like `docker-compose` for AI coding sessions — reusable, isolated environments for Claude.
+
+## Works with Claude
+
+After running `wl setup`, you can ask Claude:
+
+> "This is getting complex — create a workspace for this"
+
+Claude will:
+- detect your repos and project structure
+- generate instructions (without duplicating CLAUDE.md)
+- suggest skills based on your workflow
+- create the workspace automatically
+
+Workspaces evolve over time — run `/wl-update-workspace` and Claude diffs your workspace against the repo state, flags outdated instructions and skills, and proposes updates for review.
+
+---
 
 ```bash
 # Create workspaces (you pick the name)
@@ -27,14 +46,21 @@ wl launch feature-work --resume
 
 ![demo](docs/demo.gif)
 
----
+### Example: debugging a production issue
 
-## Claude integration
+You're working on a feature, then a production bug comes in. Instead of losing context:
 
-After installing, run the `wl setup` command once to enable tab completion and two Claude skills:
+```bash
+wl launch incident-response
+```
 
-- **`/wl-create-workspace`** — ask Claude to create a workspace from your current session. It reads your repos, detects the project type, checks existing CLAUDE.md files, and proposes a workspace with instructions that don't duplicate what's already documented and skills based on workflows it observed.
-- **`/wl-update-workspace`** — ask Claude to check if your workspace still matches reality. It diffs instructions against the repo's current state, verifies skill commands still work, flags outdated paths, and proposes changes for you to review before applying.
+Claude sees your logs, debugging notes, relevant repos, and incident-specific instructions. Fix the issue, then switch back:
+
+```bash
+wl launch feature-work --resume
+```
+
+Everything is exactly where you left it.
 
 ---
 
@@ -71,9 +97,10 @@ wl launch my-project
 
 ```
 wl launch [name]           # start a session (or last-used if no name)
-  --resume, -r             # resume the previous session (automatic if resume: true)
+  --resume, -r             # resume previous session (automatic when resume: true in config)
   --new, -n                # start fresh (overrides resume: true)
   --yolo                   # skip Claude permission prompts
+  -p <slug>                # start with a saved prompt
 
 wl create <name>           # scaffold a new workspace for the current folder
 wl list                    # list all workspaces
