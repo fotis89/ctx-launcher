@@ -26,6 +26,17 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine($"  Dir:       {dir} ({(ok ? "ok" : "NOT FOUND")})");
         }
 
+        var sharedDir = workspaces.GetSharedDirIfExists();
+        Console.WriteLine($"  Shared:    {workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
+
+        var sharedSkills = sharedDir is not null
+            ? WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath())
+            : [];
+        if (sharedSkills.Count > 0)
+        {
+            Console.WriteLine($"  wl skills: {string.Join(", ", sharedSkills.Select(s => "/" + s))}");
+        }
+
         if (File.Exists(ws.InstructionsPath))
         {
             var lines = File.ReadLines(ws.InstructionsPath).Count();
@@ -36,15 +47,10 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine("  Instructions: (none)");
         }
 
-        if (Directory.Exists(ws.SkillsPath))
+        var skills = WorkspaceService.ListSkillNames(ws.SkillsPath);
+        if (skills.Count > 0)
         {
-            var skills = Directory.GetDirectories(ws.SkillsPath)
-                .Select(d => "/" + Path.GetFileName(d))
-                .ToList();
-            if (skills.Count > 0)
-            {
-                Console.WriteLine($"  Skills:    {string.Join(", ", skills)}");
-            }
+            Console.WriteLine($"  Skills:    {string.Join(", ", skills.Select(s => "/" + s))}");
         }
 
         var savedPrompts = prompts.ListPrompts(ws);
@@ -66,7 +72,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         Console.WriteLine("  Command:");
         var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
-        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession)}");
+        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
         Console.WriteLine();
     }
 }

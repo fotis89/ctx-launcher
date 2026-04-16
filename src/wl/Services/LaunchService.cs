@@ -7,7 +7,7 @@ namespace wl.Services;
 
 public class LaunchService
 {
-    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null)
+    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
         var args = new List<string>();
         var skippedDirs = new List<string>();
@@ -46,6 +46,12 @@ public class LaunchService
             }
         }
 
+        if (sharedDirPath is not null)
+        {
+            args.Add("--add-dir");
+            args.Add(sharedDirPath);
+        }
+
         args.Add("--add-dir");
         args.Add(ws.FolderPath);
 
@@ -63,9 +69,9 @@ public class LaunchService
         return (args, skippedDirs, newSessionId);
     }
 
-    public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null)
+    public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId);
+        var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
         var quoted = args.Select(a => a.StartsWith("--") ? a : PathHelper.QuotePath(a));
         return $"claude {string.Join(" ", quoted)}";
     }
@@ -73,7 +79,10 @@ public class LaunchService
     public static string? LoadLastSession(Workspace ws)
     {
         var path = Path.Combine(ws.FolderPath, ".last-session");
-        return File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+        if (!File.Exists(path))
+            return null;
+        var value = File.ReadAllText(path).Trim();
+        return Guid.TryParse(value, out _) ? value : null;
     }
 
     public static void SaveLastSession(Workspace ws, string sessionId)

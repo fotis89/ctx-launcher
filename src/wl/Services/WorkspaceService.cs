@@ -7,6 +7,8 @@ namespace wl.Services;
 
 public class WorkspaceService
 {
+    public const string SharedDirName = ".shared";
+
     private string? _root;
 
     public string GetWorkspacesRoot()
@@ -21,6 +23,34 @@ public class WorkspaceService
         return _root;
     }
 
+    public string GetSharedDirPath()
+        => Path.Combine(GetWorkspacesRoot(), SharedDirName);
+
+    public string? GetSharedDirIfExists()
+    {
+        var path = GetSharedDirPath();
+        return Directory.Exists(path) ? path : null;
+    }
+
+    public string GetSharedSkillsPath()
+        => Path.Combine(GetSharedDirPath(), ".claude", "skills");
+
+    public string EnsureSharedDir()
+    {
+        var path = GetSharedDirPath();
+        Directory.CreateDirectory(Path.Combine(path, ".claude", "skills"));
+        return path;
+    }
+
+    public static List<string> ListSkillNames(string skillsDir)
+    {
+        if (!Directory.Exists(skillsDir))
+            return [];
+        return Directory.GetDirectories(skillsDir)
+            .Select(d => Path.GetFileName(d)!)
+            .ToList();
+    }
+
     public List<Workspace> ListWorkspaces()
     {
         var root = GetWorkspacesRoot();
@@ -28,6 +58,9 @@ public class WorkspaceService
 
         foreach (var dir in Directory.GetDirectories(root))
         {
+            if (Path.GetFileName(dir) == SharedDirName)
+                continue;
+
             var jsonPath = Path.Combine(dir, "workspace.json");
             if (!File.Exists(jsonPath))
             {

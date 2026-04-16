@@ -9,6 +9,12 @@ public class CreateCommand(WorkspaceService workspaces)
     public void Execute(string name)
     {
         var slug = PathHelper.Slugify(name);
+        if (slug == WorkspaceService.SharedDirName.TrimStart('.'))
+        {
+            Console.Error.WriteLine("'shared' is reserved. Choose a different name.");
+            return;
+        }
+
         var existing = workspaces.LoadWorkspace(slug);
         if (existing is not null)
         {

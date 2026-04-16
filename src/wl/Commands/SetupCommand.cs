@@ -1,7 +1,20 @@
+using System.Reflection;
+
+using wl.Services;
+
 namespace wl.Commands;
 
-public class SetupCommand
+public class SetupCommand(WorkspaceService workspaces, VersionService versionService)
 {
+    private static string LoadResource(string name)
+    {
+        using var stream = Assembly.GetExecutingAssembly()
+            .GetManifestResourceStream($"wl.Resources.{name}")
+            ?? throw new InvalidOperationException($"Missing embedded resource: {name}");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
     public void Execute()
     {
         var isPowerShell = Environment.GetEnvironmentVariable("PSModulePath") is not null;
@@ -54,6 +67,8 @@ public class SetupCommand
         }
 
         InstallClaudeSkill();
+        InstallSharedSkills();
+        versionService.StampVersion();
     }
 
     private static void InstallPowerShell()
@@ -139,113 +154,35 @@ complete -F _wl_completions wl
         var exists = File.Exists(skillFile);
         Directory.CreateDirectory(skillDir);
 
-        var content =
-"""
----
-name: wl-create-workspace
-description: Create an AI workspace from the current session context for the wl launcher tool. Use this when the user wants to save their current project setup, reuse this context later, create a workspace, capture this session, or says anything about wl/workspace/launch configuration. Also trigger when the user has been working in a multi-repo or multi-folder setup and wants to persist it.
-allowed-tools: Bash(wl *) Write Read Glob Grep
----
-
-Analyze the current session and propose a workspace for the `wl` AI context launcher. Be opinionated — propose your best guess, then let the user confirm or adjust. Do not ask open-ended questions.
-
-## Step 1: Gather context
-
-Before proposing, silently gather:
-
-- **Primary repo**: the current working directory (check for `.git`)
-- **Additional dirs**: look for clues in the conversation — referenced paths, imports from other repos, external docs/specs mentioned, `--add-dir` flags used, OneDrive/shared folders discussed
-- **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
-- **Conventions**: coding style, architecture patterns, testing approach observed in the session
-- **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. These become skills.
-- **Existing docs**: check for `CLAUDE.md` files in the primary repo and additional dirs. These are already loaded by Claude Code automatically — workspace instructions must not duplicate them.
-
-## Step 2: Propose
-
-Present a proposal with enough detail for the user to judge:
-
-```
-Proposed workspace: <slug>
-
-  Name:         <display name>
-  Primary repo: <path>
-  Additional:   <path1>, <path2> (or "none")
-  Yolo:         yes/no
-  Resume:       yes/no
-
-  Instructions will cover:
-    - <what the project is and how it's structured>
-    - <key conventions and architecture decisions>
-    - <debugging and workflow notes>
-
-  Skills to create:
-    - /<skill-1> — <what it does>
-    - /<skill-2> — <what it does>
-
-Does this look right? Any changes before I create it?
-```
-
-### Slug naming
-
-Pick a slug that identifies the project, not the task. Use lowercase with hyphens. Prefer short, recognizable names: `backend-api`, `fullstack-platform`, `data-pipeline`. If the user has been working across multiple repos, name it after the overall system, not one repo.
-
-## Step 3: Create the workspace
-
-After confirmation:
-
-1. Create `~/.wl-workspaces/<slug>/workspace.json`:
-   ```json
-   {
-     "name": "<display name>",
-     "primaryRepo": "<repo path>",
-     "additionalDirs": ["<dir1>", "<dir2>"],
-     "yolo": false,
-     "resume": false
-   }
-   ```
-
-2. Write `instructions.md` — this is the most important file. It should contain:
-   - **System overview**: what the project is, what each repo/folder contains, how they relate
-   - **Architecture**: key patterns, folder structure, dependency direction
-   - **Conventions**: naming, formatting, testing expectations, commit style
-   - **Debugging**: where logs are, how to trace errors, common failure modes
-   - **Workflow**: how to build, test, deploy — the commands and the order
-
-   **Do not duplicate content from repo-level `CLAUDE.md` files.** Claude Code loads those automatically when working in a repo. Workspace instructions should only contain what `CLAUDE.md` doesn't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos. If a repo's `CLAUDE.md` already documents architecture, build commands, and conventions, don't repeat them — reference the repo by name and focus on the bigger picture.
-
-   Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
-
-3. Create skills in `.claude/skills/<name>/SKILL.md` based on workflows you observed:
-   - Look for: test commands run, build steps, deployment, code review patterns, log analysis
-   - Each skill should be a concrete action, not a description. Include the actual commands, paths, and steps.
-   - Example triggers: `run-tests` (how to test this project), `deploy` (deployment steps), `review` (what to check in code review)
-   - Every skill needs `name`, `description`, and `allowed-tools` in frontmatter
-
-4. Create empty `prompts/` directory.
-
-5. Verify with `wl which <slug>`.
-
-## Skill format
-
-```markdown
----
-name: <skill-name>
-description: <one line — what this skill does and when to use it>
-allowed-tools: <tools this skill needs>
----
-
-<concrete instructions for Claude when this skill is invoked>
-```
-
-## Output
-
-Show `wl which <slug>` output and tell the user to run `wl launch <slug>`.
-""";
-
-        File.WriteAllText(skillFile, content);
+        File.WriteAllText(skillFile, LoadResource("wl-create-workspace.md"));
         Console.WriteLine(exists
             ? "  Claude skill /wl-create-workspace updated to latest version."
             : "  Claude skill /wl-create-workspace installed.");
         Console.WriteLine("  Use it in any Claude Code session to create workspaces.");
     }
+
+    private void InstallSharedSkills()
+    {
+        workspaces.EnsureSharedDir();
+        var skillDir = Path.Combine(workspaces.GetSharedSkillsPath(), "wl-update-workspace");
+        var skillFile = Path.Combine(skillDir, "SKILL.md");
+
+        var exists = File.Exists(skillFile);
+        Directory.CreateDirectory(skillDir);
+
+        File.WriteAllText(skillFile, LoadResource("wl-update-workspace.md"));
+        Console.WriteLine(exists
+            ? "  Skill /wl-update-workspace updated to latest version."
+            : "  Skill /wl-update-workspace installed.");
+
+        // Clean up old location
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var oldSkillDir = Path.Combine(home, ".claude", "skills", "wl-update-workspace");
+        if (Directory.Exists(oldSkillDir))
+        {
+            Directory.Delete(oldSkillDir, true);
+            Console.WriteLine("  Migrated /wl-update-workspace from ~/.claude/skills/ to .shared.");
+        }
+    }
+
 }

@@ -226,12 +226,95 @@ public class LaunchServiceTests
     }
 
     [Fact]
+    public void BuildClaudeArgs_WithSharedDir_IncludesAddDir()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var ws = MakeWorkspace();
+            var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: tempDir);
+
+            Assert.Equal(2, args.Count(a => a == "--add-dir"));
+            Assert.Contains(args, a => a == tempDir);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void BuildClaudeArgs_NullSharedDir_NotIncluded()
+    {
+        var ws = MakeWorkspace();
+        var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: null);
+
+        Assert.Single(args, a => a == "--add-dir");
+    }
+
+    [Fact]
+    public void BuildClaudeArgs_SharedDir_BeforeWorkspaceFolder()
+    {
+        var sharedDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(sharedDir);
+        try
+        {
+            var ws = MakeWorkspace();
+            var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: sharedDir);
+
+            var sharedIdx = args.IndexOf(sharedDir);
+            var wsIdx = args.IndexOf(ws.FolderPath);
+            Assert.True(sharedIdx < wsIdx, "Shared dir should appear before workspace folder");
+        }
+        finally
+        {
+            Directory.Delete(sharedDir, true);
+        }
+    }
+
+    [Fact]
+    public void BuildCommandString_WithSharedDir_IncludesPath()
+    {
+        var sharedDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(sharedDir);
+        try
+        {
+            var ws = MakeWorkspace();
+            var cmd = _service.BuildCommandString(ws, sharedDirPath: sharedDir);
+
+            Assert.Contains(sharedDir, cmd);
+        }
+        finally
+        {
+            Directory.Delete(sharedDir, true);
+        }
+    }
+
+    [Fact]
     public void LoadLastSession_NoFile_ReturnsNull()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
+            var ws = MakeWorkspace(folderPath: tempDir);
+            Assert.Null(LaunchService.LoadLastSession(ws));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void LoadLastSession_CorruptFile_ReturnsNull()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, ".last-session"), "not-a-guid");
             var ws = MakeWorkspace(folderPath: tempDir);
             Assert.Null(LaunchService.LoadLastSession(ws));
         }

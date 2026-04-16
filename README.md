@@ -20,8 +20,8 @@ wl launch feature-auth
 # Debugging session
 wl launch bug-login-race
 
-# Switch back instantly
-wl launch feature-auth
+# Switch back instantly (resume previous session)
+wl launch feature-auth --resume
 ```
 
 ![demo](docs/demo.gif)
@@ -44,7 +44,7 @@ Claude will automatically scaffold a workspace from the current session, so the 
 
 **Persistence** — Each workspace tracks its own session independently. Come back tomorrow, switch to a different task, switch back — the context is still there.
 
-**Evolution** — `/wl-update-workspace` uses the current session's lessons learned to update your instructions, skills, and folders — so the AI doesn't make the same mistake twice in future sessions.
+**Evolution** — `/wl-update-workspace` uses the current session's lessons learned to update your instructions, skills, and folders — so improvements carry forward into future sessions.
 
 ---
 
