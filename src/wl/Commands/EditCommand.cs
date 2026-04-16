@@ -1,5 +1,4 @@
-using System.Diagnostics;
-
+using wl.Helpers;
 using wl.Services;
 
 namespace wl.Commands;
@@ -15,6 +14,6 @@ public class EditCommand(WorkspaceService workspaces)
             return;
         }
 
-        Process.Start(new ProcessStartInfo(ws.FolderPath) { UseShellExecute = true });
+        ShellHelper.OpenFolder(ws.FolderPath);
     }
 }

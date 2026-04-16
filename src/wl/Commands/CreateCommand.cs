@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using wl.Helpers;
 using wl.Services;
 
@@ -52,6 +51,6 @@ public class CreateCommand(WorkspaceService workspaces)
         Console.WriteLine();
         Console.WriteLine("  Tip: Run 'wl setup' to enable tab completion.");
 
-        Process.Start(new ProcessStartInfo(workspacePath) { UseShellExecute = true });
+        ShellHelper.OpenFolder(workspacePath);
     }
 }

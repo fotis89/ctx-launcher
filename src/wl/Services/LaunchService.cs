@@ -104,7 +104,14 @@ public class LaunchService
             psi.ArgumentList.Add(arg);
         }
 
-        var process = Process.Start(psi);
-        process?.WaitForExit();
+        try
+        {
+            var process = Process.Start(psi);
+            process?.WaitForExit();
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Console.Error.WriteLine("Error: 'claude' not found in PATH. Is Claude Code installed?");
+        }
     }
 }

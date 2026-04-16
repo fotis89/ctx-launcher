@@ -140,7 +140,7 @@ complete -F _wl_completions wl
             return;
         }
 
-        File.AppendAllText(bashrc, snippet);
+        File.AppendAllText(bashrc, snippet.ReplaceLineEndings("\n"));
         Console.WriteLine($"  Installed to: {bashrc}");
         Console.WriteLine("  Restart your shell to activate.");
     }
