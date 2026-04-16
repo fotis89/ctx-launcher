@@ -125,16 +125,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
         }
 
-        var installedVersion = versionService.GetInstalledVersion();
-        var currentVersion = versionService.GetCurrentVersion();
-        if (installedVersion is null)
-        {
-            Console.Error.WriteLine("  Hint: run 'wl setup' to install wl skills.");
-        }
-        else if (installedVersion != currentVersion)
-        {
-            Console.Error.WriteLine($"  Hint: run 'wl setup' to update skills ({installedVersion} → {currentVersion}).");
-        }
+        versionService.PrintSetupHintIfNeeded();
 
         Console.WriteLine();
         workspaces.SetLastUsed(name);

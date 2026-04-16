@@ -16,4 +16,22 @@ public class VersionService(WorkspaceService workspaces)
 
     public void StampVersion()
         => File.WriteAllText(VersionFilePath, GetCurrentVersion());
+
+    public void PrintSetupHintIfNeeded()
+    {
+        var installed = GetInstalledVersion();
+        if (installed is null)
+        {
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("  Hint: run 'wl setup' to install Claude skills.");
+            return;
+        }
+
+        var current = GetCurrentVersion();
+        if (installed != current)
+        {
+            Console.Error.WriteLine();
+            Console.Error.WriteLine($"  Hint: run 'wl setup' to update skills ({installed} → {current}).");
+        }
+    }
 }

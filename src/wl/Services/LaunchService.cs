@@ -1,11 +1,9 @@
-using System.Diagnostics;
-
 using wl.Helpers;
 using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService
+public class LaunchService(ClaudeRunner claudeRunner)
 {
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
@@ -91,32 +89,5 @@ public class LaunchService
     }
 
     public void Launch(Workspace ws, List<string> args)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = "claude",
-            WorkingDirectory = PathHelper.ResolveTilde(ws.PrimaryRepo),
-            UseShellExecute = false,
-        };
-
-        foreach (var arg in args)
-        {
-            psi.ArgumentList.Add(arg);
-        }
-
-        try
-        {
-            var process = Process.Start(psi);
-            process?.WaitForExit();
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            Console.Error.WriteLine("Error: 'claude' not found.");
-            Console.Error.WriteLine();
-            Console.Error.WriteLine("  Troubleshooting:");
-            Console.Error.WriteLine("  1. Open a new terminal and run: claude --version");
-            Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
-            Console.Error.WriteLine("  3. If not, install Claude Code and ensure 'claude' is in your PATH");
-        }
-    }
+        => claudeRunner.Run(PathHelper.ResolveTilde(ws.PrimaryRepo), args);
 }

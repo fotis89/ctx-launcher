@@ -5,7 +5,7 @@ namespace wl.tests;
 
 public class LaunchServiceTests
 {
-    private readonly LaunchService _service = new();
+    private readonly LaunchService _service = new(new ClaudeRunner());
 
     private static Workspace MakeWorkspace(
         string? folderPath = null,
