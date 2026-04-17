@@ -1,39 +1,50 @@
-# ctx-launcher - named workspaces for Claude Code
+# ctx-launcher (wl) - Named Claude Code setups you can relaunch
 
 [![npm](https://img.shields.io/npm/v/ctx-launcher)](https://npmjs.com/package/ctx-launcher)
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> `CLAUDE.md` gives you repo context. Claude sessions give you history. Workspaces give you both - context and history per workstream.
+> Companion to [Claude Code](https://code.claude.com). Windows x64 prebuilt; macOS/Linux build from source.
 
-`ctx-launcher` (`wl`) is a workspace launcher for Claude Code. It keeps workspace files outside your repos and relaunches Claude with the right primary repo, attached directories, workspace context, and session state for that workstream.
+Switching between Claude Code projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh conversation — even if you were in the middle of something yesterday.
 
-`CLAUDE.md` is repo-scoped. Claude's built-in resume is session-scoped. `wl` gives you a workstream-scoped layer you can name, switch, and reopen across one repo or many.
+`wl` saves each Claude Code setup (repos, folders, instructions, skills) under a name you pick. Switch between them with one command; resume the previous conversation when you want.
 
-- Resume an ongoing Claude workstream by name
-- Attach multiple repos or folders to one session
-- Keep workspace instructions and skills out of the repo
-- Save reusable prompts per workspace
-- Preview the exact resolved launch command with `wl which`
+Your repo's `CLAUDE.md` stays the team's shared context. `wl` adds your personal layer on top — not committed, not shared.
+
+This is what using `wl` looks like:
+
+## Example
+
+From your project folder:
+
+```bash
+cd ~/repos/my-project
+wl create my-project
+```
+
+Open Claude with that setup from any directory:
+
+```bash
+wl launch my-project
+```
+
+Come back later and continue the same conversation:
+
+```bash
+wl launch my-project --resume
+```
 
 ![demo](docs/demo.gif)
 
-## Works with Claude
+## What you can do with it
 
-`wl setup` installs two skills that power the main flows:
-
-- `/wl-create-workspace` - used by `wl create`, and also available directly from any Claude session when you want to turn the current session into its own workspace. Claude will:
-  - inspect the repo and current session
-  - propose a workspace name and attached directories
-  - draft `instructions.md` without duplicating repo `CLAUDE.md`
-  - suggest skills based on the observed workflow
-  - wait for your approval before writing files
-
-- `/wl-update-workspace` - invoke from inside a launched session. Claude will:
-  - diff the workspace against the current repo state
-  - flag drift such as outdated instructions, stale commands, or renamed paths
-  - propose updates for review
-  - wait for your approval before writing files
+- Launch Claude with a saved setup by name, from any directory
+- Switch between projects without re-explaining context or re-attaching folders
+- Come back to a task and pick up where you left off
+- Work across multiple repos or folders in one Claude session
+- Give Claude notes, instructions, and skills that travel with the workspace, not the repo
+- Let Claude create the workspace for you - no JSON to write by hand
 
 ## Install (Windows)
 
@@ -41,59 +52,58 @@ Requires Windows x64, [Node.js](https://nodejs.org/), and [Claude Code](https://
 
 ```bash
 npm install -g ctx-launcher
+```
+
+```bash
 wl setup
 ```
 
-`wl setup` installs the Claude skills and prints a PowerShell or Bash tab-completion snippet you can add to your shell profile.
+`wl setup` installs the Claude Code skills `wl` depends on and prints a tab-completion snippet. Re-run after upgrading.
 
 Verify Claude Code is on `PATH` by running `claude --version` in a new terminal.
 
 ## Quick start
 
-1. In the repo you want to turn into a workspace:
+1. In the folder you want as Claude's primary working directory:
    ```bash
-   wl create
-   # or
-   wl create my-project
+   cd ~/repos/ctx-launcher
+   wl create wl-dev
    ```
-   This opens Claude and runs `/wl-create-workspace`. Claude inspects the current repo and session, proposes a workspace, and waits for your approval before writing files.
+   Opens Claude, which suggests a workspace setup for you to approve.
 
-2. Launch it:
+2. Launch the workspace:
    ```bash
-   wl launch my-project
+   wl launch wl-dev
    ```
+   Opens Claude with the workspace's setup — primary repo, attached folders, and instructions. Works from any directory.
 
-3. Come back later and resume the same workstream:
+3. Come back later and continue the same conversation:
    ```bash
-   wl launch my-project --resume
+   wl launch wl-dev --resume
    ```
-
-4. From inside a launched session, refresh the workspace when the repo drifts:
-   ```text
-   /wl-update-workspace
-   ```
+   Same as step 2, but continues the previous conversation instead of starting fresh.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `wl create [name]` | Starts `/wl-create-workspace`; if `name` is omitted, Claude proposes a slug |
-| `wl launch [name]` | Launches a workspace; if `name` is omitted, uses the last-used workspace |
-| `wl launch <name> --resume` | Resumes the previous Claude session for that workspace |
-| `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |
-| `wl launch <name> --yolo` | Skips Claude permission prompts |
-| `wl launch <name> -p <slug-or-text>` | Starts with a saved prompt slug or raw prompt text |
+| `wl create [name]` | Creates a workspace from the current repo (asks Claude to fill it in) |
+| `wl launch [name]` | Launches a workspace; omit `name` to use the last one launched |
+| `wl launch <name> --resume` | Resumes the previous Claude conversation for that workspace |
+| `wl launch <name> --new` | Starts a fresh conversation even if the workspace defaults to resume |
+| `wl launch <name> --yolo` | Skips Claude's permission prompts |
+| `wl launch <name> -p <name-or-text>` | Starts with a saved prompt, or with raw prompt text |
 | `wl list` | Lists all workspaces |
-| `wl which <name>` | Validates paths and shows the resolved `claude` command |
+| `wl which <name>` | Shows the exact `claude` command `wl` will run, and checks paths exist |
 | `wl edit <name>` | Opens the workspace folder in your system file explorer |
-| `wl setup` | Installs or updates skills and prints tab-completion setup |
+| `wl setup` | Installs Claude Code skills and prints tab-completion setup |
 
-## Workspace files
+## What's a workspace?
 
-Workspaces live under `~/.wl-workspaces/`, separate from your repos.
+A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos. It holds a saved setup: a primary repo, any additional folders to attach, and optional project-specific instructions.
 
 ```text
-~/.wl-workspaces/my-project/
+~/.wl-workspaces/wl-dev/
 |-- workspace.json
 |-- instructions.md        (optional)
 |-- prompts/               (optional)
@@ -106,33 +116,32 @@ Workspaces live under `~/.wl-workspaces/`, separate from your repos.
 
 ### `workspace.json`
 
-This is the only required file. It defines the workspace name, the primary repo Claude starts in, any extra attached directories, and launch defaults.
+The only required file. It defines the workspace name, the repo Claude starts in, any additional folders to attach, and launch defaults.
 
 ```json
 {
-  "name": "My Project",
-  "primaryRepo": "~/repos/backend-api",
+  "name": "wl dev",
+  "primaryRepo": "~/repos/ctx-launcher",
   "additionalDirs": [
-    "~/repos/frontend-app",
-    "~/repos/shared-lib"
+    "~/docs/wl-notes"
   ],
   "yolo": false,
   "resume": true
 }
 ```
 
-- `primaryRepo` - Claude's working directory
-- `additionalDirs` - extra repos, docs, specs, or folders to attach with `--add-dir`
-- `yolo` - defaults launches to `--dangerously-skip-permissions`
-- `resume` - defaults launches to the last saved session for that workspace
+- `primaryRepo` - Claude's working directory when the session starts
+- `additionalDirs` - extra repos or folders attached with `--add-dir`
+- `yolo` - default `wl launch` to `--dangerously-skip-permissions`
+- `resume` - default `wl launch` to resuming the last conversation
 
 ### `instructions.md`
 
-If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for workspace-only context such as multi-repo relationships, cross-repo workflows, and notes you do not want in a repo `CLAUDE.md`.
+If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for notes that don't belong in a repo's `CLAUDE.md`: multi-repo relationships, cross-repo workflows, project-specific context.
 
 ### `prompts/*.md`
 
-Saved prompts let you keep reusable launch prompts with the workspace.
+Reusable launch prompts kept with the workspace.
 
 ```md
 ---
@@ -144,24 +153,34 @@ Review the latest changes, summarize the risk, and call out anything that needs 
 Launch with the saved prompt:
 
 ```bash
-wl launch my-project -p review
+wl launch wl-dev -p review
 ```
 
 Or pass raw text directly:
 
 ```bash
-wl launch my-project -p "investigate the failing test and explain the root cause"
+wl launch wl-dev -p "investigate the failing test and explain the root cause"
 ```
 
 ### `.claude/skills/`
 
-Workspace skills work like repo-level Claude skills, but they live outside the repo and travel with the workspace instead of your git history.
+Claude Code skills that travel with the workspace instead of with the repo's git history. If you don't use Claude Code skills, you can ignore this folder.
+
+## What `wl setup` does
+
+`wl setup` installs two Claude Code skills and prints tab-completion setup.
+
+The skills back the two Claude-driven flows:
+
+- **`/wl-create-workspace`** - used by `wl create`. Inspects the current repo and conversation, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files. You can also invoke it directly inside any Claude Code session.
+- **`/wl-update-workspace`** - run from inside a launched session when the workspace gets out of sync with the repo. It diffs the workspace against the current repo state, proposes updates, and waits for your approval.
+
+Re-run `wl setup` after upgrading `ctx-launcher` so the installed skills stay in sync with the binary.
 
 ## Useful details
 
-- `wl which <name>` is the fastest way to confirm path resolution, see missing attached directories, and inspect the exact `claude ...` command `wl` will run.
-- `wl edit <name>` opens the workspace folder so you can tweak `instructions.md`, prompts, or workspace-local skills directly.
-- `wl setup` should be rerun after upgrading `ctx-launcher` so installed skills stay in sync with the binary version.
+- `wl which <name>` is the fastest way to confirm path resolution, spot missing attached folders, and inspect the exact `claude ...` command `wl` will run.
+- `wl edit <name>` opens the workspace folder so you can tweak `instructions.md`, prompts, or workspace-local skills by hand.
 
 ## Build from source
 
