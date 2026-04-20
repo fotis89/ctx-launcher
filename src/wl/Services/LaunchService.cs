@@ -25,11 +25,6 @@ public class LaunchService(ClaudeRunner claudeRunner)
             args.Add(ws.Name);
         }
 
-        if (yolo)
-        {
-            args.Add("--dangerously-skip-permissions");
-        }
-
         foreach (var dir in ws.AdditionalDirs)
         {
             var (exists, resolved) = PathHelper.ValidatePath(dir);
@@ -59,6 +54,11 @@ public class LaunchService(ClaudeRunner claudeRunner)
             args.Add(ws.InstructionsPath);
         }
 
+        if (yolo)
+        {
+            args.Add("--dangerously-skip-permissions");
+        }
+
         if (!string.IsNullOrEmpty(prompt))
         {
             args.Add(prompt);
@@ -70,8 +70,25 @@ public class LaunchService(ClaudeRunner claudeRunner)
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
         var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
-        var quoted = args.Select(a => a.StartsWith("--") ? a : PathHelper.QuotePath(a));
-        return $"claude {string.Join(" ", quoted)}";
+
+        var groups = new List<string> { "claude" };
+        var current = "";
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith("--"))
+            {
+                if (current.Length > 0) groups.Add(current);
+                current = arg;
+            }
+            else
+            {
+                current += " " + PathHelper.QuotePath(arg);
+            }
+        }
+        if (current.Length > 0) groups.Add(current);
+
+        var continuation = OperatingSystem.IsWindows() ? " `" : " \\";
+        return string.Join(continuation + Environment.NewLine + "      ", groups);
     }
 
     public static string? LoadLastSession(Workspace ws)

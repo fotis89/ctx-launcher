@@ -19,20 +19,20 @@ This is what using `wl` looks like:
 From your project folder:
 
 ```bash
-cd ~/repos/my-project
-wl create my-project
+cd ~/repos/ctx-launcher
+wl create wl-dev
 ```
 
 Open Claude with that setup from any directory:
 
 ```bash
-wl launch my-project
+wl launch wl-dev
 ```
 
 Come back later and continue the same conversation:
 
 ```bash
-wl launch my-project --resume
+wl launch wl-dev --resume
 ```
 
 ![demo](docs/demo.gif)
@@ -125,7 +125,7 @@ The only required file. It defines the workspace name, the repo Claude starts in
   "additionalDirs": [
     "~/docs/wl-notes"
   ],
-  "yolo": false,
+  "yolo": true,
   "resume": true
 }
 ```
@@ -164,7 +164,40 @@ wl launch wl-dev -p "investigate the failing test and explain the root cause"
 
 ### `.claude/skills/`
 
-Claude Code skills that travel with the workspace instead of with the repo's git history. If you don't use Claude Code skills, you can ignore this folder.
+Claude Code skills that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically.
+
+## What's behind a launch
+
+Run `wl which <name>` any time to see exactly what `wl launch` will do:
+
+```
+$ wl which wl-dev
+
+  Workspace:    wl-dev
+  Repo:         ~/repos/ctx-launcher (ok)
+  Dir:          ~/docs/wl-notes (ok)
+  Shared:       ~/.wl-workspaces/.shared (ok)
+
+  wl skills:    /wl-update-workspace
+  Skills:       /wl-review
+
+  Instructions: instructions.md (38 lines)
+  Prompts:      review
+
+  Permissions:  yolo
+  Resume:       auto
+
+  Command:
+    claude `
+      --resume <session-id> `
+      --add-dir ~/docs/wl-notes `
+      --add-dir ~/.wl-workspaces/.shared `
+      --add-dir ~/.wl-workspaces/wl-dev `
+      --append-system-prompt-file ~/.wl-workspaces/wl-dev/instructions.md `
+      --dangerously-skip-permissions
+```
+
+No magic — `wl launch` just spawns `claude` with the composed flags. `wl which` previews path resolution, skill discovery, and the exact command before you run it.
 
 ## What `wl setup` does
 
@@ -173,7 +206,7 @@ Claude Code skills that travel with the workspace instead of with the repo's git
 The skills back the two Claude-driven flows:
 
 - **`/wl-create-workspace`** - used by `wl create`. Inspects the current repo and conversation, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files. You can also invoke it directly inside any Claude Code session.
-- **`/wl-update-workspace`** - run from inside a launched session when the workspace gets out of sync with the repo. It diffs the workspace against the current repo state, proposes updates, and waits for your approval.
+- **`/wl-update-workspace`** - run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
 
 Re-run `wl setup` after upgrading `ctx-launcher` so the installed skills stay in sync with the binary.
 
@@ -212,6 +245,10 @@ dotnet publish src/wl -c Release -r osx-arm64
 ```
 
 Copy the published binary to a directory on your `PATH`.
+
+## Contributing
+
+Issues and PRs welcome at [github.com/fotis89/ctx-launcher/issues](https://github.com/fotis89/ctx-launcher/issues). Run `dotnet test` before submitting.
 
 ## License
 

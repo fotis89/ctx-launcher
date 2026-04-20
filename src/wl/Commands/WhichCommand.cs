@@ -15,63 +15,75 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         }
 
         Console.WriteLine();
-        Console.WriteLine($"  Workspace: {ws.Name}");
+        ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
         var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo);
-        Console.WriteLine($"  Repo:      {ws.PrimaryRepo} ({(repoOk ? "ok" : "NOT FOUND")})");
+        ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({(repoOk ? "ok" : "NOT FOUND")})");
 
         foreach (var dir in ws.AdditionalDirs)
         {
             var (ok, _) = PathHelper.ValidatePath(dir);
-            Console.WriteLine($"  Dir:       {dir} ({(ok ? "ok" : "NOT FOUND")})");
+            ConsoleLabel.WriteLine("Dir:", $"{dir} ({(ok ? "ok" : "NOT FOUND")})");
         }
 
         var sharedDir = workspaces.GetSharedDirIfExists();
-        Console.WriteLine($"  Shared:    {workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
+        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
 
         var sharedSkills = sharedDir is not null
             ? WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath())
             : [];
-        if (sharedSkills.Count > 0)
-        {
-            Console.WriteLine($"  wl skills: {string.Join(", ", sharedSkills.Select(s => "/" + s))}");
-        }
-
-        if (File.Exists(ws.InstructionsPath))
-        {
-            var lines = File.ReadLines(ws.InstructionsPath).Count();
-            Console.WriteLine($"  Instructions: instructions.md ({lines} lines)");
-        }
-        else
-        {
-            Console.WriteLine("  Instructions: (none)");
-        }
-
         var skills = WorkspaceService.ListSkillNames(ws.SkillsPath);
-        if (skills.Count > 0)
+        if (sharedSkills.Count > 0 || skills.Count > 0)
         {
-            Console.WriteLine($"  Skills:    {string.Join(", ", skills.Select(s => "/" + s))}");
+            Console.WriteLine();
+            if (sharedSkills.Count > 0)
+            {
+                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => "/" + s)));
+            }
+            if (skills.Count > 0)
+            {
+                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => "/" + s)));
+            }
         }
 
         var savedPrompts = prompts.ListPrompts(ws);
-        if (savedPrompts.Count > 0)
+        var hasInstructions = File.Exists(ws.InstructionsPath);
+        if (hasInstructions || savedPrompts.Count > 0)
         {
-            Console.WriteLine($"  Prompts:   {string.Join(", ", savedPrompts.Select(p => p.Slug))}");
+            Console.WriteLine();
+            if (hasInstructions)
+            {
+                var lines = File.ReadLines(ws.InstructionsPath).Count();
+                ConsoleLabel.WriteLine("Instructions:", $"instructions.md ({lines} lines)");
+            }
+            else
+            {
+                ConsoleLabel.WriteLine("Instructions:", "(none)");
+            }
+            if (savedPrompts.Count > 0)
+            {
+                ConsoleLabel.WriteLine("Prompts:", string.Join(", ", savedPrompts.Select(p => p.Slug)));
+            }
         }
 
-        if (ws.Yolo)
-        {
-            Console.WriteLine($"  Permissions: yolo");
-        }
+        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
 
-        if (ws.Resume)
+        if (ws.Yolo || ws.Resume)
         {
-            Console.WriteLine($"  Resume: auto");
+            Console.WriteLine();
+            if (ws.Yolo)
+            {
+                ConsoleLabel.WriteLine("Permissions:", "yolo");
+            }
+            if (ws.Resume)
+            {
+                var suffix = lastSession is null ? " (no saved session — will start fresh)" : "";
+                ConsoleLabel.WriteLine("Resume:", $"auto{suffix}");
+            }
         }
 
         Console.WriteLine();
         Console.WriteLine("  Command:");
-        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
         Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
         Console.WriteLine();
     }

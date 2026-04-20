@@ -84,44 +84,45 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         Console.WriteLine();
-        Console.WriteLine($"  Launching: {ws.Name}");
-        Console.WriteLine($"  Repo: {ws.PrimaryRepo}");
+        ConsoleLabel.WriteLine("Launching:", ws.Name);
+        ConsoleLabel.WriteLine("Repo:", ws.PrimaryRepo);
         if (instructionLines > 0)
         {
-            Console.WriteLine($"  Instructions: {instructionLines} lines");
+            ConsoleLabel.WriteLine("Instructions:", $"{instructionLines} lines");
         }
 
         if (skillNames.Count > 0)
         {
-            Console.WriteLine($"  Skills: {string.Join(", ", skillNames.Select(s => "/" + s))}");
+            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => "/" + s)));
         }
 
         if (ws.AdditionalDirs.Count > 0)
         {
-            Console.WriteLine($"  Dirs: +{ws.AdditionalDirs.Count} additional");
+            ConsoleLabel.WriteLine("Dirs:", $"{ws.AdditionalDirs.Count} additional");
         }
 
         if (resolvedPrompt is not null)
         {
-            Console.WriteLine($"  Prompt: {(resolvedPrompt.Length > 60 ? resolvedPrompt[..57] + "..." : resolvedPrompt)}");
+            var truncated = resolvedPrompt.Length > 60 ? resolvedPrompt[..57] + "..." : resolvedPrompt;
+            ConsoleLabel.WriteLine("Prompt:", truncated);
         }
 
-        if (shouldResume || skipPermissions || (ws.Resume && resumeSessionId is null))
+        if (skipPermissions || shouldResume || (ws.Resume && resumeSessionId is null))
         {
             Console.WriteLine();
             if (skipPermissions)
             {
-                Console.WriteLine("  Bypassing permissions");
+                ConsoleLabel.WriteLine("Permissions:", "yolo");
             }
-
             if (shouldResume)
             {
-                Console.WriteLine(ws.Resume ? "  Resuming session (auto)" : "  Resuming session");
-                Console.WriteLine("  If session not found, run: wl launch --new");
+                var note = ws.Resume ? "resuming previous (auto)" : "resuming previous";
+                ConsoleLabel.WriteLine("Session:", note);
+                ConsoleLabel.WriteContinuation("If not found, run: wl launch --new");
             }
             else if (ws.Resume)
             {
-                Console.WriteLine("  New session (no previous session to resume)");
+                ConsoleLabel.WriteLine("Session:", "new (no previous to resume)");
             }
         }
 
