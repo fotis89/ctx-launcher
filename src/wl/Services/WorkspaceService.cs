@@ -77,6 +77,16 @@ public class WorkspaceService
         return workspaces.OrderBy(w => w.Name).ToList();
     }
 
+    public void SaveWorkspace(Workspace ws, string slug)
+    {
+        var folderPath = Path.Combine(GetWorkspacesRoot(), slug);
+        Directory.CreateDirectory(folderPath);
+        var jsonPath = Path.Combine(folderPath, "workspace.json");
+        var json = JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace);
+        File.WriteAllText(jsonPath, json);
+        ws.FolderPath = folderPath;
+    }
+
     public Workspace? LoadWorkspace(string name)
     {
         var root = GetWorkspacesRoot();

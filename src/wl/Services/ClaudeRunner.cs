@@ -45,4 +45,34 @@ public class ClaudeRunner
             Console.Error.WriteLine("  3. If not, install Claude Code and ensure its CLI is in your PATH");
         }
     }
+
+    public virtual bool TryGetVersion(out string version)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = ResolveExecutable(),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+        };
+        psi.ArgumentList.Add("--version");
+
+        try
+        {
+            using var process = Process.Start(psi);
+            if (process is null)
+            {
+                version = "";
+                return false;
+            }
+
+            version = process.StandardOutput.ReadToEnd().Trim();
+            process.WaitForExit();
+            return process.ExitCode == 0;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            version = "";
+            return false;
+        }
+    }
 }

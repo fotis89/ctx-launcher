@@ -3,10 +3,12 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, VersionService versionService)
+public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
     public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
     {
+        setup.EnsureInstalled();
+
         if (name is null)
         {
             name = workspaces.GetLastUsed();
@@ -125,8 +127,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
                 ConsoleLabel.WriteLine("Session:", "new (no previous to resume)");
             }
         }
-
-        versionService.PrintSetupHintIfNeeded();
 
         Console.WriteLine();
         workspaces.SetLastUsed(name);

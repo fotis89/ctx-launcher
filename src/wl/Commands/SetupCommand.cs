@@ -1,27 +1,26 @@
-using System.Reflection;
-
 using wl.Services;
 
 namespace wl.Commands;
 
-public class SetupCommand(WorkspaceService workspaces, VersionService versionService)
+public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
 {
-    private static string LoadResource(string name)
-    {
-        using var stream = Assembly.GetExecutingAssembly()
-            .GetManifestResourceStream($"wl.Resources.{name}")
-            ?? throw new InvalidOperationException($"Missing embedded resource: {name}");
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
-
     public void Execute()
     {
         Console.WriteLine();
 
-        InstallClaudeSkill();
-        InstallSharedSkills();
-        versionService.StampVersion();
+        var result = setup.RunSetup();
+        Console.WriteLine(result.CreateWorkspaceFresh ? "  Skill /wl-create-workspace installed" : "  Skill /wl-create-workspace updated");
+        Console.WriteLine(result.UpdateWorkspaceFresh ? "  Skill /wl-update-workspace installed" : "  Skill /wl-update-workspace updated");
+
+        Console.WriteLine();
+        if (claudeRunner.TryGetVersion(out var version))
+        {
+            Console.WriteLine($"  Claude Code: {version}");
+        }
+        else
+        {
+            Console.WriteLine("  Claude Code: NOT FOUND — install from https://code.claude.com and ensure `claude` is on your PATH");
+        }
 
         Console.WriteLine();
         Console.WriteLine("  Tab completion (optional):");
@@ -48,43 +47,4 @@ public class SetupCommand(WorkspaceService workspaces, VersionService versionSer
         }
         Console.WriteLine();
     }
-
-    private static void InstallClaudeSkill()
-    {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var skillDir = Path.Combine(home, ".claude", "skills", "wl-create-workspace");
-        var skillFile = Path.Combine(skillDir, "SKILL.md");
-
-        var exists = File.Exists(skillFile);
-        Directory.CreateDirectory(skillDir);
-
-        File.WriteAllText(skillFile, LoadResource("wl-create-workspace.md"));
-        Console.WriteLine(exists
-            ? "  Skill /wl-create-workspace updated"
-            : "  Skill /wl-create-workspace installed");
-    }
-
-    private void InstallSharedSkills()
-    {
-        workspaces.EnsureSharedDir();
-        var skillDir = Path.Combine(workspaces.GetSharedSkillsPath(), "wl-update-workspace");
-        var skillFile = Path.Combine(skillDir, "SKILL.md");
-
-        var exists = File.Exists(skillFile);
-        Directory.CreateDirectory(skillDir);
-
-        File.WriteAllText(skillFile, LoadResource("wl-update-workspace.md"));
-        Console.WriteLine(exists
-            ? "  Skill /wl-update-workspace updated"
-            : "  Skill /wl-update-workspace installed");
-
-        // Clean up old location
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var oldSkillDir = Path.Combine(home, ".claude", "skills", "wl-update-workspace");
-        if (Directory.Exists(oldSkillDir))
-        {
-            Directory.Delete(oldSkillDir, true);
-        }
-    }
-
 }

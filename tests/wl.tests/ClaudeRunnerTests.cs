@@ -69,6 +69,15 @@ public class ClaudeRunnerTests
     }
 
     [Fact]
+    public void TryGetVersion_DoesNotThrow()
+    {
+        var ok = new ClaudeRunner().TryGetVersion(out var version);
+
+        if (ok) Assert.False(string.IsNullOrWhiteSpace(version));
+        else Assert.Equal("", version);
+    }
+
+    [Fact]
     public void ResolveExecutable_HonorsPathextForOtherExtensions()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);

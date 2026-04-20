@@ -9,6 +9,7 @@ var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
 var launchService = new LaunchService(claudeRunner);
 var versionService = new VersionService(workspaceService);
+var setupService = new SetupService(workspaceService, versionService);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
@@ -46,15 +47,18 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, versionService).Execute(name, prompt, yolo, resume, forceNew);
+    new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, yolo, resume, forceNew);
 });
 
 // create
 var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude will propose one)" };
-var createCmd = new Command("create", "Create a new workspace via Claude") { createNameArg };
+var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking Claude" };
+var createCmd = new Command("create", "Create a new workspace (via Claude, or --basic for a minimal scaffold)") { createNameArg, basicOpt };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService, claudeRunner).Execute(parseResult.GetValue(createNameArg));
+    new CreateCommand(workspaceService, claudeRunner, setupService).Execute(
+        parseResult.GetValue(createNameArg),
+        parseResult.GetValue(basicOpt));
 });
 
 // list
@@ -81,7 +85,7 @@ whichCmd.SetAction(parseResult =>
 
 // setup
 var setupCmd = new Command("setup", "Install Claude skills and show tab completion setup");
-setupCmd.SetAction(_ => new SetupCommand(workspaceService, versionService).Execute());
+setupCmd.SetAction(_ => new SetupCommand(setupService, claudeRunner).Execute());
 
 root.Add(launchCmd);
 root.Add(createCmd);
