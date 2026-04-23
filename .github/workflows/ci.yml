@@ -41,11 +41,16 @@ jobs:
         with:
           dotnet-version: '10.0'
 
-      - name: Test
-        run: dotnet test --verbosity quiet
+      - name: Unit tests (IL)
+        run: dotnet test tests/wl.tests/wl.tests.csproj --verbosity quiet
 
       - name: Publish native AOT binary
         run: dotnet publish src/wl/wl.csproj -c Release -r ${{ matrix.rid }}
+
+      - name: E2E tests (AOT binary)
+        env:
+          WL_BINARY_PATH: src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
+        run: dotnet test tests/wl.e2e.tests/wl.e2e.tests.csproj --verbosity quiet
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
