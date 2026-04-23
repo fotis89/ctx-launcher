@@ -12,38 +12,96 @@ Run `wl which <slug>` first. If the workspace already exists, tell the user and 
 
 ## Step 1: Gather context
 
-Before proposing, silently gather:
+First, assess session warmth. If the skill was invoked as the first/early turn of a fresh CLI session with no real work done yet (no files explored, no commands run, no prior substantive turns), treat this as a **cold session** — you have almost nothing to analyze beyond the cwd. For **warm sessions** (non-trivial prior activity), proceed with silent analysis as normal.
+
+### Cold session: ask before proposing
+
+In the cold case, silent analysis will produce a shallow proposal. Use `AskUserQuestion` to gather the minimum needed to propose well. Ask 3–5 questions, covering:
+
+- Single repo or multi-repo — and if multi, the other paths
+- Typical commands the user runs here (build, test, lint, deploy)
+- External docs, specs, or OneDrive/shared folders worth pinning
+- Workspace-level quirks the user wants encoded (auth setup, env vars, team conventions)
+- Workflows worth capturing as skills — or "none" (a valid answer; see the value threshold in Step 2)
+
+Keep questions concrete and offer sensible defaults. Do not ask open-ended "tell me about your project" questions.
+
+### Warm session: silently gather
 
 - **Primary repo**: the current working directory (check for `.git`)
 - **Additional dirs**: look for clues in the conversation — referenced paths, imports from other repos, external docs/specs mentioned, `--add-dir` flags used, OneDrive/shared folders discussed
 - **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
 - **Conventions**: coding style, architecture patterns, testing approach observed in the session
-- **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. These become skills.
+- **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. Candidates for skills.
 - **Existing docs**: check for `CLAUDE.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in instructions.md.
 
 ## Step 2: Propose
 
-Present a proposal with enough detail for the user to judge:
+### Pre-proposal checklist
+
+Before writing the proposal, walk through these filters. They prevent the two most common failure modes of this skill: duplicating CLAUDE.md and inventing thin wrapper skills.
+
+**1. Duplication-diff for instructions.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (CLAUDE.md, `.claude/rules/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what CLAUDE.md *doesn't* — cross-repo relationships, additional-dir setup, environment quirks — not to restate it.
+
+**2. Skill value threshold.** Only propose a skill if at least one of these holds:
+  - It takes **3+ steps** to execute
+  - It encodes **non-obvious knowledge** not captured in CLAUDE.md or existing repo-level skills
+  - It's a **multi-command workflow** (not a single command with flags)
+
+One-line command wrappers do not meet this bar. Writing `rush update` or `az repos pr create …` as a skill adds noise without value. When nothing clears the bar, omit the "Skills to create" section entirely — "none" is the right answer and should be shown as such.
+
+**3. Decide the shape of the workspace.** Based on what's left after the two filters:
+
+- **Minimal workspace** — the repo has a thorough CLAUDE.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty `instructions.md` that points to CLAUDE.md, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
+- **Full workspace** — additional dirs, cross-repo concerns, or genuine workspace-level context to capture. Use the full proposal template below.
+
+### Proposal templates
+
+Present a proposal with enough detail for the user to judge. Pick the template that matches the shape you decided on. The inline hints next to `Yolo` and `Resume` are there on purpose — first-time users need them to judge the defaults.
+
+**Minimal template** (the common case when CLAUDE.md is comprehensive and there are no additional dirs):
+
+```
+Proposed workspace: <slug>  (minimal — launcher config only)
+
+  Name:         <display name>
+  Primary repo: <path>
+  Additional:   none
+  Yolo:         yes/no    (skip permission prompts — Claude runs tools without asking before each action)
+  Resume:       yes/no    (restore your prior conversation on each launch, so you pick up where you left off)
+
+  instructions.md: one-liner pointing to CLAUDE.md and .claude/rules/*
+  Skills to create: none
+
+Reasoning: <one sentence on why nothing else is warranted — e.g.,
+"single repo with a thorough CLAUDE.md; repo-level skills already
+cover workflows">
+
+Good to create it?
+(Flags explained above. Change either by telling me "yolo off" or "fresh conversation each launch".)
+```
+
+**Full template** (when there are additional dirs, cross-repo context, or genuine workspace-level knowledge to capture):
 
 ```
 Proposed workspace: <slug>
 
   Name:         <display name>
   Primary repo: <path>
-  Additional:   <path1>, <path2> (or "none")
-  Yolo:         yes/no
-  Resume:       yes/no
+  Additional:   <path1>, <path2>
+  Yolo:         yes/no    (skip permission prompts — Claude runs tools without asking before each action)
+  Resume:       yes/no    (restore your prior conversation on each launch, so you pick up where you left off)
 
   Instructions will cover:
-    - <what the project is and how it's structured>
-    - <key conventions and architecture decisions>
-    - <debugging and workflow notes>
+    - <bullet — and the section of CLAUDE.md/.claude/rules that does NOT cover it>
+    - <bullet — likewise>
 
   Skills to create:
-    - /wl-<skill-1> — <what it does>
-    - /wl-<skill-2> — <what it does>
+    - /wl-<skill> — <what it does, and why it clears the value threshold>
+    (or omit this section entirely if nothing cleared the threshold)
 
 Does this look right? Any changes before I create it?
+(Flags explained above. Change either by telling me "yolo off" or "fresh conversation each launch".)
 ```
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
@@ -85,10 +143,10 @@ After confirmation:
 
    Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
 
-3. Create skills in `~/.wl-workspaces/<slug>/.claude/skills/<name>/SKILL.md` based on workflows you observed:
+3. Create skills in `~/.wl-workspaces/<slug>/.claude/skills/<name>/SKILL.md` — but **only for skills that passed the value threshold in Step 2** (3+ steps, non-obvious knowledge, or multi-command workflow). If the approved proposal said "Skills to create: none" (or omitted the section), create no skills — this is an expected and common outcome.
    - Look for: test commands run, build steps, deployment, code review patterns, log analysis
    - Each skill should be a concrete action, not a description. Include the actual commands, paths, and steps.
-   - Example triggers: `wl-run-tests` (how to test this project), `wl-deploy` (deployment steps), `wl-review` (what to check in code review)
+   - Example triggers (only if they clear the threshold): `wl-run-tests` (how to test this project), `wl-deploy` (deployment steps), `wl-review` (what to check in code review)
    - Every skill needs `name`, `description`, and `allowed-tools` in frontmatter
    - **Always use the `wl-` prefix** for workspace skill names to distinguish them from repo-level skills
 

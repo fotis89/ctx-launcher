@@ -44,6 +44,7 @@ Compare workspace config against the repo's current state. Don't rely only on co
 **Removals** (unused config):
 - Repo or directory in workspace.json but never touched
 - Skill that doesn't match current workflows
+- Skill that doesn't clear the value threshold (3+ steps, non-obvious knowledge, or multi-command workflow) — single-flag wrappers don't warrant being skills
 - Workspace file no longer relevant
 
 **Modifications** (outdated config):
@@ -53,6 +54,7 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Skills with outdated commands or paths
 - Settings (`yolo`, `resume`) that no longer match how the workspace is used
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
+- Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
 
 ## Step 3: Propose
 
