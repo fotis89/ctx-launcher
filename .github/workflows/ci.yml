@@ -1,16 +1,75 @@
 name: CI
+
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: windows-latest
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: win32-x64
+            os: windows-latest
+            rid: win-x64
+            exe: wl.exe
+          - name: linux-x64
+            os: ubuntu-22.04
+            rid: linux-x64
+            exe: wl
+          - name: darwin-x64
+            os: macos-13
+            rid: osx-x64
+            exe: wl
+          - name: darwin-arm64
+            os: macos-14
+            rid: osx-arm64
+            exe: wl
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0'
-      - run: dotnet test --verbosity quiet
+
+      - name: Test
+        run: dotnet test --verbosity quiet
+
+      - name: Publish native AOT binary
+        run: dotnet publish src/wl/wl.csproj -c Release -r ${{ matrix.rid }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wl-${{ matrix.name }}
+          path: src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
+          if-no-files-found: error
+          retention-days: 90
+
+  prune:
+    name: Prune old artifacts
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Keep only the 3 most recent artifacts per name
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh api --paginate "repos/$REPO/actions/artifacts" \
+            --jq '.artifacts[] | "\(.name)\t\(.created_at)\t\(.id)"' \
+            | sort -k1,1 -k2,2r \
+            | awk -F'\t' 'prev!=$1{prev=$1; n=0} {n++; if (n>3) print $3}' \
+            | xargs -rI{} gh api -X DELETE "repos/$REPO/actions/artifacts/{}"
