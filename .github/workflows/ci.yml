@@ -7,25 +7,29 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      publish_dev:
+        description: 'Also publish as @dev to npm'
+        type: boolean
+        default: false
 
 jobs:
   build:
-    name: ${{ matrix.name }}
+    name: build-${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.version.outputs.value }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: win32-x64
-            os: windows-latest
+          - os: windows-latest
             rid: win-x64
             exe: wl.exe
-          - name: linux-x64
-            os: ubuntu-22.04
+          - os: ubuntu-22.04
             rid: linux-x64
             exe: wl
-          - name: darwin-arm64
-            os: macos-14
+          - os: macos-14
             rid: osx-arm64
             exe: wl
 
@@ -44,6 +48,18 @@ jobs:
       - name: Publish native AOT binary
         run: dotnet publish src/wl/wl.csproj -c Release -r ${{ matrix.rid }}
 
+      - name: Record version
+        id: version
+        shell: bash
+        run: |
+          BIN="src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}"
+          chmod +x "$BIN" 2>/dev/null || true
+          FULL=$("$BIN" --version)
+          # Strip +<sha> build metadata — npm accepts it but URLs hate +.
+          VERSION="${FULL%+*}"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Computed version: $VERSION"
+
       - name: E2E tests (AOT binary)
         env:
           WL_BINARY_PATH: src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
@@ -52,15 +68,170 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wl-${{ matrix.name }}
+          name: wl-${{ matrix.rid }}
           path: src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
           if-no-files-found: error
           retention-days: 90
 
+  publish-platform:
+    name: publish-${{ matrix.pkg }}
+    needs: build
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_dev)
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            pkg: wl-win-x64
+            exe: wl.exe
+          - os: ubuntu-22.04
+            rid: linux-x64
+            pkg: wl-linux-x64
+            exe: wl
+          - os: macos-14
+            rid: osx-arm64
+            pkg: wl-darwin-arm64
+            exe: wl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wl-${{ matrix.rid }}
+          path: npm/${{ matrix.pkg }}/bin
+
+      - name: Chmod binary (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x "npm/${{ matrix.pkg }}/bin/${{ matrix.exe }}"
+
+      - name: Set version in package.json
+        shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'npm/${{ matrix.pkg }}/package.json';
+            const p = JSON.parse(fs.readFileSync(path, 'utf8'));
+            p.version = process.env.VERSION;
+            fs.writeFileSync(path, JSON.stringify(p, null, 2) + '\n');
+            console.log('Set ' + p.name + '@' + p.version);
+          "
+
+      - name: Determine npm dist-tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        working-directory: npm/${{ matrix.pkg }}
+        run: npm publish --tag ${{ steps.tag.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-main:
+    name: publish-main
+    needs: [build, publish-platform]
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_dev)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set version + pins in main package.json
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = 'npm/wl/package.json';
+            const p = JSON.parse(fs.readFileSync(path, 'utf8'));
+            p.version = process.env.VERSION;
+            for (const dep of Object.keys(p.optionalDependencies || {})) {
+              p.optionalDependencies[dep] = process.env.VERSION;
+            }
+            fs.writeFileSync(path, JSON.stringify(p, null, 2) + '\n');
+            console.log('Set ' + p.name + '@' + p.version);
+          "
+
+      - name: Determine npm dist-tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm
+        working-directory: npm/wl
+        run: npm publish --tag ${{ steps.tag.outputs.tag }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github-release:
+    name: github-release
+    needs: [build, publish-main]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts/wl-win-x64/wl.exe     release-assets/wl.exe
+          cp artifacts/wl-linux-x64/wl       release-assets/wl-linux-x64
+          cp artifacts/wl-osx-arm64/wl       release-assets/wl-darwin-arm64
+          ls -la release-assets
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            release-assets/wl.exe \
+            release-assets/wl-linux-x64 \
+            release-assets/wl-darwin-arm64
+
   prune:
     name: Prune old artifacts
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       actions: write
