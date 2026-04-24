@@ -23,10 +23,6 @@ jobs:
             os: ubuntu-22.04
             rid: linux-x64
             exe: wl
-          - name: darwin-x64
-            os: macos-13
-            rid: osx-x64
-            exe: wl
           - name: darwin-arm64
             os: macos-14
             rid: osx-arm64
