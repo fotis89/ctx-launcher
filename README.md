@@ -65,6 +65,17 @@ Prebuilt platforms: `win32-x64`, `linux-x64`, `darwin-arm64`. npm only downloads
 
 The first `wl launch` or `wl create` installs the Claude skills `wl` depends on (auto-refreshed on upgrade). Run `wl setup` if you also want tab completion or want to verify `claude` is reachable.
 
+### Upgrading from v0.6.0 or older
+
+v0.7.0 moved from the unscoped `ctx-launcher` package to the scoped `@ctx-launcher/wl`. The old package is orphaned at v0.6.0 on npm and won't get further updates. Switch with:
+
+```bash
+npm uninstall -g ctx-launcher
+npm install -g @ctx-launcher/wl
+```
+
+Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
+
 ## Quick start
 
 1. In the folder you want as Claude's primary working directory:
