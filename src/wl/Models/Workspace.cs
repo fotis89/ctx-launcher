@@ -4,6 +4,7 @@ namespace wl.Models;
 
 public class Workspace
 {
+    public int SchemaVersion { get; set; } = 1;
     public string Name { get; set; } = "";
     public string PrimaryRepo { get; set; } = "";
     public List<string> AdditionalDirs { get; set; } = [];

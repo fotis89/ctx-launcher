@@ -102,6 +102,10 @@ No prebuilt package yet — [build from source](#build-from-source). Requires [.
 | `wl list` | Lists all workspaces |
 | `wl which <name>` | Shows the exact `claude` command `wl` will run, and checks paths exist |
 | `wl edit <name>` | Opens the workspace folder in your system file explorer |
+| `wl paths set <name> <value>` | Set a path variable (e.g. `REPOS_ROOT`) used by `$VAR` references in `workspace.json` |
+| `wl paths list` | Show defined and referenced path variables |
+| `wl paths init` | Prompt for any path variables referenced in workspaces but not defined |
+| `wl clone <git-url>` | Clone a workspaces repo into `~/.wl-workspaces` and run `wl setup` + `wl paths init` |
 | `wl setup` | (Optional) prints a tab-completion snippet and verifies `claude` is reachable |
 
 ## What's a workspace?
@@ -213,6 +217,58 @@ No magic — `wl launch` just spawns `claude` with the composed flags. `wl which
 - **`/wl-update-workspace`** — run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
 
 Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install.
+
+## Syncing across PCs
+
+`~/.wl-workspaces/` is portable across machines — with one caveat. The paths your workspaces reference (repos, docs folders) usually differ per PC: `D:\repos` on Windows, `~/dev` on macOS, `/home/you/src` on Linux. `wl` solves this with `$VAR` references resolved from a machine-local file.
+
+### Step 1 — Use `$VAR` paths in `workspace.json`
+
+```json
+{
+  "primaryRepo": "$REPOS_ROOT/ctx-launcher",
+  "additionalDirs": ["$DOCS_ROOT/wl-notes"]
+}
+```
+
+`~/`-rooted paths don't need a variable — they already port cleanly.
+
+### Step 2 — Define the variables per PC
+
+```bash
+wl paths set REPOS_ROOT D:/repos        # on your Windows PC
+wl paths set DOCS_ROOT ~/OneDrive/docs
+```
+
+Values live in `~/.wl-workspaces/.paths.json` (machine-local, not synced).
+
+### Step 3 — Commit `~/.wl-workspaces/` to git
+
+`wl setup` drops a default `.gitignore` that excludes machine-local state (`.paths.json`, `.last-session`, `.last`, `.version`, and wl's installed skill). User-authored skills in `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
+
+```bash
+cd ~/.wl-workspaces
+git init
+git add .
+git commit -m "initial workspaces"
+git remote add origin <your-private-repo-url>
+git push -u origin master
+```
+
+### Step 4 — On a new PC
+
+```bash
+wl clone git@github.com:you/wl-workspaces.git
+```
+
+`wl clone` does three things: `git clone` into `~/.wl-workspaces`, run `wl setup` (installs skills, writes `.gitignore`), then `wl paths init` — which scans all workspaces for `$VAR` references and prompts for each one missing from `.paths.json`. Set the values for this PC, done. Any `wl launch <name>` after that works.
+
+### Tips
+
+- `wl paths list` shows defined + referenced variables and flags anything undefined.
+- `wl which <name>` surfaces unset variables inline: `Repo: $REPOS_ROOT/... (unset: $REPOS_ROOT — run 'wl paths init')`.
+- Cross-workspace skills (available in every launched session, regardless of workspace) can live in `.shared/.claude/skills/` and sync via the same repo.
+- Session history and resume state are machine-local. Claude stores transcripts in `~/.claude/projects/` on each PC, and `wl` gitignores `.last-session` — resuming only works on the machine where the session was started.
 
 ## Useful details
 

@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher)
+public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths)
 {
     public void Execute(string name)
     {
@@ -17,13 +17,13 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
-        var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo);
-        ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({(repoOk ? "ok" : "NOT FOUND")})");
+        var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
+        ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({PathStatus(ws.PrimaryRepo, repoOk)})");
 
         foreach (var dir in ws.AdditionalDirs)
         {
-            var (ok, _) = PathHelper.ValidatePath(dir);
-            ConsoleLabel.WriteLine("Dir:", $"{dir} ({(ok ? "ok" : "NOT FOUND")})");
+            var (ok, _) = PathHelper.ValidatePath(dir, paths.Get);
+            ConsoleLabel.WriteLine("Dir:", $"{dir} ({PathStatus(dir, ok)})");
         }
 
         var sharedDir = workspaces.GetSharedDirIfExists();
@@ -86,5 +86,22 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine("  Command:");
         Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
         Console.WriteLine();
+    }
+
+    private string PathStatus(string rawPath, bool exists)
+    {
+        if (exists) return "ok";
+
+        var unsetVars = PathHelper.ExtractVariables(rawPath)
+            .Where(v => paths.Get(v) is null)
+            .Distinct()
+            .ToList();
+
+        if (unsetVars.Count > 0)
+        {
+            return $"unset: {string.Join(", ", unsetVars.Select(v => "$" + v))} — run 'wl paths init'";
+        }
+
+        return "NOT FOUND";
     }
 }

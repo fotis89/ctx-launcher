@@ -43,14 +43,21 @@ Before writing the proposal, walk through these filters. They prevent the two mo
 
 **1. Duplication-diff for instructions.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (CLAUDE.md, `.claude/rules/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what CLAUDE.md *doesn't* — cross-repo relationships, additional-dir setup, environment quirks — not to restate it.
 
-**2. Skill value threshold.** Only propose a skill if at least one of these holds:
+**2. Make paths portable.** Walk every path you plan to put in `workspace.json` (both `primaryRepo` and each entry in `additionalDirs`) and apply in order:
+
+  - **Use `~/` when the path is already under the user's home.** `/Users/fokaragi/docs/x` or `C:\Users\fokaragi\docs\x` becomes `~/docs/x`. Home-rooted paths port cleanly across PCs and OSes.
+  - **Envvar-ize absolute paths outside `~/`.** Drive-absolute Windows paths (`D:\repos\...`), or Unix paths like `/opt/...` or `/mnt/...`, should become a `$VAR` reference. Example: `D:\repos\ctx-launcher` → `$REPOS_ROOT/ctx-launcher` plus a `REPOS_ROOT=D:/repos` entry in `~/.wl-workspaces/.paths.json`.
+  - **Skip subdirectories of `primaryRepo`.** Everything under the primary repo is already attached via `primaryRepo`. Adding `<primaryRepo>/docs` or `<primaryRepo>/src` as an additional dir is redundant — drop it.
+  - **Same rules for `instructions.md`.** When you reference paths in prose (build outputs, log locations, config files), use `~/` or `$VAR` — never hardcode drive-absolute or root-absolute paths. Paths inside the primary repo should be relative to the repo root.
+
+**3. Skill value threshold.** Only propose a skill if at least one of these holds:
   - It takes **3+ steps** to execute
   - It encodes **non-obvious knowledge** not captured in CLAUDE.md or existing repo-level skills
   - It's a **multi-command workflow** (not a single command with flags)
 
 One-line command wrappers do not meet this bar. Writing `rush update` or `az repos pr create …` as a skill adds noise without value. When nothing clears the bar, omit the "Skills to create" section entirely — "none" is the right answer and should be shown as such.
 
-**3. Decide the shape of the workspace.** Based on what's left after the two filters:
+**4. Decide the shape of the workspace.** Based on what's left after the three filters above:
 
 - **Minimal workspace** — the repo has a thorough CLAUDE.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty `instructions.md` that points to CLAUDE.md, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
 - **Full workspace** — additional dirs, cross-repo concerns, or genuine workspace-level context to capture. Use the full proposal template below.
@@ -131,6 +138,8 @@ After confirmation:
      "resume": true
    }
    ```
+
+   If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist), also run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
 
 2. Write `instructions.md` — this is the most important file. It should contain:
    - **System overview**: what the project is, what each repo/folder contains, how they relate

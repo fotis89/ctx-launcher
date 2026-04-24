@@ -55,6 +55,11 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Settings (`yolo`, `resume`) that no longer match how the workspace is used
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
 - Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
+- Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
+  - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
+  - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references and running `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.
+  - Subdirectories of `primaryRepo` listed as additional dirs — propose removing; they're already attached via `primaryRepo`.
+- Non-portable paths in `instructions.md` prose — drive-absolute or root-absolute paths that should be `~/`, `$VAR`, or relative-to-repo. Propose rewriting in place.
 
 ## Step 3: Propose
 

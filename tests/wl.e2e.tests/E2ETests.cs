@@ -112,6 +112,55 @@ public class E2ETests
     }
 
     [SkippableFact]
+    public void Paths_set_and_list_shows_variable()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+
+        var set = WlRunner.Run(home.Path, extraPathDir: null, "paths", "set", "MYREPOS", "/tmp/x");
+        Assert.Equal(0, set.ExitCode);
+
+        var list = WlRunner.Run(home.Path, extraPathDir: null, "paths", "list");
+        Assert.Equal(0, list.ExitCode);
+        Assert.Contains("MYREPOS", list.Stdout, StringComparison.Ordinal);
+        Assert.Contains("/tmp/x", list.Stdout, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
+    public void Paths_set_invalid_name_exits_nonzero_with_error()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+
+        var result = WlRunner.Run(home.Path, extraPathDir: null, "paths", "set", "bad name", "/tmp/x");
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Invalid variable name", result.Stderr, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
+    public void Which_with_unset_variable_shows_warning()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+
+        var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
+        Assert.Equal(0, create.ExitCode);
+
+        // Inject a $VAR reference into the scaffolded workspace.json.
+        var wsPath = OperatingSystem.IsWindows()
+            ? System.IO.Path.Combine(Environment.GetEnvironmentVariable("USERPROFILE")!, ".wl-workspaces", home.WorkspaceName, "workspace.json")
+            : System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName, "workspace.json");
+        var json = File.ReadAllText(wsPath);
+        json = json.Replace("\"additionalDirs\": []", "\"additionalDirs\": [\"$E2E_UNSET/foo\"]");
+        File.WriteAllText(wsPath, json);
+
+        var result = WlRunner.Run(home.Path, extraPathDir: null, "which", home.WorkspaceName);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("$E2E_UNSET", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("unset", result.Stdout, StringComparison.Ordinal);
+    }
+
+    [SkippableFact]
     public void Setup_exits_zero_when_claude_on_path()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);

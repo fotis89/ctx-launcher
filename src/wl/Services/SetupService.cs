@@ -27,6 +27,18 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         return !existed;
     }
 
+    private const string DefaultGitignore =
+        """
+        # Machine-local state — do not sync across PCs
+        .last-session
+        .last
+        .version
+        .paths.json
+
+        # wl-managed skills — re-installed by `wl setup` on each PC
+        .shared/.claude/skills/wl-update-workspace/
+        """;
+
     public SetupResult RunSetup()
     {
         var previous = versionService.GetInstalledVersion();
@@ -39,8 +51,19 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         var createFresh = WriteSkill(createDir, $"{CreateSkillName}.md");
         var updateFresh = WriteSkill(updateDir, $"{UpdateSkillName}.md");
 
+        EnsureGitignore();
+
         versionService.StampVersion();
         return new SetupResult(createFresh, updateFresh, previous, current);
+    }
+
+    private void EnsureGitignore()
+    {
+        var gitignorePath = Path.Combine(workspaces.GetWorkspacesRoot(), ".gitignore");
+        if (!File.Exists(gitignorePath))
+        {
+            File.WriteAllText(gitignorePath, DefaultGitignore);
+        }
     }
 
     public bool EnsureInstalled()

@@ -5,7 +5,7 @@ namespace wl.tests;
 
 public class LaunchServiceTests
 {
-    private readonly LaunchService _service = new(new ClaudeRunner());
+    private readonly LaunchService _service = new(new ClaudeRunner(), new PathsService(Path.Combine(Path.GetTempPath(), $"wl-paths-test-{Guid.NewGuid():N}.json")));
 
     private static Workspace MakeWorkspace(
         string? folderPath = null,
@@ -44,7 +44,10 @@ public class LaunchServiceTests
             var (args, _, _) = _service.BuildClaudeArgs(ws);
 
             Assert.Equal(2, args.Count(a => a == "--add-dir"));
-            Assert.Contains(args, a => a.Contains(tempDir));
+            // additionalDirs entries go through ResolvePath → native separators on Windows,
+            // forward slashes on Linux/macOS.
+            var expectedDir = OperatingSystem.IsWindows() ? tempDir : tempDir.Replace('\\', '/');
+            Assert.Contains(args, a => a.Contains(expectedDir));
             Assert.Contains(args, a => a.Contains(ws.FolderPath));
         }
         finally

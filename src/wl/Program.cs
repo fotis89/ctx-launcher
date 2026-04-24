@@ -7,7 +7,8 @@ using wl.Services;
 var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
-var launchService = new LaunchService(claudeRunner);
+var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
+var launchService = new LaunchService(claudeRunner, pathsService);
 var versionService = new VersionService(workspaceService);
 var setupService = new SetupService(workspaceService, versionService);
 
@@ -47,7 +48,7 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, yolo, resume, forceNew);
+    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew);
 });
 
 // create
@@ -80,12 +81,42 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    new WhichCommand(workspaceService, promptService, launchService).Execute(parseResult.GetValue(whichNameArg)!);
+    new WhichCommand(workspaceService, promptService, launchService, pathsService).Execute(parseResult.GetValue(whichNameArg)!);
 });
 
 // setup
 var setupCmd = new Command("setup", "Install Claude skills and show tab completion setup");
 setupCmd.SetAction(_ => new SetupCommand(setupService, claudeRunner).Execute());
+
+// paths (group)
+var pathsCmd = new Command("paths", "Manage path variables used in workspace.json");
+
+var pathsSetNameArg = new Argument<string>("name") { Description = "Variable name (e.g. REPOS_ROOT)" };
+var pathsSetValueArg = new Argument<string>("value") { Description = "Value to assign" };
+var pathsSetCmd = new Command("set", "Set a path variable") { pathsSetNameArg, pathsSetValueArg };
+pathsSetCmd.SetAction(parseResult =>
+    new PathsCommand(workspaceService, pathsService).Set(
+        parseResult.GetValue(pathsSetNameArg)!,
+        parseResult.GetValue(pathsSetValueArg)!) ? 0 : 1);
+
+var pathsListCmd = new Command("list", "List defined and referenced path variables");
+pathsListCmd.SetAction(_ => new PathsCommand(workspaceService, pathsService).List());
+
+var pathsInitCmd = new Command("init", "Prompt for any path variables referenced but not defined");
+pathsInitCmd.SetAction(_ => new PathsCommand(workspaceService, pathsService).Init());
+
+pathsCmd.Subcommands.Add(pathsSetCmd);
+pathsCmd.Subcommands.Add(pathsListCmd);
+pathsCmd.Subcommands.Add(pathsInitCmd);
+
+// clone
+var cloneUrlArg = new Argument<string>("git-url") { Description = "Git URL to clone" };
+var cloneCmd = new Command("clone", "Clone a workspaces repo into ~/.wl-workspaces and run setup + paths init") { cloneUrlArg };
+cloneCmd.SetAction(parseResult =>
+{
+    new CloneCommand(workspaceService, pathsService, setupService).Execute(
+        parseResult.GetValue(cloneUrlArg)!);
+});
 
 root.Add(launchCmd);
 root.Add(createCmd);
@@ -93,5 +124,7 @@ root.Add(listCmd);
 root.Add(editCmd);
 root.Add(whichCmd);
 root.Add(setupCmd);
+root.Add(pathsCmd);
+root.Add(cloneCmd);
 
 return await root.Parse(args).InvokeAsync();

@@ -3,8 +3,11 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService(ClaudeRunner claudeRunner)
+public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
 {
+    private Func<string, string?> Lookup => paths.Get;
+
+
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
         var args = new List<string>();
@@ -27,7 +30,7 @@ public class LaunchService(ClaudeRunner claudeRunner)
 
         foreach (var dir in ws.AdditionalDirs)
         {
-            var (exists, resolved) = PathHelper.ValidatePath(dir);
+            var (exists, resolved) = PathHelper.ValidatePath(dir, Lookup);
             if (exists)
             {
                 args.Add("--add-dir");
@@ -106,5 +109,5 @@ public class LaunchService(ClaudeRunner claudeRunner)
     }
 
     public void Launch(Workspace ws, List<string> args)
-        => claudeRunner.Run(PathHelper.ResolveTilde(ws.PrimaryRepo), args);
+        => claudeRunner.Run(PathHelper.ResolvePath(ws.PrimaryRepo, Lookup), args);
 }

@@ -4,15 +4,39 @@ namespace wl.Helpers;
 
 public static partial class PathHelper
 {
-    public static string ResolveTilde(string path)
+    public static string ResolvePath(string path, Func<string, string?>? lookup = null)
     {
+        if (lookup is not null && path.Contains('$'))
+        {
+            path = VarRegex().Replace(path, match =>
+            {
+                var name = match.Groups[1].Value.Length > 0 ? match.Groups[1].Value : match.Groups[2].Value;
+                return lookup(name) ?? match.Value;
+            });
+        }
+
         if (path.StartsWith('~'))
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var remainder = path[1..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return Path.GetFullPath(Path.Combine(home, remainder));
+            path = Path.GetFullPath(Path.Combine(home, remainder));
         }
-        return path;
+
+        // On Linux/macOS, `\` is a literal character (not a separator), so workspace.json
+        // authored on Windows with `\` must be normalized for portability. On Windows both
+        // separators work natively, so we leave paths alone — keeps `wl which` output
+        // visually consistent (no mixed `C:/Users/foo\bar` after Path.Combine).
+        return OperatingSystem.IsWindows() ? path : path.Replace('\\', '/');
+    }
+
+    public static string ResolveTilde(string path) => ResolvePath(path);
+
+    public static IEnumerable<string> ExtractVariables(string path)
+    {
+        foreach (Match m in VarRegex().Matches(path))
+        {
+            yield return m.Groups[1].Value.Length > 0 ? m.Groups[1].Value : m.Groups[2].Value;
+        }
     }
 
     public static string QuotePath(string path)
@@ -25,9 +49,9 @@ public static partial class PathHelper
         return path;
     }
 
-    public static (bool Exists, string ResolvedPath) ValidatePath(string path)
+    public static (bool Exists, string ResolvedPath) ValidatePath(string path, Func<string, string?>? lookup = null)
     {
-        var resolved = ResolveTilde(path);
+        var resolved = ResolvePath(path, lookup);
         return (Directory.Exists(resolved) || File.Exists(resolved), resolved);
     }
 
@@ -103,4 +127,7 @@ public static partial class PathHelper
 
     [GeneratedRegex(@"-{2,}")]
     private static partial Regex MultipleDashRegex();
+
+    [GeneratedRegex(@"\$(?:\{(\w+)\}|(\w+))")]
+    private static partial Regex VarRegex();
 }
