@@ -32,3 +32,9 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+## npm launcher is source; binaries in platform packages are populated at release time
+!npm/wl/bin/
+!npm/wl/bin/wl.js
+npm/wl-*/bin/wl
+npm/wl-*/bin/wl.exe

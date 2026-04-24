@@ -1,0 +1,16 @@
+{
+  "name": "@ctx-launcher/wl-linux-x64",
+  "version": "0.7.0",
+  "description": "wl binary for Linux x64",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": ["bin"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fotis89/ctx-launcher.git"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

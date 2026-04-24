@@ -1,0 +1,16 @@
+{
+  "name": "@ctx-launcher/wl-darwin-arm64",
+  "version": "0.7.0",
+  "description": "wl binary for macOS Apple Silicon",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["bin"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fotis89/ctx-launcher.git"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

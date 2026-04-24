@@ -1,13 +1,16 @@
 {
-  "name": "ctx-launcher",
-  "version": "0.6.0",
+  "name": "@ctx-launcher/wl",
+  "version": "0.7.0",
   "description": "Workspace manager for Claude Code sessions",
   "bin": {
-    "wl": "./bin/wl.exe"
+    "wl": "./bin/wl.js"
   },
-  "os": ["win32"],
-  "cpu": ["x64"],
-  "files": ["bin/"],
+  "files": ["bin", "README.md"],
+  "optionalDependencies": {
+    "@ctx-launcher/wl-win-x64": "0.7.0",
+    "@ctx-launcher/wl-linux-x64": "0.7.0",
+    "@ctx-launcher/wl-darwin-arm64": "0.7.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fotis89/ctx-launcher.git"
@@ -17,5 +20,8 @@
   "homepage": "https://github.com/fotis89/ctx-launcher#readme",
   "bugs": {
     "url": "https://github.com/fotis89/ctx-launcher/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

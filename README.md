@@ -1,6 +1,6 @@
 # ctx-launcher (wl) - Named Claude Code setups you can relaunch
 
-[![npm](https://img.shields.io/npm/v/ctx-launcher)](https://npmjs.com/package/ctx-launcher)
+[![npm](https://img.shields.io/npm/v/@ctx-launcher/wl)](https://npmjs.com/package/@ctx-launcher/wl)
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
@@ -53,19 +53,17 @@ wl launch wl-dev --resume
 
 ## Install
 
-### Windows (prebuilt)
+### Prebuilt (Windows / Linux / macOS)
 
-Requires Windows x64, [Node.js](https://nodejs.org/), and [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) on your `PATH`.
+Requires [Node.js](https://nodejs.org/) and [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) on your `PATH`.
 
 ```bash
-npm install -g ctx-launcher
+npm install -g @ctx-launcher/wl
 ```
 
+Prebuilt platforms: `win32-x64`, `linux-x64`, `darwin-arm64`. npm only downloads the matching binary for your OS. For other platforms (Intel Mac, ARM Linux, etc.), [build from source](#build-from-source).
+
 The first `wl launch` or `wl create` installs the Claude skills `wl` depends on (auto-refreshed on upgrade). Run `wl setup` if you also want tab completion or want to verify `claude` is reachable.
-
-### macOS / Linux
-
-No prebuilt package yet — [build from source](#build-from-source). Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) and `clang` or `gcc`.
 
 ## Quick start
 
