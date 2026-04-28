@@ -119,7 +119,7 @@ Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
 
 ## What's a workspace?
 
-A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos. It holds a saved setup: a primary repo, any additional folders to attach, and optional project-specific instructions.
+A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos. It holds a primary repo, any additional folders to attach, and optional project-specific instructions.
 
 ```text
 ~/.wl-workspaces/wl-dev/

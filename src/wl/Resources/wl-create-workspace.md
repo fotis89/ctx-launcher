@@ -46,6 +46,7 @@ Before writing the proposal, walk through these filters. They prevent the two mo
 **2. Make paths portable.** Walk every path you plan to put in `workspace.json` (both `primaryRepo` and each entry in `additionalDirs`) and apply in order:
 
   - **Use `~/` when the path is already under the user's home.** `/Users/fokaragi/docs/x` or `C:\Users\fokaragi\docs\x` becomes `~/docs/x`. Home-rooted paths port cleanly across PCs and OSes.
+  - **Reuse existing path variables.** Run `wl paths list` first. If a variable already maps to the right root (e.g. `$REPOS = D:\repos`), use it instead of inventing a new name. Only define a new variable if no existing one fits.
   - **Envvar-ize absolute paths outside `~/`.** Drive-absolute Windows paths (`D:\repos\...`), or Unix paths like `/opt/...` or `/mnt/...`, should become a `$VAR` reference. Example: `D:\repos\ctx-launcher` → `$REPOS_ROOT/ctx-launcher` plus a `REPOS_ROOT=D:/repos` entry in `~/.wl-workspaces/.paths.json`.
   - **Skip subdirectories of `primaryRepo`.** Everything under the primary repo is already attached via `primaryRepo`. Adding `<primaryRepo>/docs` or `<primaryRepo>/src` as an additional dir is redundant — drop it.
   - **Same rules for `instructions.md`.** When you reference paths in prose (build outputs, log locations, config files), use `~/` or `$VAR` — never hardcode drive-absolute or root-absolute paths. Paths inside the primary repo should be relative to the repo root.
@@ -139,7 +140,7 @@ After confirmation:
    }
    ```
 
-   If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist), also run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
+   If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist) *and the variable does not already appear in `wl paths list`*, run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
 
 2. Write `instructions.md` — this is the most important file. It should contain:
    - **System overview**: what the project is, what each repo/folder contains, how they relate

@@ -57,7 +57,8 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
-  - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references and running `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.
+  - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.
+  - Redundant `$VAR` references — `workspace.json` uses a variable that maps to the same root as another already in `wl paths list` (e.g., references `$DEV_REPOS` when `$REPOS` already points to the same directory). Propose consolidating to the existing variable.
   - Subdirectories of `primaryRepo` listed as additional dirs — propose removing; they're already attached via `primaryRepo`.
 - Non-portable paths in `instructions.md` prose — drive-absolute or root-absolute paths that should be `~/`, `$VAR`, or relative-to-repo. Propose rewriting in place.
 
