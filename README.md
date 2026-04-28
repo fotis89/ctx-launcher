@@ -4,7 +4,7 @@
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> Companion to [Claude Code](https://code.claude.com). Windows x64 prebuilt; macOS/Linux build from source.
+> Companion to [Claude Code](https://code.claude.com). Prebuilt for Windows x64, Linux x64, and macOS arm64.
 
 Switching between Claude Code projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
 
@@ -65,6 +65,17 @@ Prebuilt platforms: `win32-x64`, `linux-x64`, `darwin-arm64`. npm only downloads
 
 The first `wl launch` or `wl create` installs the Claude skills `wl` depends on (auto-refreshed on upgrade). Run `wl setup` if you also want tab completion or want to verify `claude` is reachable.
 
+### Upgrading from v0.6.0 or older
+
+v0.7.0 moved from the unscoped `ctx-launcher` package to the scoped `@ctx-launcher/wl`. The old package is orphaned at v0.6.0 on npm and won't get further updates. Switch with:
+
+```bash
+npm uninstall -g ctx-launcher
+npm install -g @ctx-launcher/wl
+```
+
+Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
+
 ## Quick start
 
 1. In the folder you want as Claude's primary working directory:
@@ -72,7 +83,7 @@ The first `wl launch` or `wl create` installs the Claude skills `wl` depends on 
    cd ~/repos/ctx-launcher
    wl create wl-dev
    ```
-   Opens Claude, which suggests a workspace for you to approve. *(Or run `wl create wl-dev --basic` to skip Claude and write a minimal `workspace.json` yourself.)*
+   Opens Claude, which suggests a workspace for you to approve. *(Or run `wl create wl-dev --basic` to skip Claude and write a minimal `workspace.json` directly.)*
 
 2. Launch the workspace:
    ```bash
@@ -286,7 +297,7 @@ dotnet test wl.slnx --verbosity quiet
 
 ### Publish a native binary
 
-The published npm package is Windows x64 only. If you want to build native binaries yourself:
+The npm package ships prebuilt binaries for `win-x64`, `linux-x64`, and `osx-arm64`. If your platform isn't covered (Intel Mac, ARM Linux, etc.) or you just want to build it yourself:
 
 **Windows** - requires MSVC build tools ([Visual Studio](https://visualstudio.microsoft.com/) C++ workload or standalone [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)):
 
@@ -298,8 +309,8 @@ dotnet publish src/wl -c Release -r win-x64
 
 ```bash
 dotnet publish src/wl -c Release -r linux-x64
-dotnet publish src/wl -c Release -r osx-x64
 dotnet publish src/wl -c Release -r osx-arm64
+dotnet publish src/wl -c Release -r osx-x64    # Intel Mac (not shipped via npm)
 ```
 
 Copy the published binary to a directory on your `PATH`.
