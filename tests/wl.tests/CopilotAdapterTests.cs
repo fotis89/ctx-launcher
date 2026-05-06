@@ -183,6 +183,22 @@ public class CopilotAdapterTests
     }
 
     [Fact]
+    public void GetEnvironment_SetsCustomInstructionsDirToWorkspaceFolder()
+    {
+        var ws = new Workspace
+        {
+            Name = "test",
+            PrimaryRepo = "/path/to/repo",
+            FolderPath = "/path/to/workspace-folder",
+        };
+
+        var env = _adapter.GetEnvironment(ws);
+
+        Assert.True(env.ContainsKey("COPILOT_CUSTOM_INSTRUCTIONS_DIRS"));
+        Assert.Equal("/path/to/workspace-folder", env["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
+    }
+
+    [Fact]
     public void PrepareLaunch_OverwritesStaleAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);

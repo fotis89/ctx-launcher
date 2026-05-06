@@ -17,7 +17,7 @@ public class ClaudeRunner
             ?? command;
     }
 
-    public virtual void Run(string command, string workingDirectory, IEnumerable<string> args)
+    public virtual void Run(string command, string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -28,6 +28,13 @@ public class ClaudeRunner
         foreach (var arg in args)
         {
             psi.ArgumentList.Add(arg);
+        }
+        if (environment is not null)
+        {
+            foreach (var (key, value) in environment)
+            {
+                psi.Environment[key] = value;
+            }
         }
 
         try

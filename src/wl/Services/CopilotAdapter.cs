@@ -11,8 +11,9 @@ public class CopilotAdapter : IToolAdapter
     {
         // Copilot auto-discovers AGENTS.md (and related files like
         // .github/copilot-instructions.md) per its --no-custom-instructions
-        // help text. The workspace folder is attached via --add-dir, so
-        // mirror instructions.md to AGENTS.md there and let Copilot pick it up.
+        // help text. The workspace folder isn't cwd or git root, so set
+        // COPILOT_CUSTOM_INSTRUCTIONS_DIRS in GetEnvironment() to make sure
+        // it's searched. Mirror instructions.md → AGENTS.md here.
         if (!File.Exists(ws.InstructionsPath))
         {
             return;
@@ -20,6 +21,16 @@ public class CopilotAdapter : IToolAdapter
 
         var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
         File.Copy(ws.InstructionsPath, agentsPath, overwrite: true);
+    }
+
+    public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
+    {
+        // Tell Copilot to also search the workspace folder for AGENTS.md
+        // (default search is cwd + git root only).
+        return new Dictionary<string, string>
+        {
+            ["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"] = ws.FolderPath,
+        };
     }
 
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)

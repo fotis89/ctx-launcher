@@ -10,6 +10,8 @@ public interface IToolAdapter
     AdapterArgs BuildArgs(AdapterLaunchSpec spec);
 
     void PrepareLaunch(Workspace ws);
+
+    IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws);
 }
 
 public record AdapterLaunchSpec(

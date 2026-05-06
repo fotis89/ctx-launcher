@@ -12,6 +12,9 @@ public class ClaudeAdapter : IToolAdapter
         // Claude reads instructions.md directly via --append-system-prompt-file; no prep needed.
     }
 
+    public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
+        => new Dictionary<string, string>();
+
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
     {
         var args = new List<string>();
