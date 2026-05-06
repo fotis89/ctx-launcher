@@ -117,7 +117,7 @@ Does this look right? Any changes before I create it?
 
 **Tool-specific notes for the proposal:**
 - If `tool: copilot`, omit the "Skills to create" section entirely — Copilot does not load `.claude/skills/*` files. Mention that workspace-level skills are Claude-only.
-- If `tool: copilot`, also flag that `instructions.md` is not forwarded to Copilot. Suggest the user place repo-scoped guidance in `.github/copilot-instructions.md` in the primary repo instead. Workspace `instructions.md` for Copilot workspaces is currently a no-op.
+- For `tool: copilot` workspaces, `instructions.md` is auto-mirrored to `<workspace-folder>/AGENTS.md` on every launch so Copilot's auto-discovery picks it up. Treat `instructions.md` as the source of truth; `AGENTS.md` is generated and overwritten by wl.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 

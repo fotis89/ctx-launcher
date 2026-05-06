@@ -1,9 +1,26 @@
+using wl.Models;
+
 namespace wl.Services;
 
 public class CopilotAdapter : IToolAdapter
 {
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
+
+    public void PrepareLaunch(Workspace ws)
+    {
+        // Copilot auto-discovers AGENTS.md (and related files like
+        // .github/copilot-instructions.md) per its --no-custom-instructions
+        // help text. The workspace folder is attached via --add-dir, so
+        // mirror instructions.md to AGENTS.md there and let Copilot pick it up.
+        if (!File.Exists(ws.InstructionsPath))
+        {
+            return;
+        }
+
+        var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
+        File.Copy(ws.InstructionsPath, agentsPath, overwrite: true);
+    }
 
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
     {
@@ -41,9 +58,8 @@ public class CopilotAdapter : IToolAdapter
         args.Add("--add-dir");
         args.Add(ws.FolderPath);
 
-        // Copilot CLI has no --append-system-prompt-file equivalent.
-        // Workspace-level instructions.md is not forwarded; for repo-scoped
-        // guidance, use .github/copilot-instructions.md in the primary repo.
+        // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
+        // discovered by Copilot via the workspace folder's --add-dir entry.
 
         if (spec.Yolo)
         {

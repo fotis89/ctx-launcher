@@ -128,4 +128,84 @@ public class CopilotAdapterTests
 
         Assert.Contains(folderPath, result.Args);
     }
+
+    [Fact]
+    public void PrepareLaunch_WithInstructions_MirrorsToAgentsFile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var instructionsPath = Path.Combine(tempDir, "instructions.md");
+            File.WriteAllText(instructionsPath, "workspace context goes here");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
+            Assert.True(File.Exists(agentsPath));
+            Assert.Equal("workspace context goes here", File.ReadAllText(agentsPath));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_WithoutInstructions_NoAgentsFileWritten()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            Assert.False(File.Exists(Path.Combine(tempDir, "AGENTS.md")));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_OverwritesStaleAgentsFile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "fresh");
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "stale");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            Assert.Equal("fresh", File.ReadAllText(Path.Combine(tempDir, "AGENTS.md")));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

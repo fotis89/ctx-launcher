@@ -8,6 +8,8 @@ public interface IToolAdapter
     string DisplayName { get; }
 
     AdapterArgs BuildArgs(AdapterLaunchSpec spec);
+
+    void PrepareLaunch(Workspace ws);
 }
 
 public record AdapterLaunchSpec(

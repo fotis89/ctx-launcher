@@ -157,16 +157,16 @@ The only required file. It defines the workspace name, the repo the AI CLI start
 
 #### Copilot workspaces
 
-Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with two limitations:
+Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
 
-- **`instructions.md` is not forwarded.** Copilot has no `--append-system-prompt-file` equivalent. For repo-scoped guidance, place a `.github/copilot-instructions.md` in the primary repo (Copilot auto-discovers it).
+- **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` (and related custom-instruction files). On every Copilot launch, `wl` writes the workspace's `instructions.md` content to `<workspace-folder>/AGENTS.md`; Copilot picks it up via the workspace folder's `--add-dir` entry. Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten on each launch.
 - **`.claude/skills/*` is not loaded.** Workspace-level skills are Claude-specific; Copilot uses its own customization model.
 
 ### `instructions.md`
 
 If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for notes that don't belong in a repo's `CLAUDE.md`: multi-repo relationships, cross-repo workflows, project-specific context.
 
-(Copilot workspaces ignore `instructions.md` — see the Copilot section above.)
+(For Copilot workspaces, `instructions.md` is auto-mirrored to `AGENTS.md` so Copilot picks it up — see the Copilot section above.)
 
 ### `prompts/*.md`
 

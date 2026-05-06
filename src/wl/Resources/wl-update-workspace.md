@@ -56,7 +56,7 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
 - Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
 - `tool` field references a CLI that isn't on PATH (e.g., `tool: copilot` but `copilot --version` fails). Verify with the appropriate `<tool> --version` check; flag and suggest either installing the tool or switching the workspace to one that is available.
-- For `tool: copilot` workspaces: presence of `instructions.md` (not forwarded to Copilot — content is silently ignored) or `.claude/skills/*` (Copilot doesn't load wl skills). Flag both as no-ops; suggest moving repo-scoped guidance to `.github/copilot-instructions.md` in the primary repo.
+- For `tool: copilot` workspaces: presence of `.claude/skills/*` (Copilot doesn't load wl skills — flag as a no-op). `instructions.md` is supported via auto-mirroring to `AGENTS.md` at launch time; do not flag its presence. If a stale `<workspace-folder>/AGENTS.md` exists alongside an outdated `instructions.md`, note it but expect wl to refresh it on the next launch.
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
   - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.

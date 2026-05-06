@@ -81,6 +81,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     public void Launch(Workspace ws, List<string> args)
     {
         var adapter = adapters.Resolve(ws.EffectiveTool);
+        adapter.PrepareLaunch(ws);
         claudeRunner.Run(adapter.ExecutableName, PathHelper.ResolvePath(ws.PrimaryRepo, Lookup), args);
     }
 }

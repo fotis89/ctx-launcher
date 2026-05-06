@@ -1,9 +1,16 @@
+using wl.Models;
+
 namespace wl.Services;
 
 public class ClaudeAdapter : IToolAdapter
 {
     public string ExecutableName => "claude";
     public string DisplayName => "claude";
+
+    public void PrepareLaunch(Workspace ws)
+    {
+        // Claude reads instructions.md directly via --append-system-prompt-file; no prep needed.
+    }
 
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
     {
