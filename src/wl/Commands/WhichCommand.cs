@@ -17,6 +17,11 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
+        if (!string.Equals(ws.EffectiveTool, "claude", StringComparison.OrdinalIgnoreCase))
+        {
+            ConsoleLabel.WriteLine("Tool:", ws.EffectiveTool);
+        }
+
         var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
         ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({PathStatus(ws.PrimaryRepo, repoOk)})");
 
