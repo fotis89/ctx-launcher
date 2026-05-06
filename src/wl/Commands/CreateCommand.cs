@@ -4,9 +4,9 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunner, SetupService setup)
+public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunner, SetupService setup, ToolAdapterRegistry adapters)
 {
-    public void Execute(string? name, bool basic = false)
+    public void Execute(string? name, bool basic = false, string? tool = null)
     {
         setup.EnsureInstalled();
 
@@ -42,7 +42,16 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             ? $"/wl-create-workspace {name}"
             : "/wl-create-workspace";
 
-        claudeRunner.Run("claude", Directory.GetCurrentDirectory(), [prompt]);
+        var resolvedTool = tool ?? DetectAvailableTool();
+        var adapter = adapters.Resolve(resolvedTool);
+        adapter.InvokeCreateSkill(prompt, Directory.GetCurrentDirectory(), claudeRunner);
+    }
+
+    private string DetectAvailableTool()
+    {
+        if (claudeRunner.TryGetVersion("claude", out _)) return "claude";
+        if (claudeRunner.TryGetVersion("copilot", out _)) return "copilot";
+        return "claude"; // fall through; ClaudeRunner.Run will print a clear "not found" error
     }
 
     private void WriteBasicWorkspace(string slug)

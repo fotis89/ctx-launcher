@@ -101,8 +101,9 @@ Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
 
 | Command | What it does |
 | --- | --- |
-| `wl create [name]` | Creates a workspace from the current repo (asks Claude to fill it in) |
-| `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking Claude |
+| `wl create [name]` | Creates a workspace from the current repo (asks Claude or Copilot to fill it in — auto-detects which CLI is on PATH) |
+| `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking an AI CLI |
+| `wl create <name> --tool copilot` | Forces the create flow through Copilot (override auto-detect) |
 | `wl launch [name]` | Launches a workspace; omit `name` to use the last one launched |
 | `wl launch <name> --resume` | Resumes the previous Claude session for that workspace |
 | `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |

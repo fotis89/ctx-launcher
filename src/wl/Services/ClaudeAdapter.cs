@@ -20,6 +20,11 @@ public class ClaudeAdapter : IToolAdapter
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => new Dictionary<string, string>();
 
+    public void InvokeCreateSkill(string prompt, string cwd, ClaudeRunner runner)
+    {
+        runner.Run(ExecutableName, cwd, [prompt]);
+    }
+
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
     {
         var args = new List<string>();

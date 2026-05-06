@@ -55,14 +55,16 @@ launchCmd.SetAction(parseResult =>
 });
 
 // create
-var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude will propose one)" };
-var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking Claude" };
-var createCmd = new Command("create", "Create a new workspace (via Claude, or --basic for a minimal scaffold)") { createNameArg, basicOpt };
+var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude/Copilot will propose one)" };
+var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking an AI CLI" };
+var createToolOpt = new Option<string?>("--tool") { Description = "Which AI CLI to invoke: 'claude' or 'copilot' (default: auto-detect)" };
+var createCmd = new Command("create", "Create a new workspace (via Claude/Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt, createToolOpt };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService, claudeRunner, setupService).Execute(
+    new CreateCommand(workspaceService, claudeRunner, setupService, toolAdapters).Execute(
         parseResult.GetValue(createNameArg),
-        parseResult.GetValue(basicOpt));
+        parseResult.GetValue(basicOpt),
+        parseResult.GetValue(createToolOpt));
 });
 
 // list

@@ -177,6 +177,41 @@ public class CopilotAdapter : IToolAdapter
         };
     }
 
+    public void InvokeCreateSkill(string prompt, string cwd, ClaudeRunner runner)
+    {
+        // /wl-create-workspace is installed by SetupService into the user's
+        // Claude global skills dir (~/.claude/skills). Copilot doesn't know
+        // about it natively, so register that dir in settings.json for the
+        // duration of this create flow, the same way we do per-launch for
+        // workspace skills. Cleanup runs 2s after spawn (Timer) and again
+        // when the spawned process exits (finally), idempotent.
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var claudeSkillsDir = Path.Combine(home, ".claude", "skills");
+        var settingsPath = GetCopilotSettingsPath();
+
+        RegisterSkillsDir(claudeSkillsDir, settingsPath);
+
+        var cleanupOnce = 0;
+        void Cleanup()
+        {
+            if (Interlocked.Exchange(ref cleanupOnce, 1) == 0)
+            {
+                UnregisterSkillsDirs([claudeSkillsDir], settingsPath);
+            }
+        }
+
+        using var cleanupTimer = new Timer(_ => Cleanup(), null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);
+
+        try
+        {
+            runner.Run(ExecutableName, cwd, ["-i", prompt]);
+        }
+        finally
+        {
+            Cleanup();
+        }
+    }
+
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
     {
         var args = new List<string>();

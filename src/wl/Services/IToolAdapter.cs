@@ -14,6 +14,8 @@ public interface IToolAdapter
     void CleanupAfterLaunch(Workspace ws);
 
     IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws);
+
+    void InvokeCreateSkill(string prompt, string cwd, ClaudeRunner runner);
 }
 
 public record AdapterLaunchSpec(
