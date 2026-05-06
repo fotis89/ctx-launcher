@@ -1,125 +1,82 @@
-using System.Text;
-
 using wl.Models;
 
 namespace wl.Services;
 
 public class CopilotAdapter : IToolAdapter
 {
+    private const string PluginDirName = ".copilot";
+
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
 
     public void PrepareLaunch(Workspace ws)
     {
-        // Copilot auto-discovers AGENTS.md (and related files) per its
-        // --no-custom-instructions help text. The workspace folder isn't
-        // cwd or git root, so set COPILOT_CUSTOM_INSTRUCTIONS_DIRS in
-        // GetEnvironment() to make sure it's searched.
-        //
-        // Build AGENTS.md from instructions.md + .claude/skills/* +
-        // shared .claude/skills/*. Copilot doesn't have a slash-command
-        // skills bridge, but it reads AGENTS.md as system context — so
-        // skill content becomes "available workflows" Copilot can pattern-
-        // match against natural-language user requests.
-        var sb = new StringBuilder();
-
+        // 1. Mirror instructions.md → AGENTS.md so Copilot's auto-discovery
+        //    picks up workspace context. (COPILOT_CUSTOM_INSTRUCTIONS_DIRS
+        //    in GetEnvironment ensures the workspace folder is searched.)
+        var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
         if (File.Exists(ws.InstructionsPath))
         {
-            sb.AppendLine(File.ReadAllText(ws.InstructionsPath).Trim());
-            sb.AppendLine();
+            File.Copy(ws.InstructionsPath, agentsPath, overwrite: true);
+        }
+        else if (File.Exists(agentsPath))
+        {
+            File.Delete(agentsPath);
         }
 
-        AppendSkills(sb, ws.SkillsPath);
+        // 2. Build a Copilot plugin under <workspace>/.copilot/skills/ that
+        //    mirrors the workspace's .claude/skills/ and the shared
+        //    .shared/.claude/skills/. The plugin format is identical to
+        //    Claude's (skills/<name>/SKILL.md), so we just copy the trees.
+        //    BuildArgs adds --plugin-dir for this directory at launch.
+        var pluginSkillsDir = Path.Combine(ws.FolderPath, PluginDirName, "skills");
+        if (Directory.Exists(pluginSkillsDir))
+        {
+            Directory.Delete(pluginSkillsDir, recursive: true);
+        }
+
+        MirrorSkills(ws.SkillsPath, pluginSkillsDir);
 
         var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
         if (workspacesRoot is not null)
         {
             var sharedSkillsPath = Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, ".claude", "skills");
-            AppendSkills(sb, sharedSkillsPath);
+            MirrorSkills(sharedSkillsPath, pluginSkillsDir);
         }
-
-        var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
-        if (sb.Length == 0)
-        {
-            // Nothing to write — clean up any stale AGENTS.md so a workspace
-            // that loses all its content doesn't keep an orphan.
-            if (File.Exists(agentsPath))
-            {
-                File.Delete(agentsPath);
-            }
-            return;
-        }
-
-        File.WriteAllText(agentsPath, sb.ToString().TrimEnd() + "\n");
     }
 
-    private static void AppendSkills(StringBuilder sb, string skillsDir)
+    private static void MirrorSkills(string sourceSkillsDir, string targetSkillsDir)
     {
-        if (!Directory.Exists(skillsDir))
+        if (!Directory.Exists(sourceSkillsDir))
         {
             return;
         }
 
-        foreach (var skillDir in Directory.GetDirectories(skillsDir))
+        foreach (var skillSrcDir in Directory.GetDirectories(sourceSkillsDir))
         {
-            var skillFile = Path.Combine(skillDir, "SKILL.md");
+            var skillFile = Path.Combine(skillSrcDir, "SKILL.md");
             if (!File.Exists(skillFile))
             {
                 continue;
             }
 
-            var name = Path.GetFileName(skillDir);
-            var (description, body) = ParseSkill(File.ReadAllText(skillFile));
-
-            sb.AppendLine($"## /{name}");
-            if (!string.IsNullOrEmpty(description))
-            {
-                sb.AppendLine();
-                sb.AppendLine($"_{description}_");
-            }
-            sb.AppendLine();
-            sb.AppendLine(body.Trim());
-            sb.AppendLine();
+            var name = Path.GetFileName(skillSrcDir);
+            var skillTargetDir = Path.Combine(targetSkillsDir, name);
+            CopyDirectory(skillSrcDir, skillTargetDir);
         }
     }
 
-    private static (string? Description, string Body) ParseSkill(string content)
+    private static void CopyDirectory(string src, string dst)
     {
-        var normalized = content.Replace("\r\n", "\n");
-        if (!normalized.StartsWith("---", StringComparison.Ordinal))
+        Directory.CreateDirectory(dst);
+        foreach (var file in Directory.GetFiles(src))
         {
-            return (null, normalized);
+            File.Copy(file, Path.Combine(dst, Path.GetFileName(file)), overwrite: true);
         }
-
-        var lines = normalized.Split('\n');
-        var closingIdx = -1;
-        for (var i = 1; i < lines.Length; i++)
+        foreach (var subdir in Directory.GetDirectories(src))
         {
-            if (lines[i].TrimEnd() == "---")
-            {
-                closingIdx = i;
-                break;
-            }
+            CopyDirectory(subdir, Path.Combine(dst, Path.GetFileName(subdir)));
         }
-
-        if (closingIdx == -1)
-        {
-            return (null, normalized);
-        }
-
-        string? description = null;
-        for (var i = 1; i < closingIdx; i++)
-        {
-            var line = lines[i];
-            if (line.StartsWith("description:", StringComparison.OrdinalIgnoreCase))
-            {
-                description = line["description:".Length..].Trim().Trim('"').Trim('\'');
-                break;
-            }
-        }
-
-        var body = string.Join('\n', lines.Skip(closingIdx + 1)).TrimStart();
-        return (description, body);
     }
 
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
@@ -170,6 +127,17 @@ public class CopilotAdapter : IToolAdapter
 
         // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
         // discovered by Copilot via the workspace folder's --add-dir entry.
+
+        // Skills from .claude/skills (workspace and shared) are mirrored
+        // into <workspace>/.copilot/skills by PrepareLaunch. Pass that as
+        // a Copilot plugin dir so the skills are loaded as real Copilot
+        // skills (not just AGENTS.md text).
+        var pluginSkillsDir = Path.Combine(ws.FolderPath, PluginDirName, "skills");
+        if (Directory.Exists(pluginSkillsDir) && Directory.GetDirectories(pluginSkillsDir).Length > 0)
+        {
+            args.Add("--plugin-dir");
+            args.Add(Path.Combine(ws.FolderPath, PluginDirName));
+        }
 
         if (spec.Yolo)
         {

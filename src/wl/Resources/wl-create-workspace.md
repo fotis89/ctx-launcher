@@ -116,8 +116,8 @@ Does this look right? Any changes before I create it?
 ```
 
 **Tool-specific notes for the proposal:**
-- For `tool: copilot` workspaces, `instructions.md` and every `SKILL.md` under `.claude/skills/` are merged into `<workspace-folder>/AGENTS.md` on each launch. Copilot reads it via auto-discovery (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set by wl). Treat `instructions.md` and `SKILL.md` files as the source of truth; `AGENTS.md` is regenerated and overwritten by wl.
-- The slash-command UX for skills (`/skill-name`) doesn't exist on Copilot — skills become discoverable workflows in `AGENTS.md` that Copilot pattern-matches against natural-language requests. Propose skills only when they pass the value threshold; don't promise users a `/<skill>` command in Copilot.
+- For `tool: copilot` workspaces, `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it), and `.claude/skills/*` is mirrored to `<workspace-folder>/.copilot/skills/*` and loaded as a Copilot plugin via `--plugin-dir`. Treat `instructions.md` and `.claude/skills/*` as the source of truth — `AGENTS.md` and `.copilot/` are regenerated and overwritten by wl on each launch.
+- Skills in Copilot workspaces work the same as in Claude workspaces — invokable as `/<skill-name>` slash commands.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 

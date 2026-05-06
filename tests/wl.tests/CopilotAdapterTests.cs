@@ -228,7 +228,7 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void PrepareLaunch_WithSkills_IncludesEachAsSection()
+    public void PrepareLaunch_WithWorkspaceSkills_MirrorsToCopilotPluginDir()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         var skillDir = Path.Combine(tempDir, ".claude", "skills", "wl-run-tests");
@@ -236,7 +236,7 @@ public class CopilotAdapterTests
         try
         {
             File.WriteAllText(Path.Combine(skillDir, "SKILL.md"),
-                "---\nname: wl-run-tests\ndescription: Run the test suite\n---\n\nSteps:\n1. Run dotnet test\n2. Report results\n");
+                "---\nname: wl-run-tests\ndescription: Run the test suite\n---\n\nSteps...\n");
 
             var ws = new Workspace
             {
@@ -247,12 +247,9 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
-            Assert.Contains("## /wl-run-tests", contents);
-            Assert.Contains("Run the test suite", contents);
-            Assert.Contains("Run dotnet test", contents);
-            // Frontmatter delimiters should be stripped
-            Assert.DoesNotContain("name: wl-run-tests", contents);
+            var mirroredSkill = Path.Combine(tempDir, ".copilot", "skills", "wl-run-tests", "SKILL.md");
+            Assert.True(File.Exists(mirroredSkill));
+            Assert.Contains("Run the test suite", File.ReadAllText(mirroredSkill));
         }
         finally
         {
@@ -261,7 +258,7 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void PrepareLaunch_WithSharedSkills_IncludesThemToo()
+    public void PrepareLaunch_WithSharedSkills_AlsoMirroredIntoWorkspacePlugin()
     {
         var workspacesRoot = Path.Combine(Path.GetTempPath(), "wl-test-root-" + Guid.NewGuid().ToString("N")[..8]);
         var wsFolder = Path.Combine(workspacesRoot, "test-ws");
@@ -282,9 +279,9 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            var contents = File.ReadAllText(Path.Combine(wsFolder, "AGENTS.md"));
-            Assert.Contains("## /do-code-review", contents);
-            Assert.Contains("Review steps", contents);
+            var mirroredSkill = Path.Combine(wsFolder, ".copilot", "skills", "do-code-review", "SKILL.md");
+            Assert.True(File.Exists(mirroredSkill));
+            Assert.Contains("Review steps", File.ReadAllText(mirroredSkill));
         }
         finally
         {
@@ -293,14 +290,14 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void PrepareLaunch_NoInputs_DeletesStaleAgentsFile()
+    public void PrepareLaunch_RebuildsPluginDir_RemovingStaleSkills()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
+        var staleSkill = Path.Combine(tempDir, ".copilot", "skills", "removed-skill");
+        Directory.CreateDirectory(staleSkill);
+        File.WriteAllText(Path.Combine(staleSkill, "SKILL.md"), "stale skill body");
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "stale content");
-
             var ws = new Workspace
             {
                 Name = "test",
@@ -310,11 +307,42 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            Assert.False(File.Exists(Path.Combine(tempDir, "AGENTS.md")));
+            // No source skills exist for the workspace, so plugin/skills should be empty.
+            Assert.False(Directory.Exists(staleSkill));
         }
         finally
         {
             Directory.Delete(tempDir, true);
         }
+    }
+
+    [Fact]
+    public void BuildArgs_WithPluginSkills_AddsPluginDirFlag()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        var pluginSkillDir = Path.Combine(tempDir, ".copilot", "skills", "some-skill");
+        Directory.CreateDirectory(pluginSkillDir);
+        File.WriteAllText(Path.Combine(pluginSkillDir, "SKILL.md"), "skill body");
+        try
+        {
+            var result = _adapter.BuildArgs(MakeSpec(folderPath: tempDir));
+
+            Assert.Contains("--plugin-dir", result.Args);
+            var idx = result.Args.IndexOf("--plugin-dir");
+            Assert.Equal(Path.Combine(tempDir, ".copilot"), result.Args[idx + 1]);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void BuildArgs_WithoutPluginSkills_NoPluginDirFlag()
+    {
+        // No .copilot dir at folderPath → no plugin-dir flag
+        var result = _adapter.BuildArgs(MakeSpec(folderPath: "/path/to/empty-ws"));
+
+        Assert.DoesNotContain("--plugin-dir", result.Args);
     }
 }
