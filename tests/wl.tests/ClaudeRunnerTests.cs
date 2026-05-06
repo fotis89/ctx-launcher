@@ -16,7 +16,7 @@ public class ClaudeRunnerTests
             File.WriteAllText(exePath, "");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = ClaudeRunner.ResolveExecutable(tempDir, ".EXE;.CMD");
+            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {
@@ -43,7 +43,7 @@ public class ClaudeRunnerTests
             var cmdPath = Path.Combine(tempDir, "claude.cmd");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = ClaudeRunner.ResolveExecutable(tempDir, ".EXE;.CMD");
+            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {
@@ -63,7 +63,7 @@ public class ClaudeRunnerTests
     [Fact]
     public void ResolveExecutable_WhenNoMatch_FallsBackToClaude()
     {
-        var result = ClaudeRunner.ResolveExecutable(@"C:\this\does\not\exist", ".EXE;.CMD");
+        var result = ClaudeRunner.ResolveExecutable("claude", @"C:\this\does\not\exist", ".EXE;.CMD");
 
         Assert.Equal("claude", result);
     }
@@ -71,7 +71,7 @@ public class ClaudeRunnerTests
     [Fact]
     public void TryGetVersion_DoesNotThrow()
     {
-        var ok = new ClaudeRunner().TryGetVersion(out var version);
+        var ok = new ClaudeRunner().TryGetVersion("claude", out var version);
 
         if (ok) Assert.False(string.IsNullOrWhiteSpace(version));
         else Assert.Equal("", version);
@@ -87,7 +87,7 @@ public class ClaudeRunnerTests
             var comPath = Path.Combine(tempDir, "claude.com");
             File.WriteAllText(comPath, "");
 
-            var result = ClaudeRunner.ResolveExecutable(tempDir, ".COM;.EXE;.CMD");
+            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".COM;.EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {

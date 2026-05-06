@@ -13,7 +13,7 @@ public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
         Console.WriteLine(result.UpdateWorkspaceFresh ? "  Skill /wl-update-workspace installed" : "  Skill /wl-update-workspace updated");
 
         Console.WriteLine();
-        if (claudeRunner.TryGetVersion(out var version))
+        if (claudeRunner.TryGetVersion("claude", out var version))
         {
             Console.WriteLine($"  Claude Code: {version}");
         }

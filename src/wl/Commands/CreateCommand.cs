@@ -42,7 +42,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             ? $"/wl-create-workspace {name}"
             : "/wl-create-workspace";
 
-        claudeRunner.Run(Directory.GetCurrentDirectory(), [prompt]);
+        claudeRunner.Run("claude", Directory.GetCurrentDirectory(), [prompt]);
     }
 
     private void WriteBasicWorkspace(string slug)
