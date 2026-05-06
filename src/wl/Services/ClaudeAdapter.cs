@@ -20,9 +20,11 @@ public class ClaudeAdapter : IToolAdapter
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => new Dictionary<string, string>();
 
-    public void InvokeCreateSkill(string prompt, string cwd, ClaudeRunner runner)
+    public void InvokeCreateSkill(string prompt, string cwd, string sharedDir, ClaudeRunner runner)
     {
-        runner.Run(ExecutableName, cwd, [prompt]);
+        // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Attach
+        // the shared dir so Claude's auto-discovery picks it up.
+        runner.Run(ExecutableName, cwd, ["--add-dir", sharedDir, prompt]);
     }
 
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)

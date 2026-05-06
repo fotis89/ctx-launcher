@@ -44,7 +44,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
 
         var resolvedTool = tool ?? DetectAvailableTool();
         var adapter = adapters.Resolve(resolvedTool);
-        adapter.InvokeCreateSkill(prompt, Directory.GetCurrentDirectory(), claudeRunner);
+        adapter.InvokeCreateSkill(prompt, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
     private string DetectAvailableTool()
