@@ -10,6 +10,9 @@ public class Workspace
     public List<string> AdditionalDirs { get; set; } = [];
     public bool Yolo { get; set; }
     public bool Resume { get; set; }
+    public string? Tool { get; set; }
+
+    [JsonIgnore] public string EffectiveTool => string.IsNullOrEmpty(Tool) ? "claude" : Tool;
 
     [JsonIgnore] public string FolderName => Path.GetFileName(FolderPath);
     [JsonIgnore] public string FolderPath { get; set; } = "";
