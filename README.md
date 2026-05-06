@@ -135,7 +135,7 @@ A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos.
 
 ### `workspace.json`
 
-The only required file. It defines the workspace name, the repo Claude starts in, any additional folders to attach, and launch defaults.
+The only required file. It defines the workspace name, the repo the AI CLI starts in, any additional folders to attach, and launch defaults.
 
 ```json
 {
@@ -149,14 +149,24 @@ The only required file. It defines the workspace name, the repo Claude starts in
 }
 ```
 
-- `primaryRepo` - Claude's working directory when the session starts
+- `primaryRepo` - working directory when the session starts
 - `additionalDirs` - extra repos or folders attached with `--add-dir`
-- `yolo` - default `wl launch` to `--dangerously-skip-permissions`
+- `yolo` - default `wl launch` to skip permission prompts
 - `resume` - default `wl launch` to resuming the last session
+- `tool` *(optional)* - which AI CLI to launch: `"claude"` (default) or `"copilot"`. Omit for Claude.
+
+#### Copilot workspaces
+
+Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with two limitations:
+
+- **`instructions.md` is not forwarded.** Copilot has no `--append-system-prompt-file` equivalent. For repo-scoped guidance, place a `.github/copilot-instructions.md` in the primary repo (Copilot auto-discovers it).
+- **`.claude/skills/*` is not loaded.** Workspace-level skills are Claude-specific; Copilot uses its own customization model.
 
 ### `instructions.md`
 
 If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for notes that don't belong in a repo's `CLAUDE.md`: multi-repo relationships, cross-repo workflows, project-specific context.
+
+(Copilot workspaces ignore `instructions.md` — see the Copilot section above.)
 
 ### `prompts/*.md`
 
