@@ -10,6 +10,7 @@ var claudeRunner = new ClaudeRunner();
 var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
 var toolAdapters = new ToolAdapterRegistry();
 toolAdapters.Register(new ClaudeAdapter());
+toolAdapters.Register(new CopilotAdapter());
 var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters);
 var versionService = new VersionService(workspaceService);
 var setupService = new SetupService(workspaceService, versionService);
