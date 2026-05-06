@@ -3,38 +3,23 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
+public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, IToolAdapter? adapter = null)
 {
+    private readonly IToolAdapter _adapter = adapter ?? new ClaudeAdapter();
     private Func<string, string?> Lookup => paths.Get;
 
 
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var args = new List<string>();
+        var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
-        string? newSessionId = null;
-
-        if (resumeSessionId is not null)
-        {
-            args.Add("--resume");
-            args.Add(resumeSessionId);
-        }
-        else
-        {
-            newSessionId = Guid.NewGuid().ToString();
-            args.Add("--session-id");
-            args.Add(newSessionId);
-            args.Add("--name");
-            args.Add(ws.Name);
-        }
 
         foreach (var dir in ws.AdditionalDirs)
         {
             var (exists, resolved) = PathHelper.ValidatePath(dir, Lookup);
             if (exists)
             {
-                args.Add("--add-dir");
-                args.Add(resolved);
+                resolvedDirs.Add(resolved);
             }
             else
             {
@@ -42,39 +27,23 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
             }
         }
 
-        if (sharedDirPath is not null)
-        {
-            args.Add("--add-dir");
-            args.Add(sharedDirPath);
-        }
+        var spec = new AdapterLaunchSpec(
+            Workspace: ws,
+            ResolvedAdditionalDirs: resolvedDirs,
+            ResolvedSharedDir: sharedDirPath,
+            Prompt: prompt,
+            Yolo: yolo,
+            ResumeSessionId: resumeSessionId);
 
-        args.Add("--add-dir");
-        args.Add(ws.FolderPath);
-
-        if (File.Exists(ws.InstructionsPath))
-        {
-            args.Add("--append-system-prompt-file");
-            args.Add(ws.InstructionsPath);
-        }
-
-        if (yolo)
-        {
-            args.Add("--dangerously-skip-permissions");
-        }
-
-        if (!string.IsNullOrEmpty(prompt))
-        {
-            args.Add(prompt);
-        }
-
-        return (args, skippedDirs, newSessionId);
+        var result = _adapter.BuildArgs(spec);
+        return (result.Args, skippedDirs, result.NewSessionId);
     }
 
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
         var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
-        var groups = new List<string> { "claude" };
+        var groups = new List<string> { _adapter.DisplayName };
         var current = "";
         foreach (var arg in args)
         {

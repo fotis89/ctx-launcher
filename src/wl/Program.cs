@@ -8,7 +8,8 @@ var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
 var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
-var launchService = new LaunchService(claudeRunner, pathsService);
+var claudeAdapter = new ClaudeAdapter();
+var launchService = new LaunchService(claudeRunner, pathsService, claudeAdapter);
 var versionService = new VersionService(workspaceService);
 var setupService = new SetupService(workspaceService, versionService);
 
