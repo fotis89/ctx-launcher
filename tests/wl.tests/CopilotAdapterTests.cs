@@ -150,7 +150,7 @@ public class CopilotAdapterTests
 
             var agentsPath = Path.Combine(tempDir, "AGENTS.md");
             Assert.True(File.Exists(agentsPath));
-            Assert.Equal("workspace context goes here", File.ReadAllText(agentsPath));
+            Assert.Contains("workspace context goes here", File.ReadAllText(agentsPath));
         }
         finally
         {
@@ -217,7 +217,100 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            Assert.Equal("fresh", File.ReadAllText(Path.Combine(tempDir, "AGENTS.md")));
+            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
+            Assert.Contains("fresh", contents);
+            Assert.DoesNotContain("stale", contents);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_WithSkills_IncludesEachAsSection()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        var skillDir = Path.Combine(tempDir, ".claude", "skills", "wl-run-tests");
+        Directory.CreateDirectory(skillDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(skillDir, "SKILL.md"),
+                "---\nname: wl-run-tests\ndescription: Run the test suite\n---\n\nSteps:\n1. Run dotnet test\n2. Report results\n");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
+            Assert.Contains("## /wl-run-tests", contents);
+            Assert.Contains("Run the test suite", contents);
+            Assert.Contains("Run dotnet test", contents);
+            // Frontmatter delimiters should be stripped
+            Assert.DoesNotContain("name: wl-run-tests", contents);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_WithSharedSkills_IncludesThemToo()
+    {
+        var workspacesRoot = Path.Combine(Path.GetTempPath(), "wl-test-root-" + Guid.NewGuid().ToString("N")[..8]);
+        var wsFolder = Path.Combine(workspacesRoot, "test-ws");
+        var sharedSkillDir = Path.Combine(workspacesRoot, ".shared", ".claude", "skills", "do-code-review");
+        Directory.CreateDirectory(wsFolder);
+        Directory.CreateDirectory(sharedSkillDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(sharedSkillDir, "SKILL.md"),
+                "---\nname: do-code-review\ndescription: Review a PR\n---\n\nReview steps...\n");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = wsFolder,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var contents = File.ReadAllText(Path.Combine(wsFolder, "AGENTS.md"));
+            Assert.Contains("## /do-code-review", contents);
+            Assert.Contains("Review steps", contents);
+        }
+        finally
+        {
+            Directory.Delete(workspacesRoot, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_NoInputs_DeletesStaleAgentsFile()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "stale content");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            Assert.False(File.Exists(Path.Combine(tempDir, "AGENTS.md")));
         }
         finally
         {

@@ -116,8 +116,8 @@ Does this look right? Any changes before I create it?
 ```
 
 **Tool-specific notes for the proposal:**
-- If `tool: copilot`, omit the "Skills to create" section entirely — Copilot does not load `.claude/skills/*` files. Mention that workspace-level skills are Claude-only.
-- For `tool: copilot` workspaces, `instructions.md` is auto-mirrored to `<workspace-folder>/AGENTS.md` on every launch so Copilot's auto-discovery picks it up. Treat `instructions.md` as the source of truth; `AGENTS.md` is generated and overwritten by wl.
+- For `tool: copilot` workspaces, `instructions.md` and every `SKILL.md` under `.claude/skills/` are merged into `<workspace-folder>/AGENTS.md` on each launch. Copilot reads it via auto-discovery (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set by wl). Treat `instructions.md` and `SKILL.md` files as the source of truth; `AGENTS.md` is regenerated and overwritten by wl.
+- The slash-command UX for skills (`/skill-name`) doesn't exist on Copilot — skills become discoverable workflows in `AGENTS.md` that Copilot pattern-matches against natural-language requests. Propose skills only when they pass the value threshold; don't promise users a `/<skill>` command in Copilot.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 

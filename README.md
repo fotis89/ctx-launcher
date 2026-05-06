@@ -159,8 +159,9 @@ The only required file. It defines the workspace name, the repo the AI CLI start
 
 Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
 
-- **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` (and related custom-instruction files). On every Copilot launch, `wl` writes the workspace's `instructions.md` content to `<workspace-folder>/AGENTS.md`; Copilot picks it up via the workspace folder's `--add-dir` entry. Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten on each launch.
-- **`.claude/skills/*` is not loaded.** Workspace-level skills are Claude-specific; Copilot uses its own customization model.
+- **`instructions.md` and `.claude/skills/*` are merged into `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` and related custom-instruction files. On every Copilot launch, `wl` builds `<workspace-folder>/AGENTS.md` from the workspace's `instructions.md` plus every `SKILL.md` in `.claude/skills/` and the shared `.shared/.claude/skills/`. Each skill becomes a section that Copilot reads as a "workflow"; ask in natural language and Copilot pattern-matches against the relevant section. Edit `instructions.md` and `SKILL.md` files as the source of truth — `AGENTS.md` is auto-generated and overwritten on each launch.
+- **No slash-command equivalent for skills.** Claude exposes skills as `/<name>` slash commands; Copilot doesn't have a file-based skill bridge in the same way. Skills travel as documented workflows in `AGENTS.md` instead — discoverable but not directly invokable as commands.
+- **`COPILOT_CUSTOM_INSTRUCTIONS_DIRS`** is set to the workspace folder so Copilot reliably searches it for `AGENTS.md` (default search is cwd + git root only).
 
 ### `instructions.md`
 
