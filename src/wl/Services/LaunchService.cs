@@ -3,14 +3,14 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAdapterRegistry adapters)
+public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAdapterRegistry adapters, ConfigService config)
 {
     private Func<string, string?> Lookup => paths.Get;
 
 
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var adapter = adapters.Resolve(ws.EffectiveTool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws));
         var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
 
@@ -41,7 +41,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var adapter = adapters.Resolve(ws.EffectiveTool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws));
         var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
         var groups = new List<string> { adapter.DisplayName };
@@ -80,7 +80,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public void Launch(Workspace ws, List<string> args)
     {
-        var adapter = adapters.Resolve(ws.EffectiveTool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws));
         adapter.PrepareLaunch(ws);
 
         // Cleanup runs once. The Timer fires 2s after spawn so any global

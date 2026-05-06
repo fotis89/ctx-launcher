@@ -161,7 +161,24 @@ The only required file. It defines the workspace name, the repo the AI CLI start
 Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
 
 - **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` and related custom-instruction files. On every Copilot launch, `wl` writes the workspace's `instructions.md` to `<workspace-folder>/AGENTS.md`. `COPILOT_CUSTOM_INSTRUCTIONS_DIRS=<workspace-folder>` is set so Copilot searches there (default search is cwd + git root only). Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten.
-- **`.claude/skills/*` is bridged via Copilot's plugin system.** Copilot's plugin format is identical to Claude's skill format: a directory with `skills/<name>/SKILL.md` files. On every Copilot launch, `wl` mirrors the workspace's `.claude/skills/` and the shared `.shared/.claude/skills/` into `<workspace-folder>/wl-skills-plugin/skills/`, then passes `--plugin-dir <workspace-folder>/wl-skills-plugin` to Copilot. Skills are loaded as first-class Copilot skills with proper `/<skill-name>` slash-command UX. `.claude/skills/` remains the source of truth — `wl-skills-plugin/` is rebuilt from scratch on each launch. (The dir name is unprefixed because Copilot's plugin loader skips dot-prefixed dirs.)
+- **`.claude/skills/*` is bridged via Copilot's `skillDirectories`.** Copilot reads `SKILL.md` files using the same format as Claude. On each Copilot launch, `wl` registers the workspace's `.claude/skills/` and the shared `.shared/.claude/skills/` directly in `~/.copilot/settings.json`'s `skillDirectories` array; on exit, those entries are removed. No mirroring, no auto-generated artifacts to gitignore — `.claude/skills/` is the single source of truth. Skills appear as `/<skill-name>` slash commands in the Copilot session.
+
+#### Default tool (machine-local)
+
+If most or all of your workspaces target the same tool on a given machine, set it once instead of stamping `tool` into every workspace:
+
+```json
+// ~/.wl-workspaces/.config.json
+{ "defaultTool": "copilot" }
+```
+
+The file is gitignored (machine-local — install state may differ per PC). Resolution precedence:
+
+1. Workspace's explicit `tool` field — always wins
+2. `.config.json` `defaultTool` — wins when `tool` is unset
+3. `claude` — final fallback
+
+`wl create` without `--tool` uses the same precedence to decide which CLI to spawn.
 
 ### `instructions.md`
 

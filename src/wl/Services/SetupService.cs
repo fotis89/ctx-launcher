@@ -34,6 +34,7 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         .last
         .version
         .paths.json
+        .config.json
 
         # wl-managed skills — re-installed by `wl setup` on each PC
         .shared/.claude/skills/wl-create-workspace/
@@ -74,13 +75,53 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         return new SetupResult(createFresh, updateFresh, previous, current);
     }
 
+    private static readonly string[] RequiredGitignorePatterns = DefaultGitignore
+        .Split('\n')
+        .Select(l => l.Trim())
+        .Where(l => l.Length > 0 && !l.StartsWith('#'))
+        .ToArray();
+
     private void EnsureGitignore()
     {
         var gitignorePath = Path.Combine(workspaces.GetWorkspacesRoot(), ".gitignore");
         if (!File.Exists(gitignorePath))
         {
             File.WriteAllText(gitignorePath, DefaultGitignore);
+            return;
         }
+
+        // Ensure every required pattern from DefaultGitignore is present in
+        // the existing file. Older wl versions wrote a smaller template, so
+        // upgrading users may be missing entries (e.g. wl-create-workspace/,
+        // */AGENTS.md). Append only the missing ones — leave user edits
+        // untouched.
+        var existing = File.ReadAllText(gitignorePath);
+        var existingPatterns = existing
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0 && !l.StartsWith('#'))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = RequiredGitignorePatterns
+            .Where(p => !existingPatterns.Contains(p))
+            .ToList();
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder(existing);
+        if (!existing.EndsWith('\n'))
+        {
+            sb.AppendLine();
+        }
+        sb.AppendLine();
+        sb.AppendLine("# Added by `wl setup`");
+        foreach (var line in missing)
+        {
+            sb.AppendLine(line);
+        }
+        File.WriteAllText(gitignorePath, sb.ToString());
     }
 
     public bool EnsureInstalled()

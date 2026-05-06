@@ -12,8 +12,6 @@ public class Workspace
     public bool Resume { get; set; }
     public string? Tool { get; set; }
 
-    [JsonIgnore] public string EffectiveTool => string.IsNullOrEmpty(Tool) ? "claude" : Tool;
-
     [JsonIgnore] public string FolderName => Path.GetFileName(FolderPath);
     [JsonIgnore] public string FolderPath { get; set; } = "";
     [JsonIgnore] public string InstructionsPath => Path.Combine(FolderPath, "instructions.md");

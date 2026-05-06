@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths)
+public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, ConfigService config)
 {
     public void Execute(string name)
     {
@@ -17,9 +17,10 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
-        if (!string.Equals(ws.EffectiveTool, "claude", StringComparison.OrdinalIgnoreCase))
+        var resolvedTool = config.ResolveTool(ws);
+        if (!string.Equals(resolvedTool, "claude", StringComparison.OrdinalIgnoreCase))
         {
-            ConsoleLabel.WriteLine("Tool:", ws.EffectiveTool);
+            ConsoleLabel.WriteLine("Tool:", resolvedTool);
         }
 
         var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);

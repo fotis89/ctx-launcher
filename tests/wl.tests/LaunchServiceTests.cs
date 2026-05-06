@@ -14,7 +14,8 @@ public class LaunchServiceTests
         return new LaunchService(
             new ClaudeRunner(),
             new PathsService(Path.Combine(Path.GetTempPath(), $"wl-paths-test-{Guid.NewGuid():N}.json")),
-            registry);
+            registry,
+            new ConfigService(Path.Combine(Path.GetTempPath(), $"wl-config-test-{Guid.NewGuid():N}.json")));
     }
 
     private static Workspace MakeWorkspace(

@@ -8,10 +8,11 @@ var workspaceService = new WorkspaceService();
 var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
 var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
+var configService = new ConfigService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".config.json"));
 var toolAdapters = new ToolAdapterRegistry();
 toolAdapters.Register(new ClaudeAdapter());
 toolAdapters.Register(new CopilotAdapter());
-var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters);
+var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters, configService);
 var versionService = new VersionService(workspaceService);
 var setupService = new SetupService(workspaceService, versionService);
 
@@ -61,7 +62,7 @@ var createToolOpt = new Option<string?>("--tool") { Description = "Which AI CLI 
 var createCmd = new Command("create", "Create a new workspace (via Claude/Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt, createToolOpt };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService, claudeRunner, setupService, toolAdapters).Execute(
+    new CreateCommand(workspaceService, claudeRunner, setupService, toolAdapters, configService).Execute(
         parseResult.GetValue(createNameArg),
         parseResult.GetValue(basicOpt),
         parseResult.GetValue(createToolOpt));
@@ -86,7 +87,7 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    new WhichCommand(workspaceService, promptService, launchService, pathsService).Execute(parseResult.GetValue(whichNameArg)!);
+    new WhichCommand(workspaceService, promptService, launchService, pathsService, configService).Execute(parseResult.GetValue(whichNameArg)!);
 });
 
 // setup
