@@ -4,7 +4,7 @@ namespace wl.Services;
 
 public class CopilotAdapter : IToolAdapter
 {
-    private const string PluginDirName = ".copilot";
+    private const string PluginDirName = "wl-skills-plugin";
 
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";

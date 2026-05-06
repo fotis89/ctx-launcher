@@ -247,7 +247,7 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            var mirroredSkill = Path.Combine(tempDir, ".copilot", "skills", "wl-run-tests", "SKILL.md");
+            var mirroredSkill = Path.Combine(tempDir, "wl-skills-plugin", "skills", "wl-run-tests", "SKILL.md");
             Assert.True(File.Exists(mirroredSkill));
             Assert.Contains("Run the test suite", File.ReadAllText(mirroredSkill));
         }
@@ -279,7 +279,7 @@ public class CopilotAdapterTests
 
             _adapter.PrepareLaunch(ws);
 
-            var mirroredSkill = Path.Combine(wsFolder, ".copilot", "skills", "do-code-review", "SKILL.md");
+            var mirroredSkill = Path.Combine(wsFolder, "wl-skills-plugin", "skills", "do-code-review", "SKILL.md");
             Assert.True(File.Exists(mirroredSkill));
             Assert.Contains("Review steps", File.ReadAllText(mirroredSkill));
         }
@@ -293,7 +293,7 @@ public class CopilotAdapterTests
     public void PrepareLaunch_RebuildsPluginDir_RemovingStaleSkills()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        var staleSkill = Path.Combine(tempDir, ".copilot", "skills", "removed-skill");
+        var staleSkill = Path.Combine(tempDir, "wl-skills-plugin", "skills", "removed-skill");
         Directory.CreateDirectory(staleSkill);
         File.WriteAllText(Path.Combine(staleSkill, "SKILL.md"), "stale skill body");
         try
@@ -320,7 +320,7 @@ public class CopilotAdapterTests
     public void BuildArgs_WithPluginSkills_AddsPluginDirFlag()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        var pluginSkillDir = Path.Combine(tempDir, ".copilot", "skills", "some-skill");
+        var pluginSkillDir = Path.Combine(tempDir, "wl-skills-plugin", "skills", "some-skill");
         Directory.CreateDirectory(pluginSkillDir);
         File.WriteAllText(Path.Combine(pluginSkillDir, "SKILL.md"), "skill body");
         try
@@ -329,7 +329,7 @@ public class CopilotAdapterTests
 
             Assert.Contains("--plugin-dir", result.Args);
             var idx = result.Args.IndexOf("--plugin-dir");
-            Assert.Equal(Path.Combine(tempDir, ".copilot"), result.Args[idx + 1]);
+            Assert.Equal(Path.Combine(tempDir, "wl-skills-plugin"), result.Args[idx + 1]);
         }
         finally
         {
