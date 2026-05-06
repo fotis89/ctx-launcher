@@ -228,28 +228,34 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void PrepareLaunch_WithWorkspaceSkills_MirrorsToCopilotPluginDir()
+    public void UnregisterSkillsDirs_RemovesOnlyMatchingPaths()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        var skillDir = Path.Combine(tempDir, ".claude", "skills", "wl-run-tests");
-        Directory.CreateDirectory(skillDir);
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
         try
         {
-            File.WriteAllText(Path.Combine(skillDir, "SKILL.md"),
-                "---\nname: wl-run-tests\ndescription: Run the test suite\n---\n\nSteps...\n");
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            File.WriteAllText(settingsPath, """
+                {
+                  "model": "claude-opus-4.7",
+                  "skillDirectories": [
+                    "C:\\user\\added\\path",
+                    "C:\\wl\\managed\\workspace-a",
+                    "C:\\wl\\managed\\workspace-b"
+                  ]
+                }
+                """);
 
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
+            CopilotAdapter.UnregisterSkillsDirs(
+                new[] { "C:\\wl\\managed\\workspace-a", "C:\\wl\\managed\\workspace-b" },
+                settingsPath);
 
-            _adapter.PrepareLaunch(ws);
-
-            var mirroredSkill = Path.Combine(tempDir, "wl-skills-plugin", "skills", "wl-run-tests", "SKILL.md");
-            Assert.True(File.Exists(mirroredSkill));
-            Assert.Contains("Run the test suite", File.ReadAllText(mirroredSkill));
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
+            var dirs = json["skillDirectories"]!.AsArray().Select(d => d!.GetValue<string>()).ToList();
+            Assert.Single(dirs);
+            Assert.Equal("C:\\user\\added\\path", dirs[0]);
+            // Other settings keys preserved
+            Assert.Equal("claude-opus-4.7", json["model"]!.GetValue<string>());
         }
         finally
         {
@@ -258,57 +264,22 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void PrepareLaunch_WithSharedSkills_AlsoMirroredIntoWorkspacePlugin()
+    public void UnregisterSkillsDirs_NoMatch_FileUntouched()
     {
-        var workspacesRoot = Path.Combine(Path.GetTempPath(), "wl-test-root-" + Guid.NewGuid().ToString("N")[..8]);
-        var wsFolder = Path.Combine(workspacesRoot, "test-ws");
-        var sharedSkillDir = Path.Combine(workspacesRoot, ".shared", ".claude", "skills", "do-code-review");
-        Directory.CreateDirectory(wsFolder);
-        Directory.CreateDirectory(sharedSkillDir);
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
         try
         {
-            File.WriteAllText(Path.Combine(sharedSkillDir, "SKILL.md"),
-                "---\nname: do-code-review\ndescription: Review a PR\n---\n\nReview steps...\n");
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            var original = """{"skillDirectories":["C:\\user\\path"]}""";
+            File.WriteAllText(settingsPath, original);
+            var beforeWrite = File.GetLastWriteTimeUtc(settingsPath);
 
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = wsFolder,
-            };
+            Thread.Sleep(50);
+            CopilotAdapter.UnregisterSkillsDirs(new[] { "C:\\not\\registered" }, settingsPath);
 
-            _adapter.PrepareLaunch(ws);
-
-            var mirroredSkill = Path.Combine(wsFolder, "wl-skills-plugin", "skills", "do-code-review", "SKILL.md");
-            Assert.True(File.Exists(mirroredSkill));
-            Assert.Contains("Review steps", File.ReadAllText(mirroredSkill));
-        }
-        finally
-        {
-            Directory.Delete(workspacesRoot, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_RebuildsPluginDir_RemovingStaleSkills()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        var staleSkill = Path.Combine(tempDir, "wl-skills-plugin", "skills", "removed-skill");
-        Directory.CreateDirectory(staleSkill);
-        File.WriteAllText(Path.Combine(staleSkill, "SKILL.md"), "stale skill body");
-        try
-        {
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            // No source skills exist for the workspace, so plugin/skills should be empty.
-            Assert.False(Directory.Exists(staleSkill));
+            var afterWrite = File.GetLastWriteTimeUtc(settingsPath);
+            Assert.Equal(beforeWrite, afterWrite);
         }
         finally
         {

@@ -11,6 +11,8 @@ public interface IToolAdapter
 
     void PrepareLaunch(Workspace ws);
 
+    void CleanupAfterLaunch(Workspace ws);
+
     IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws);
 }
 
