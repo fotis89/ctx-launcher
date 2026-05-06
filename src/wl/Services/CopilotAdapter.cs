@@ -198,20 +198,7 @@ public class CopilotAdapter : IToolAdapter
             args.Add(ws.Name);
         }
 
-        foreach (var dir in spec.ResolvedAdditionalDirs)
-        {
-            args.Add("--add-dir");
-            args.Add(dir);
-        }
-
-        if (spec.ResolvedSharedDir is not null)
-        {
-            args.Add("--add-dir");
-            args.Add(spec.ResolvedSharedDir);
-        }
-
-        args.Add("--add-dir");
-        args.Add(ws.FolderPath);
+        spec.AppendAddDirArgs(args);
 
         // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
         // discovered by Copilot via COPILOT_CUSTOM_INSTRUCTIONS_DIRS.

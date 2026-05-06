@@ -40,20 +40,7 @@ public class ClaudeAdapter : IToolAdapter
             args.Add(ws.Name);
         }
 
-        foreach (var dir in spec.ResolvedAdditionalDirs)
-        {
-            args.Add("--add-dir");
-            args.Add(dir);
-        }
-
-        if (spec.ResolvedSharedDir is not null)
-        {
-            args.Add("--add-dir");
-            args.Add(spec.ResolvedSharedDir);
-        }
-
-        args.Add("--add-dir");
-        args.Add(ws.FolderPath);
+        spec.AppendAddDirArgs(args);
 
         if (File.Exists(ws.InstructionsPath))
         {
