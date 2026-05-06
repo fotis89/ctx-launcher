@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 using wl.Models;
 
 namespace wl.Services;
@@ -24,11 +26,12 @@ public class CopilotAdapter : IToolAdapter
             File.Delete(agentsPath);
         }
 
-        // 2. Build a Copilot plugin under <workspace>/.copilot/skills/ that
-        //    mirrors the workspace's .claude/skills/ and the shared
-        //    .shared/.claude/skills/. The plugin format is identical to
-        //    Claude's (skills/<name>/SKILL.md), so we just copy the trees.
-        //    BuildArgs adds --plugin-dir for this directory at launch.
+        // 2. Mirror Claude skills into <workspace>/wl-skills-plugin/skills/
+        //    (full directory copy — SKILL.md plus references/, etc.) and
+        //    register that path in Copilot's settings.json under
+        //    skillDirectories. Copilot's --plugin-dir flag does not load
+        //    raw skill directories; the working mechanism is the same one
+        //    /skills add uses, which writes to skillDirectories.
         var pluginSkillsDir = Path.Combine(ws.FolderPath, PluginDirName, "skills");
         if (Directory.Exists(pluginSkillsDir))
         {
@@ -43,6 +46,59 @@ public class CopilotAdapter : IToolAdapter
             var sharedSkillsPath = Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, ".claude", "skills");
             MirrorSkills(sharedSkillsPath, pluginSkillsDir);
         }
+
+        if (Directory.Exists(pluginSkillsDir) && Directory.GetDirectories(pluginSkillsDir).Length > 0)
+        {
+            RegisterSkillsDir(pluginSkillsDir, GetCopilotSettingsPath());
+        }
+    }
+
+    public static string GetCopilotSettingsPath()
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(home, ".copilot", "settings.json");
+    }
+
+    public static void RegisterSkillsDir(string skillsDir, string settingsPath)
+    {
+        var copilotDir = Path.GetDirectoryName(settingsPath)!;
+
+        JsonObject settings;
+        if (File.Exists(settingsPath))
+        {
+            try
+            {
+                settings = JsonNode.Parse(File.ReadAllText(settingsPath)) as JsonObject ?? new JsonObject();
+            }
+            catch
+            {
+                // Don't overwrite a malformed user settings file — bail.
+                return;
+            }
+        }
+        else
+        {
+            settings = new JsonObject();
+        }
+
+        var dirs = settings["skillDirectories"] as JsonArray ?? new JsonArray();
+
+        foreach (var item in dirs)
+        {
+            if (item is JsonValue v && v.TryGetValue<string>(out var existing)
+                && string.Equals(existing, skillsDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return; // already registered
+            }
+        }
+
+        dirs.Add((JsonNode)JsonValue.Create(skillsDir)!);
+        settings["skillDirectories"] = dirs;
+
+        Directory.CreateDirectory(copilotDir);
+        var tmp = settingsPath + ".tmp";
+        File.WriteAllText(tmp, settings.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.Move(tmp, settingsPath, overwrite: true);
     }
 
     private static void MirrorSkills(string sourceSkillsDir, string targetSkillsDir)
@@ -126,18 +182,9 @@ public class CopilotAdapter : IToolAdapter
         args.Add(ws.FolderPath);
 
         // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
-        // discovered by Copilot via the workspace folder's --add-dir entry.
-
-        // Skills from .claude/skills (workspace and shared) are mirrored
-        // into <workspace>/.copilot/skills by PrepareLaunch. Pass that as
-        // a Copilot plugin dir so the skills are loaded as real Copilot
-        // skills (not just AGENTS.md text).
-        var pluginSkillsDir = Path.Combine(ws.FolderPath, PluginDirName, "skills");
-        if (Directory.Exists(pluginSkillsDir) && Directory.GetDirectories(pluginSkillsDir).Length > 0)
-        {
-            args.Add("--plugin-dir");
-            args.Add(Path.Combine(ws.FolderPath, PluginDirName));
-        }
+        // discovered by Copilot via COPILOT_CUSTOM_INSTRUCTIONS_DIRS.
+        // Skills are registered in ~/.copilot/settings.json's
+        // skillDirectories by PrepareLaunch — no CLI flag needed.
 
         if (spec.Yolo)
         {

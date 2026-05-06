@@ -317,19 +317,20 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void BuildArgs_WithPluginSkills_AddsPluginDirFlag()
+    public void RegisterSkillsDir_FreshSettings_AddsPath()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        var pluginSkillDir = Path.Combine(tempDir, "wl-skills-plugin", "skills", "some-skill");
-        Directory.CreateDirectory(pluginSkillDir);
-        File.WriteAllText(Path.Combine(pluginSkillDir, "SKILL.md"), "skill body");
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
         try
         {
-            var result = _adapter.BuildArgs(MakeSpec(folderPath: tempDir));
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            var skillsDir = Path.Combine(tempDir, "ws", "wl-skills-plugin", "skills");
 
-            Assert.Contains("--plugin-dir", result.Args);
-            var idx = result.Args.IndexOf("--plugin-dir");
-            Assert.Equal(Path.Combine(tempDir, "wl-skills-plugin"), result.Args[idx + 1]);
+            CopilotAdapter.RegisterSkillsDir(skillsDir, settingsPath);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
+            var dirs = json["skillDirectories"]!.AsArray();
+            Assert.Contains(dirs, d => d!.GetValue<string>() == skillsDir);
         }
         finally
         {
@@ -338,11 +339,56 @@ public class CopilotAdapterTests
     }
 
     [Fact]
-    public void BuildArgs_WithoutPluginSkills_NoPluginDirFlag()
+    public void RegisterSkillsDir_ExistingSettings_PreservesOtherKeys()
     {
-        // No .copilot dir at folderPath → no plugin-dir flag
-        var result = _adapter.BuildArgs(MakeSpec(folderPath: "/path/to/empty-ws"));
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            File.WriteAllText(settingsPath, """
+                {
+                  "model": "claude-opus-4.7",
+                  "trustedFolders": ["D:\\repos\\foo"],
+                  "skillDirectories": ["C:\\old\\path"]
+                }
+                """);
 
-        Assert.DoesNotContain("--plugin-dir", result.Args);
+            CopilotAdapter.RegisterSkillsDir("C:\\new\\path", settingsPath);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
+            Assert.Equal("claude-opus-4.7", json["model"]!.GetValue<string>());
+            Assert.Single(json["trustedFolders"]!.AsArray());
+
+            var dirs = json["skillDirectories"]!.AsArray().Select(d => d!.GetValue<string>()).ToList();
+            Assert.Equal(2, dirs.Count);
+            Assert.Contains("C:\\old\\path", dirs);
+            Assert.Contains("C:\\new\\path", dirs);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void RegisterSkillsDir_AlreadyRegistered_NoDuplicate()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            File.WriteAllText(settingsPath, """{"skillDirectories": ["C:\\my\\skills"]}""");
+
+            CopilotAdapter.RegisterSkillsDir("C:\\my\\skills", settingsPath);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settingsPath))!.AsObject();
+            Assert.Single(json["skillDirectories"]!.AsArray());
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
     }
 }
