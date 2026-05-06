@@ -39,7 +39,8 @@ public class ClaudeRunner
 
         try
         {
-            Process.Start(psi);
+            var process = Process.Start(psi);
+            process?.WaitForExit();
         }
         catch (System.ComponentModel.Win32Exception)
         {

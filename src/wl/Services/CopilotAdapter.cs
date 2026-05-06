@@ -43,14 +43,12 @@ public class CopilotAdapter : IToolAdapter
 
     public void CleanupAfterLaunch(Workspace ws)
     {
-        // Wait for Copilot to start and read settings.json before we
-        // unregister. ClaudeRunner.Run no longer blocks on the child
-        // process, so wl spawns Copilot, sleeps here long enough for the
-        // initial settings load, then reverts the file. The user's
-        // ~/.copilot/settings.json carries our wl-managed entries only
-        // for this brief window.
-        Thread.Sleep(TimeSpan.FromSeconds(2));
-
+        // Unregister the skill-directory entries we wrote in PrepareLaunch
+        // so the user's ~/.copilot/settings.json reverts to its prior
+        // state. LaunchService schedules this on a Timer 2s after spawn
+        // (so Copilot has time to read settings) and also calls it once
+        // more in the launch finally as a safety net — UnregisterSkillsDirs
+        // is idempotent.
         var settingsPath = GetCopilotSettingsPath();
         UnregisterSkillsDirs(GetManagedSkillsDirs(ws), settingsPath);
     }

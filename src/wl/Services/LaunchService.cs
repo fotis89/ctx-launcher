@@ -82,6 +82,23 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     {
         var adapter = adapters.Resolve(ws.EffectiveTool);
         adapter.PrepareLaunch(ws);
+
+        // Cleanup runs once. The Timer fires 2s after spawn so any global
+        // state PrepareLaunch wrote (e.g. Copilot's skillDirectories) is
+        // reverted while wl is still blocking on the child — long enough
+        // for the child to have read the state. The finally is a safety
+        // net if the child exited in under 2s.
+        var cleanupOnce = 0;
+        void Cleanup()
+        {
+            if (Interlocked.Exchange(ref cleanupOnce, 1) == 0)
+            {
+                adapter.CleanupAfterLaunch(ws);
+            }
+        }
+
+        using var cleanupTimer = new Timer(_ => Cleanup(), null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);
+
         try
         {
             claudeRunner.Run(
@@ -92,7 +109,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         }
         finally
         {
-            adapter.CleanupAfterLaunch(ws);
+            Cleanup();
         }
     }
 }
