@@ -3,14 +3,14 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, IToolAdapter? adapter = null)
+public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAdapterRegistry adapters)
 {
-    private readonly IToolAdapter _adapter = adapter ?? new ClaudeAdapter();
     private Func<string, string?> Lookup => paths.Get;
 
 
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
+        var adapter = adapters.Resolve(ws.EffectiveTool);
         var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
 
@@ -35,15 +35,16 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, IToolA
             Yolo: yolo,
             ResumeSessionId: resumeSessionId);
 
-        var result = _adapter.BuildArgs(spec);
+        var result = adapter.BuildArgs(spec);
         return (result.Args, skippedDirs, result.NewSessionId);
     }
 
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
+        var adapter = adapters.Resolve(ws.EffectiveTool);
         var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
-        var groups = new List<string> { _adapter.DisplayName };
+        var groups = new List<string> { adapter.DisplayName };
         var current = "";
         foreach (var arg in args)
         {

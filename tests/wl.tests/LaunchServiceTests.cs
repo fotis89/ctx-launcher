@@ -5,7 +5,17 @@ namespace wl.tests;
 
 public class LaunchServiceTests
 {
-    private readonly LaunchService _service = new(new ClaudeRunner(), new PathsService(Path.Combine(Path.GetTempPath(), $"wl-paths-test-{Guid.NewGuid():N}.json")));
+    private readonly LaunchService _service = MakeService();
+
+    private static LaunchService MakeService()
+    {
+        var registry = new ToolAdapterRegistry();
+        registry.Register(new ClaudeAdapter());
+        return new LaunchService(
+            new ClaudeRunner(),
+            new PathsService(Path.Combine(Path.GetTempPath(), $"wl-paths-test-{Guid.NewGuid():N}.json")),
+            registry);
+    }
 
     private static Workspace MakeWorkspace(
         string? folderPath = null,
