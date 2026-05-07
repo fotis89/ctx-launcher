@@ -37,8 +37,11 @@ public class WorkspaceService
         return Directory.Exists(path) ? path : null;
     }
 
+    public string GetSharedClaudeDirPath()
+        => Path.Combine(GetSharedDirPath(), ClaudeDirName);
+
     public string GetSharedSkillsPath()
-        => Path.Combine(GetSharedDirPath(), ClaudeDirName, SkillsDirName);
+        => Path.Combine(GetSharedClaudeDirPath(), SkillsDirName);
 
     public string EnsureSharedDir()
     {

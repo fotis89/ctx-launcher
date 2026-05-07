@@ -51,7 +51,7 @@ public class CopilotAdapter : IToolAdapter
         // Plugin names must be kebab-case per Copilot's plugin.json spec.
         // FolderName is usually already a slug (from `wl create`) but may
         // be arbitrary user input on hand-created or migrated workspaces.
-        yield return (Path.Combine(ws.FolderPath, WorkspaceService.ClaudeDirName), $"{WorkspacePluginPrefix}{PathHelper.Slugify(ws.FolderName)}");
+        yield return (ws.ClaudeDirPath, $"{WorkspacePluginPrefix}{PathHelper.Slugify(ws.FolderName)}");
         var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
         if (workspacesRoot is not null)
         {

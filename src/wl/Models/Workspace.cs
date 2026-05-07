@@ -18,5 +18,6 @@ public class Workspace
     [JsonIgnore] public string FolderPath { get; set; } = "";
     [JsonIgnore] public string InstructionsPath => Path.Combine(FolderPath, WorkspaceService.InstructionsFileName);
     [JsonIgnore] public string PromptsPath => Path.Combine(FolderPath, "prompts");
-    [JsonIgnore] public string SkillsPath => Path.Combine(FolderPath, WorkspaceService.ClaudeDirName, WorkspaceService.SkillsDirName);
+    [JsonIgnore] public string ClaudeDirPath => Path.Combine(FolderPath, WorkspaceService.ClaudeDirName);
+    [JsonIgnore] public string SkillsPath => Path.Combine(ClaudeDirPath, WorkspaceService.SkillsDirName);
 }
