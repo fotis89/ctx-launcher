@@ -21,7 +21,7 @@ var setupService = new SetupService(versionService, paths);
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
 
-var root = new RootCommand("wl — AI context launcher for Claude Code");
+var root = new RootCommand("wl — AI workspace launcher");
 
 // launch
 var launchNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };

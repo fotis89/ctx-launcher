@@ -1,18 +1,18 @@
-# ctx-launcher (wl) - Named Claude Code setups you can relaunch
+# ctx-launcher (wl) - Named AI workspaces you can relaunch
 
 [![npm](https://img.shields.io/npm/v/@ctx-launcher/wl)](https://npmjs.com/package/@ctx-launcher/wl)
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> Companion to [Claude Code](https://code.claude.com). Prebuilt for Windows x64, Linux x64, and macOS arm64.
+> Companion to [Claude Code](https://code.claude.com) and [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli). Prebuilt for Windows x64, Linux x64, and macOS arm64.
 
-Switching between Claude Code projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
+Switching between AI coding projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
 
-`wl` saves each Claude Code setup (repos, folders, instructions, skills) under a name you pick. Switch between them with one command; resume the previous session when you want.
+`wl` saves each project setup (repos, folders, instructions, skills) under a name you pick, then launches it through your AI CLI. Switch between them with one command; resume the previous session when you want.
 
-Your repo's `CLAUDE.md` stays the team's shared context. `wl` adds your personal layer on top — not committed, not shared.
+Your repo's shared context (`CLAUDE.md`, `AGENTS.md`) stays the team's. `wl` adds your personal layer on top — not committed, not shared.
 
-A workspace is a local folder outside your repos, storing the Claude launch config, optional instructions, optional prompts, optional skills, and a pointer to the last Claude session.
+A workspace is a local folder outside your repos, storing the launch config, optional instructions, optional prompts, optional skills, and a pointer to the last session.
 
 This is what using `wl` looks like:
 
@@ -25,7 +25,7 @@ cd ~/repos/ctx-launcher
 wl create wl-dev
 ```
 
-Open Claude with that workspace from any directory:
+Open the workspace from any directory:
 
 ```bash
 wl launch wl-dev
@@ -41,21 +41,21 @@ wl launch wl-dev --resume
 
 ## What you can do with it
 
-- Launch Claude with a saved workspace by name, from any directory
+- Launch a saved workspace by name, from any directory
 - Switch between projects without re-explaining context or re-attaching folders
-- See which workspace is active at a glance — Claude Code shows the name in its statusline and terminal tab
+- See which workspace is active at a glance — Claude Code shows the name in its statusline and terminal tab; Copilot tracks the session by UUID + name internally
 - Come back to a task and pick up where you left off
-- Work across multiple repos or folders in one Claude session
-- Give Claude notes, instructions, and skills that travel with the workspace, not the repo
-- Let Claude create the workspace for you - no JSON to write by hand
+- Work across multiple repos or folders in one session
+- Give the AI notes, instructions, and skills that travel with the workspace, not the repo
+- Let the AI create the workspace for you — no JSON to write by hand
 
-**Why not just a bash alias?** An alias can attach folders and instructions to `claude`. What it can't do: track which Claude session belongs to which project (`wl` saves a per-workspace session pointer), carry workspace-local skills Claude auto-invokes, or preview the exact launched command before running. Those are `wl`'s real differentiators.
+**Why not just a bash alias?** An alias can attach folders and instructions to `claude` or `copilot`. What it can't do: track which session belongs to which project (`wl` saves a per-workspace session pointer), carry workspace-local skills the AI auto-invokes, or preview the exact launched command before running. Those are `wl`'s real differentiators.
 
 ## Install
 
 ### Prebuilt (Windows / Linux / macOS)
 
-Requires [Node.js](https://nodejs.org/) and [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) on your `PATH`.
+Requires [Node.js](https://nodejs.org/) and at least one of [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) or [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) on your `PATH`.
 
 ```bash
 npm install -g @ctx-launcher/wl

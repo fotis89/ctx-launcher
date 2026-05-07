@@ -1,15 +1,15 @@
 {
   "name": "@ctx-launcher/wl",
-  "version": "0.7.1",
-  "description": "Workspace manager for Claude Code sessions",
+  "version": "0.8.0",
+  "description": "Workspace manager for Claude Code and GitHub Copilot CLI sessions",
   "bin": {
     "wl": "./bin/wl.js"
   },
   "files": ["bin", "README.md"],
   "optionalDependencies": {
-    "@ctx-launcher/wl-win-x64": "0.7.0",
-    "@ctx-launcher/wl-linux-x64": "0.7.0",
-    "@ctx-launcher/wl-darwin-arm64": "0.7.0"
+    "@ctx-launcher/wl-win-x64": "0.8.0",
+    "@ctx-launcher/wl-linux-x64": "0.8.0",
+    "@ctx-launcher/wl-darwin-arm64": "0.8.0"
   },
   "repository": {
     "type": "git",

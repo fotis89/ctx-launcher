@@ -13,14 +13,8 @@ public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
         Console.WriteLine(result.UpdateWorkspaceFresh ? "  Skill /wl-update-workspace installed" : "  Skill /wl-update-workspace updated");
 
         Console.WriteLine();
-        if (claudeRunner.TryGetVersion("claude", out var version))
-        {
-            Console.WriteLine($"  Claude Code: {version}");
-        }
-        else
-        {
-            Console.WriteLine("  Claude Code: NOT FOUND — install from https://code.claude.com and ensure `claude` is on your PATH");
-        }
+        ReportTool("Claude Code", "claude", "https://code.claude.com");
+        ReportTool("GitHub Copilot CLI", "copilot", "https://docs.github.com/copilot/how-tos/copilot-cli");
 
         Console.WriteLine();
         Console.WriteLine("  Tab completion (optional):");
@@ -46,5 +40,17 @@ public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
             Console.WriteLine("    complete -F _wl wl");
         }
         Console.WriteLine();
+    }
+
+    private void ReportTool(string label, string command, string installUrl)
+    {
+        if (claudeRunner.TryGetVersion(command, out var version))
+        {
+            Console.WriteLine($"  {label}: {version}");
+        }
+        else
+        {
+            Console.WriteLine($"  {label}: NOT FOUND — install from {installUrl} and ensure `{command}` is on your PATH (optional if you use the other tool)");
+        }
     }
 }
