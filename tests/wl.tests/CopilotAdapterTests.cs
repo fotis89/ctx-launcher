@@ -3,7 +3,6 @@ using wl.Services;
 
 namespace wl.tests;
 
-[Collection("StderrCapture")]
 public class CopilotAdapterTests
 {
     private readonly CopilotAdapter _adapter = new();

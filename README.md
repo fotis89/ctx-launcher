@@ -162,7 +162,7 @@ The only required file. It defines the workspace name, the repo the AI CLI start
 Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
 
 - **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` and related custom-instruction files. On every Copilot launch, `wl` writes the workspace's `instructions.md` to `<workspace-folder>/AGENTS.md`. `COPILOT_CUSTOM_INSTRUCTIONS_DIRS=<workspace-folder>` is set so Copilot searches there (default search is cwd + git root only). Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten.
-- **`.claude/skills/*` is bridged via Copilot's `skillDirectories`.** Copilot reads `SKILL.md` files using the same format as Claude. On each Copilot launch, `wl` registers the workspace's `.claude/skills/` and the shared `.shared/.claude/skills/` directly in `~/.copilot/settings.json`'s `skillDirectories` array; on exit, those entries are removed. No mirroring, no auto-generated artifacts to gitignore — `.claude/skills/` is the single source of truth. Skills appear as `/<skill-name>` slash commands in the Copilot session.
+- **`.claude/skills/*` is bridged via Copilot's `--plugin-dir`.** Copilot reads `SKILL.md` files using the same format as Claude. On each Copilot launch, `wl` writes a tiny `plugin.json` manifest (auto-generated, gitignored) into the workspace's `.claude/` and the shared `.shared/.claude/` and passes both via `--plugin-dir <path>` so Copilot loads them as local plugins. Per-invocation only — no mutation of `~/.copilot/settings.json`, no leakage into unrelated Copilot sessions. `.claude/skills/` remains the single source of truth.
 
 #### Default tool (machine-local)
 
@@ -251,7 +251,7 @@ No magic — `wl launch` just spawns `claude` with the composed flags. `wl which
 
 `wl` ships two Claude Code skills, installed automatically on first use:
 
-- **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files. You can also invoke it directly inside any Claude Code session.
+- **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files.
 - **`/wl-update-workspace`** — run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
 
 Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install.
