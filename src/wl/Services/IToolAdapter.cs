@@ -24,9 +24,10 @@ public record AdapterLaunchSpec(
     bool Yolo,
     string? ResumeSessionId)
 {
-    // Both Claude and Copilot use --add-dir for primary repo, additional
-    // dirs, shared dir, and workspace folder. Centralized here so adapters
-    // don't drift when the order or set of attached paths changes.
+    // Both Claude and Copilot use --add-dir for additional dirs, shared dir,
+    // and the workspace folder. The primary repo is not added here via
+    // --add-dir; it is provided as the process working directory. Centralized
+    // here so adapters don't drift when the order or set of attached paths changes.
     public void AppendAddDirArgs(List<string> args)
     {
         foreach (var dir in ResolvedAdditionalDirs)
