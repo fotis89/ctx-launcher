@@ -8,7 +8,7 @@ namespace wl.Services;
 
 public record SetupResult(bool CreateWorkspaceFresh, bool UpdateWorkspaceFresh, string? PreviousVersion, string CurrentVersion);
 
-public class SetupService(WorkspaceService workspaces, VersionService versionService)
+public class SetupService(VersionService versionService, WlPaths paths)
 {
     private const string CreateSkillName = "wl-create-workspace";
     private const string UpdateSkillName = "wl-update-workspace";
@@ -58,9 +58,9 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         var previous = versionService.GetInstalledVersion();
         var current = versionService.GetCurrentVersion();
 
-        var sharedSkills = workspaces.GetSharedSkillsPath();
-        var createDir = Path.Combine(sharedSkills, CreateSkillName);
-        var updateDir = Path.Combine(sharedSkills, UpdateSkillName);
+        var sharedSkills = paths.SharedSkillsDir;
+        var createDir = WlPaths.Skill(sharedSkills, CreateSkillName);
+        var updateDir = WlPaths.Skill(sharedSkills, UpdateSkillName);
 
         var createFresh = WriteSkill(createDir, $"{CreateSkillName}.md");
         var updateFresh = WriteSkill(updateDir, $"{UpdateSkillName}.md");
@@ -82,7 +82,7 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         // --plugin-dir, so any wl-managed entries left over there are dead
         // weight (and would silently leak skills into unrelated copilot
         // sessions). Strip entries pointing inside ~/.wl-workspaces/.
-        StripStaleCopilotSkillDirs(home, workspaces.GetWorkspacesRoot());
+        StripStaleCopilotSkillDirs(home, paths.WorkspacesRoot);
 
         EnsureGitignore();
 
@@ -100,7 +100,7 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
 
     private void EnsureGitignore()
     {
-        var gitignorePath = Path.Combine(workspaces.GetWorkspacesRoot(), ".gitignore");
+        var gitignorePath = paths.GitignoreFile;
         if (!File.Exists(gitignorePath))
         {
             File.WriteAllText(gitignorePath, DefaultGitignore);
@@ -206,10 +206,10 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
 
     public bool EnsureInstalled()
     {
-        var sharedSkills = workspaces.GetSharedSkillsPath();
+        var sharedSkills = paths.SharedSkillsDir;
         var skillsPresent =
-            File.Exists(Path.Combine(sharedSkills, CreateSkillName, "SKILL.md")) &&
-            File.Exists(Path.Combine(sharedSkills, UpdateSkillName, "SKILL.md"));
+            File.Exists(WlPaths.SkillFile(sharedSkills, CreateSkillName)) &&
+            File.Exists(WlPaths.SkillFile(sharedSkills, UpdateSkillName));
 
         if (skillsPresent && versionService.GetInstalledVersion() == versionService.GetCurrentVersion())
         {

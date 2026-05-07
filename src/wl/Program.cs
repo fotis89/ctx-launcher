@@ -2,19 +2,21 @@ using System.CommandLine;
 using System.CommandLine.Completions;
 
 using wl.Commands;
+using wl.Helpers;
 using wl.Services;
 
-var workspaceService = new WorkspaceService();
+var paths = new WlPaths();
+var workspaceService = new WorkspaceService(paths);
 var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
-var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
-var configService = new ConfigService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".config.json"));
+var pathsService = new PathsService(paths.PathsConfigFile);
+var configService = new ConfigService(paths.ToolConfigFile);
 var toolAdapters = new ToolAdapterRegistry();
 toolAdapters.Register(new ClaudeAdapter());
-toolAdapters.Register(new CopilotAdapter());
+toolAdapters.Register(new CopilotAdapter(paths));
 var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters, configService);
-var versionService = new VersionService(workspaceService);
-var setupService = new SetupService(workspaceService, versionService);
+var versionService = new VersionService(paths);
+var setupService = new SetupService(versionService, paths);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));

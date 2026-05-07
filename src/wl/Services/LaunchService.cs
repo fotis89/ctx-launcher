@@ -66,7 +66,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public static string? LoadLastSession(Workspace ws)
     {
-        var path = Path.Combine(ws.FolderPath, ".last-session");
+        var path = ws.LastSessionPath;
         if (!File.Exists(path))
             return null;
         var value = File.ReadAllText(path).Trim();
@@ -75,7 +75,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public static void SaveLastSession(Workspace ws, string sessionId)
     {
-        File.WriteAllText(Path.Combine(ws.FolderPath, ".last-session"), sessionId);
+        File.WriteAllText(ws.LastSessionPath, sessionId);
     }
 
     public void Launch(Workspace ws, List<string> args, string? toolOverride = null)

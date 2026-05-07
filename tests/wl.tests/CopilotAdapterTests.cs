@@ -1,11 +1,27 @@
+using wl.Helpers;
 using wl.Models;
 using wl.Services;
 
 namespace wl.tests;
 
-public class CopilotAdapterTests
+public class CopilotAdapterTests : IDisposable
 {
-    private readonly CopilotAdapter _adapter = new();
+    // Per-test-class temp root so the adapter's SharedClaudeDir resolves
+    // somewhere empty (and predictable), instead of touching the
+    // developer's real ~/.wl-workspaces/.shared.
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "wl-test-root-" + Guid.NewGuid().ToString("N")[..8]);
+    private readonly CopilotAdapter _adapter;
+
+    public CopilotAdapterTests()
+    {
+        Directory.CreateDirectory(_root);
+        _adapter = new CopilotAdapter(new WlPaths(_root));
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_root)) Directory.Delete(_root, true);
+    }
 
     private static AdapterLaunchSpec MakeSpec(
         string? prompt = null,

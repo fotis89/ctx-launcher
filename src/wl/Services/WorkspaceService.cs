@@ -5,44 +5,25 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class WorkspaceService
+public class WorkspaceService(WlPaths paths)
 {
     public const string SharedDirName = WlPaths.SharedDirName;
 
-    private string? _root;
+    public string GetWorkspacesRoot() => paths.WorkspacesRoot;
 
-    public string GetWorkspacesRoot()
-    {
-        if (_root is not null)
-        {
-            return _root;
-        }
-
-        _root = PathHelper.ResolveTilde("~/.wl-workspaces");
-        Directory.CreateDirectory(_root);
-        return _root;
-    }
-
-    public string GetSharedDirPath()
-        => WlPaths.SharedDir(GetWorkspacesRoot());
+    public string GetSharedDirPath() => paths.SharedDir;
 
     public string? GetSharedDirIfExists()
-    {
-        var path = GetSharedDirPath();
-        return Directory.Exists(path) ? path : null;
-    }
+        => Directory.Exists(paths.SharedDir) ? paths.SharedDir : null;
 
-    public string GetSharedClaudeDirPath()
-        => WlPaths.ClaudeDir(GetSharedDirPath());
+    public string GetSharedClaudeDirPath() => paths.SharedClaudeDir;
 
-    public string GetSharedSkillsPath()
-        => WlPaths.SkillsDir(GetSharedDirPath());
+    public string GetSharedSkillsPath() => paths.SharedSkillsDir;
 
     public string EnsureSharedDir()
     {
-        var path = GetSharedDirPath();
-        Directory.CreateDirectory(WlPaths.SkillsDir(path));
-        return path;
+        Directory.CreateDirectory(paths.SharedSkillsDir);
+        return paths.SharedDir;
     }
 
     public static List<string> ListSkillNames(string skillsDir)
@@ -56,15 +37,15 @@ public class WorkspaceService
 
     public List<Workspace> ListWorkspaces()
     {
-        var root = GetWorkspacesRoot();
+        var root = paths.WorkspacesRoot;
         var workspaces = new List<Workspace>();
 
         foreach (var dir in Directory.GetDirectories(root))
         {
-            if (Path.GetFileName(dir) == SharedDirName)
+            if (Path.GetFileName(dir) == WlPaths.SharedDirName)
                 continue;
 
-            var jsonPath = Path.Combine(dir, "workspace.json");
+            var jsonPath = WlPaths.WorkspaceConfig(dir);
             if (!File.Exists(jsonPath))
             {
                 continue;
@@ -82,9 +63,9 @@ public class WorkspaceService
 
     public void SaveWorkspace(Workspace ws, string slug)
     {
-        var folderPath = Path.Combine(GetWorkspacesRoot(), slug);
+        var folderPath = paths.WorkspaceFolder(slug);
         Directory.CreateDirectory(folderPath);
-        var jsonPath = Path.Combine(folderPath, "workspace.json");
+        var jsonPath = WlPaths.WorkspaceConfig(folderPath);
         var json = JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace);
         File.WriteAllText(jsonPath, json);
         ws.FolderPath = folderPath;
@@ -92,15 +73,14 @@ public class WorkspaceService
 
     public Workspace? LoadWorkspace(string name)
     {
-        var root = GetWorkspacesRoot();
-        var folderPath = Path.Combine(root, name);
+        var folderPath = paths.WorkspaceFolder(name);
 
         if (!Directory.Exists(folderPath))
         {
             return null;
         }
 
-        var jsonPath = Path.Combine(folderPath, "workspace.json");
+        var jsonPath = WlPaths.WorkspaceConfig(folderPath);
         if (!File.Exists(jsonPath))
         {
             return null;
@@ -111,20 +91,18 @@ public class WorkspaceService
 
     public string? GetLastUsed()
     {
-        var lastFile = Path.Combine(GetWorkspacesRoot(), ".last");
-        if (!File.Exists(lastFile))
+        if (!File.Exists(paths.LastWorkspaceFile))
         {
             return null;
         }
 
-        var name = File.ReadAllText(lastFile).Trim();
+        var name = File.ReadAllText(paths.LastWorkspaceFile).Trim();
         return string.IsNullOrEmpty(name) ? null : name;
     }
 
     public void SetLastUsed(string name)
     {
-        var lastFile = Path.Combine(GetWorkspacesRoot(), ".last");
-        File.WriteAllText(lastFile, name);
+        File.WriteAllText(paths.LastWorkspaceFile, name);
     }
 
     private static Workspace? LoadWorkspaceFromPath(string folderPath, string jsonPath)

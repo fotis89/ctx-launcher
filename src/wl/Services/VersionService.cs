@@ -1,19 +1,18 @@
 using System.Reflection;
 
+using wl.Helpers;
+
 namespace wl.Services;
 
-public class VersionService(WorkspaceService workspaces)
+public class VersionService(WlPaths paths)
 {
-    private string VersionFilePath
-        => Path.Combine(workspaces.GetWorkspacesRoot(), ".version");
-
     public string GetCurrentVersion()
         => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
             ?? throw new InvalidOperationException("Assembly version not set");
 
     public string? GetInstalledVersion()
-        => File.Exists(VersionFilePath) ? File.ReadAllText(VersionFilePath).Trim() : null;
+        => File.Exists(paths.VersionFile) ? File.ReadAllText(paths.VersionFile).Trim() : null;
 
     public void StampVersion()
-        => File.WriteAllText(VersionFilePath, GetCurrentVersion());
+        => File.WriteAllText(paths.VersionFile, GetCurrentVersion());
 }

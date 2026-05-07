@@ -3,7 +3,7 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class CopilotAdapter : IToolAdapter
+public class CopilotAdapter(WlPaths paths) : IToolAdapter
 {
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
@@ -20,7 +20,7 @@ public class CopilotAdapter : IToolAdapter
         // (in GetEnvironment) tells Copilot to also look in the workspace
         // folder for AGENTS.md. Marker header makes it obvious to anyone
         // who opens the file that it's auto-generated.
-        var agentsPath = WlPaths.Agents(ws.FolderPath);
+        var agentsPath = ws.AgentsPath;
         if (File.Exists(ws.InstructionsPath))
         {
             var instructions = File.ReadAllText(ws.InstructionsPath);
@@ -45,17 +45,16 @@ public class CopilotAdapter : IToolAdapter
         }
     }
 
-    private static IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
+    private IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
         // Plugin names must be kebab-case per Copilot's plugin.json spec.
         // FolderName is usually already a slug (from `wl create`) but may
         // be arbitrary user input on hand-created or migrated workspaces.
         yield return (ws.ClaudeDirPath, $"{WorkspacePluginPrefix}{PathHelper.Slugify(ws.FolderName)}");
-        var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
-        if (workspacesRoot is not null)
-        {
-            yield return (WlPaths.ClaudeDir(WlPaths.SharedDir(workspacesRoot)), SharedPluginName);
-        }
+        // Assumes ws.FolderPath lives under paths.WorkspacesRoot, which
+        // is invariant in production: workspaces are always saved via
+        // WorkspaceService.SaveWorkspace under paths.WorkspaceFolder(name).
+        yield return (paths.SharedClaudeDir, SharedPluginName);
     }
 
     private static bool HasSkills(string claudeDir)
