@@ -3,6 +3,7 @@ using wl.Services;
 
 namespace wl.tests;
 
+[Collection("StderrCapture")]
 public class ConfigServiceTests
 {
     private static string TempFile() => Path.Combine(Path.GetTempPath(), $"wl-config-{Guid.NewGuid():N}.json");

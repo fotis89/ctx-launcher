@@ -3,6 +3,7 @@ using wl.Services;
 
 namespace wl.tests;
 
+[Collection("StderrCapture")]
 public class CopilotAdapterTests
 {
     private readonly CopilotAdapter _adapter = new();
@@ -150,7 +151,9 @@ public class CopilotAdapterTests
 
             var agentsPath = Path.Combine(tempDir, "AGENTS.md");
             Assert.True(File.Exists(agentsPath));
-            Assert.Contains("workspace context goes here", File.ReadAllText(agentsPath));
+            var contents = File.ReadAllText(agentsPath);
+            Assert.Contains("workspace context goes here", contents);
+            Assert.StartsWith(CopilotAdapter.AgentsMdMarker, contents);
         }
         finally
         {
@@ -359,6 +362,38 @@ public class CopilotAdapterTests
         }
         finally
         {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void RegisterSkillsDir_UnexpectedShape_RefusesAndWarns()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-settings-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        var stderr = new StringWriter();
+        var prev = Console.Error;
+        try
+        {
+            Console.SetError(stderr);
+
+            // Simulate Copilot changing skillDirectories from array to object.
+            var settingsPath = Path.Combine(tempDir, "settings.json");
+            var originalContent = """{"skillDirectories": {"some": "object"}, "preserved": true}""";
+            File.WriteAllText(settingsPath, originalContent);
+
+            CopilotAdapter.RegisterSkillsDir("C:\\my\\skills", settingsPath);
+
+            // File untouched.
+            Assert.Equal(originalContent, File.ReadAllText(settingsPath));
+            // Warning surfaced.
+            var output = stderr.ToString();
+            Assert.Contains("unexpected shape", output);
+            Assert.Contains("Refusing to modify", output);
+        }
+        finally
+        {
+            Console.SetError(prev);
             Directory.Delete(tempDir, true);
         }
     }

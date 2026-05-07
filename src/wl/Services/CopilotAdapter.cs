@@ -9,16 +9,20 @@ public class CopilotAdapter : IToolAdapter
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
 
+    public const string AgentsMdMarker = "<!-- managed by wl: this file is auto-generated from instructions.md on each launch — edits will be overwritten -->";
+
     public void PrepareLaunch(Workspace ws)
     {
         // Mirror instructions.md → AGENTS.md so Copilot's auto-discovery
         // picks up workspace context. COPILOT_CUSTOM_INSTRUCTIONS_DIRS
         // (in GetEnvironment) tells Copilot to also look in the workspace
-        // folder for AGENTS.md.
+        // folder for AGENTS.md. Marker header makes it obvious to anyone
+        // who opens the file that it's auto-generated.
         var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
         if (File.Exists(ws.InstructionsPath))
         {
-            File.Copy(ws.InstructionsPath, agentsPath, overwrite: true);
+            var instructions = File.ReadAllText(ws.InstructionsPath);
+            File.WriteAllText(agentsPath, AgentsMdMarker + Environment.NewLine + Environment.NewLine + instructions);
         }
         else if (File.Exists(agentsPath))
         {
@@ -99,6 +103,18 @@ public class CopilotAdapter : IToolAdapter
         else
         {
             settings = new JsonObject();
+        }
+
+        // Schema guard: if Copilot ever changes 'skillDirectories' to a
+        // non-array shape, refuse to touch the file rather than silently
+        // overwriting the user's data with a fresh empty array.
+        if (settings.ContainsKey("skillDirectories") && settings["skillDirectories"] is not JsonArray)
+        {
+            Console.Error.WriteLine(
+                $"Error: 'skillDirectories' in {settingsPath} has an unexpected shape (expected array). " +
+                "Copilot CLI may have changed its config schema. " +
+                "Refusing to modify the file — please file an issue at https://github.com/fotis89/ctx-launcher/issues.");
+            return;
         }
 
         var dirs = settings["skillDirectories"] as JsonArray ?? new JsonArray();
