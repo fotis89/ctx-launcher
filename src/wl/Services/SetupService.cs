@@ -145,7 +145,12 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
 
     public bool EnsureInstalled()
     {
-        if (versionService.GetInstalledVersion() == versionService.GetCurrentVersion())
+        var sharedSkills = workspaces.GetSharedSkillsPath();
+        var skillsPresent =
+            File.Exists(Path.Combine(sharedSkills, CreateSkillName, "SKILL.md")) &&
+            File.Exists(Path.Combine(sharedSkills, UpdateSkillName, "SKILL.md"));
+
+        if (skillsPresent && versionService.GetInstalledVersion() == versionService.GetCurrentVersion())
         {
             return false;
         }
