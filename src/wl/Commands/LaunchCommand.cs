@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup, PathsService paths)
 {
-    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
+    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false, string? toolOverride = null)
     {
         setup.EnsureInstalled();
 
@@ -69,7 +69,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
         }
 
-        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved);
+        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, toolOverride);
 
         foreach (var dir in skippedDirs)
         {
@@ -136,6 +136,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             LaunchService.SaveLastSession(ws, newSessionId);
         }
 
-        launcher.Launch(ws, args);
+        launcher.Launch(ws, args, toolOverride);
     }
 }

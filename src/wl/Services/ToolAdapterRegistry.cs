@@ -9,6 +9,8 @@ public class ToolAdapterRegistry
         _adapters[adapter.ExecutableName] = adapter;
     }
 
+    public string[] Names => [.. _adapters.Keys];
+
     public IToolAdapter Resolve(string tool)
     {
         if (_adapters.TryGetValue(tool, out var adapter))

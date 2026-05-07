@@ -8,9 +8,9 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     private Func<string, string?> Lookup => paths.Get;
 
 
-    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
+    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null, string? toolOverride = null)
     {
-        var adapter = adapters.Resolve(config.ResolveTool(ws));
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
         var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
 
@@ -78,16 +78,17 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         File.WriteAllText(Path.Combine(ws.FolderPath, ".last-session"), sessionId);
     }
 
-    public void Launch(Workspace ws, List<string> args)
+    public void Launch(Workspace ws, List<string> args, string? toolOverride = null)
     {
-        var adapter = adapters.Resolve(config.ResolveTool(ws));
-        adapter.PrepareLaunch(ws);
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
 
         // Cleanup runs once. The Timer fires 2s after spawn so any global
         // state PrepareLaunch wrote (e.g. Copilot's skillDirectories) is
         // reverted while wl is still blocking on the child — long enough
         // for the child to have read the state. The finally is a safety
-        // net if the child exited in under 2s.
+        // net if the child exited in under 2s, and the PrepareLaunch
+        // try/finally covers a partial-prepare throw (e.g. settings.json
+        // IO error mid-registration).
         var cleanupOnce = 0;
         void Cleanup()
         {
@@ -95,6 +96,16 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
             {
                 adapter.CleanupAfterLaunch(ws);
             }
+        }
+
+        try
+        {
+            adapter.PrepareLaunch(ws);
+        }
+        catch
+        {
+            Cleanup();
+            throw;
         }
 
         using var cleanupTimer = new Timer(_ => Cleanup(), null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);

@@ -17,10 +17,16 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
-        var resolvedTool = config.ResolveTool(ws);
-        if (!string.Equals(resolvedTool, "claude", StringComparison.OrdinalIgnoreCase))
+        var (resolvedTool, toolSource) = config.ResolveToolWithSource(ws);
+        if (toolSource != ToolSource.Default)
         {
-            ConsoleLabel.WriteLine("Tool:", resolvedTool);
+            var sourceLabel = toolSource switch
+            {
+                ToolSource.Workspace => "from workspace.json",
+                ToolSource.Config => "from .config.json",
+                _ => null,
+            };
+            ConsoleLabel.WriteLine("Tool:", sourceLabel is null ? resolvedTool : $"{resolvedTool} ({sourceLabel})");
         }
 
         var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);

@@ -81,6 +81,8 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
         .Where(l => l.Length > 0 && !l.StartsWith('#'))
         .ToArray();
 
+    private const string AddedByHeader = "# Added by `wl setup`";
+
     private void EnsureGitignore()
     {
         var gitignorePath = Path.Combine(workspaces.GetWorkspacesRoot(), ".gitignore");
@@ -110,18 +112,35 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
             return;
         }
 
-        var sb = new System.Text.StringBuilder(existing);
-        if (!existing.EndsWith('\n'))
+        File.WriteAllText(gitignorePath, MergeGitignore(existing, missing));
+    }
+
+    public static string MergeGitignore(string existing, IEnumerable<string> missing)
+    {
+        // If the file already ends with our managed "# Added by wl setup"
+        // block, append patterns directly under it so multiple migration
+        // runs don't litter the file with duplicate headers.
+        var trimmed = existing.TrimEnd();
+        var lines = trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+        var blockStart = lines.Count;
+        while (blockStart > 0 && !string.IsNullOrEmpty(lines[blockStart - 1]))
+        {
+            blockStart--;
+        }
+        var lastBlockIsOurs = blockStart < lines.Count && lines[blockStart] == AddedByHeader;
+
+        var sb = new System.Text.StringBuilder(trimmed);
+        sb.AppendLine();
+        if (!lastBlockIsOurs)
         {
             sb.AppendLine();
+            sb.AppendLine(AddedByHeader);
         }
-        sb.AppendLine();
-        sb.AppendLine("# Added by `wl setup`");
         foreach (var line in missing)
         {
             sb.AppendLine(line);
         }
-        File.WriteAllText(gitignorePath, sb.ToString());
+        return sb.ToString();
     }
 
     public bool EnsureInstalled()

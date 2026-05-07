@@ -44,7 +44,9 @@ promptOpt.CompletionSources.Add(ctx =>
 var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Claude permission prompts" };
 var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session (overrides resume: true)" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt };
+var launchToolOpt = new Option<string?>("--tool") { Description = $"Override the tool for this launch ({string.Join(" | ", toolAdapters.Names)})" };
+launchToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt, launchToolOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
@@ -52,13 +54,15 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew);
+    var toolOverride = parseResult.GetValue(launchToolOpt);
+    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew, toolOverride);
 });
 
 // create
 var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude/Copilot will propose one)" };
 var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking an AI CLI" };
-var createToolOpt = new Option<string?>("--tool") { Description = "Which AI CLI to invoke: 'claude' or 'copilot' (default: auto-detect)" };
+var createToolOpt = new Option<string?>("--tool") { Description = $"Which AI CLI to invoke ({string.Join(" | ", toolAdapters.Names)}); default: auto-detect" };
+createToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
 var createCmd = new Command("create", "Create a new workspace (via Claude/Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt, createToolOpt };
 createCmd.SetAction(parseResult =>
 {

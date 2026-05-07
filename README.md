@@ -109,6 +109,7 @@ Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
 | `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |
 | `wl launch <name> --yolo` | Skips Claude's permission prompts |
 | `wl launch <name> -p <name-or-text>` | Starts with a saved prompt, or with raw prompt text |
+| `wl launch <name> --tool claude\|copilot` | Override the workspace's tool for this launch only |
 | `wl list` | Lists all workspaces |
 | `wl which <name>` | Shows the exact `claude` command `wl` will run, and checks paths exist |
 | `wl edit <name>` | Opens the workspace folder in your system file explorer |
