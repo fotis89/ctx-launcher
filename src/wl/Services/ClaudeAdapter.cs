@@ -6,6 +6,7 @@ public class ClaudeAdapter : IToolAdapter
 {
     public string ExecutableName => "claude";
     public string DisplayName => "claude";
+    public bool SkillsAreSlashInvokable => true;
 
     public void PrepareLaunch(Workspace ws)
     {
@@ -15,10 +16,12 @@ public class ClaudeAdapter : IToolAdapter
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => new Dictionary<string, string>();
 
-    public void InvokeCreateSkill(string prompt, string cwd, string sharedDir, ClaudeRunner runner)
+    public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
     {
-        // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Attach
-        // the shared dir so Claude's auto-discovery picks it up.
+        // <skillName> lives in <sharedDir>/.claude/skills/. Attach the
+        // shared dir so Claude's auto-discovery picks it up, and trigger
+        // the skill with its slash-command form.
+        var prompt = workspaceName is null ? $"/{skillName}" : $"/{skillName} {workspaceName}";
         runner.Run(ExecutableName, cwd, ["--add-dir", sharedDir, prompt]);
     }
 

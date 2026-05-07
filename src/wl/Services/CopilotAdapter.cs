@@ -7,6 +7,7 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 {
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
+    public bool SkillsAreSlashInvokable => false;
 
     public const string SharedPluginName = "wl-shared";
     public const string WorkspacePluginPrefix = "wl-";
@@ -107,16 +108,21 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         };
     }
 
-    public void InvokeCreateSkill(string prompt, string cwd, string sharedDir, ClaudeRunner runner)
+    public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
     {
-        // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Expose
+        // The shared skill lives under <sharedDir>/.claude/skills/. Expose
         // it via --plugin-dir so Copilot loads it for this single
-        // invocation only — no global state mutation.
+        // invocation only — no global state mutation. Trigger by
+        // description-match phrasing because Copilot reserves slash for
+        // built-in commands (/init, /skills, /clear) — `/<skill-name>`
+        // would not invoke a custom skill.
         var sharedClaudeDir = WlPaths.ClaudeDir(sharedDir);
         if (HasSkills(sharedClaudeDir))
         {
             EnsurePluginManifest(sharedClaudeDir, SharedPluginName);
         }
+        var detail = workspaceName is null ? "" : $" for workspace '{workspaceName}'";
+        var prompt = $"Use the {skillName} skill{detail}.";
         runner.Run(ExecutableName, cwd, ["--plugin-dir", sharedClaudeDir, "-i", prompt]);
     }
 

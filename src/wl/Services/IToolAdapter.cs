@@ -7,13 +7,28 @@ public interface IToolAdapter
     string ExecutableName { get; }
     string DisplayName { get; }
 
+    /// <summary>
+    /// Whether this adapter's tool routes built-in slash commands the way
+    /// Claude does. Used by user-facing displays that show skill names
+    /// (Claude lists skills as `/wl-create-workspace`; in Copilot, slash
+    /// is reserved for built-ins like `/init`, `/skills`, so skills are
+    /// shown bare and triggered by description match instead).
+    /// </summary>
+    bool SkillsAreSlashInvokable { get; }
+
     AdapterArgs BuildArgs(AdapterLaunchSpec spec);
 
     void PrepareLaunch(Workspace ws);
 
     IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws);
 
-    void InvokeCreateSkill(string prompt, string cwd, string sharedDir, ClaudeRunner runner);
+    /// <summary>
+    /// Spawn the tool with a one-shot prompt that triggers the named
+    /// shared skill. Each adapter formats the invocation for its tool —
+    /// Claude takes `/skill-name [arg]`; Copilot needs natural-language
+    /// description-match phrasing.
+    /// </summary>
+    void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner);
 }
 
 public record AdapterLaunchSpec(

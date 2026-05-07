@@ -35,24 +35,24 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_NoAdditionalDirs_OnlyWorkspaceFolder()
+    public void BuildLaunchArgs_NoAdditionalDirs_OnlyWorkspaceFolder()
     {
         var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildClaudeArgs(ws);
+        var (args, _, _) = _service.BuildLaunchArgs(ws);
 
         Assert.Single(args, a => a == "--add-dir");
         Assert.Contains(args, a => a.Contains(ws.FolderPath));
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithAdditionalDirs_AllIncluded()
+    public void BuildLaunchArgs_WithAdditionalDirs_AllIncluded()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
             var ws = MakeWorkspace(additionalDirs: [tempDir]);
-            var (args, _, _) = _service.BuildClaudeArgs(ws);
+            var (args, _, _) = _service.BuildLaunchArgs(ws);
 
             Assert.Equal(2, args.Count(a => a == "--add-dir"));
             // additionalDirs entries go through ResolvePath → native separators on Windows,
@@ -68,36 +68,36 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_MissingAdditionalDir_Skipped()
+    public void BuildLaunchArgs_MissingAdditionalDir_Skipped()
     {
         var ws = MakeWorkspace(additionalDirs: [@"C:\this\does\not\exist\at\all"]);
-        var (args, _, _) = _service.BuildClaudeArgs(ws);
+        var (args, _, _) = _service.BuildLaunchArgs(ws);
 
         Assert.Single(args, a => a == "--add-dir");
         Assert.Contains(args, a => a.Contains(ws.FolderPath));
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithPrompt_AppendsAsLastArg()
+    public void BuildLaunchArgs_WithPrompt_AppendsAsLastArg()
     {
         var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildClaudeArgs(ws, "do the thing");
+        var (args, _, _) = _service.BuildLaunchArgs(ws, "do the thing");
 
         Assert.Equal("do the thing", args.Last());
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithoutPrompt_NoTrailingPromptArg()
+    public void BuildLaunchArgs_WithoutPrompt_NoTrailingPromptArg()
     {
         var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildClaudeArgs(ws);
+        var (args, _, _) = _service.BuildLaunchArgs(ws);
 
         // Last arg should be a path (the workspace folder), not a prompt string
         Assert.Contains(ws.FolderPath, args.Last());
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithInstructions_AppendsSystemPromptFile()
+    public void BuildLaunchArgs_WithInstructions_AppendsSystemPromptFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
@@ -105,7 +105,7 @@ public class LaunchServiceTests
         try
         {
             var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildClaudeArgs(ws);
+            var (args, _, _) = _service.BuildLaunchArgs(ws);
 
             Assert.Contains(args, a => a.Contains("--append-system-prompt-file"));
         }
@@ -116,14 +116,14 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_MissingInstructions_NoSystemPromptFile()
+    public void BuildLaunchArgs_MissingInstructions_NoSystemPromptFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
             var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildClaudeArgs(ws);
+            var (args, _, _) = _service.BuildLaunchArgs(ws);
 
             Assert.DoesNotContain(args, a => a.Contains("--append-system-prompt-file"));
         }
@@ -134,14 +134,14 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_PathWithSpaces_RawUnquoted()
+    public void BuildLaunchArgs_PathWithSpaces_RawUnquoted()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl test dir " + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
             var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildClaudeArgs(ws);
+            var (args, _, _) = _service.BuildLaunchArgs(ws);
 
             var folderArg = args.First(a => a.Contains(tempDir));
             Assert.DoesNotContain("\"", folderArg);
@@ -179,14 +179,14 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_Default_IncludesSessionIdAndName()
+    public void BuildLaunchArgs_Default_IncludesSessionIdAndName()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
             var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildClaudeArgs(ws);
+            var (args, _, _) = _service.BuildLaunchArgs(ws);
 
             Assert.Contains("--session-id", args);
             Assert.Contains("--name", args);
@@ -204,11 +204,11 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_Resume_IncludesResumeWithSessionId()
+    public void BuildLaunchArgs_Resume_IncludesResumeWithSessionId()
     {
         var ws = MakeWorkspace();
         var sessionId = Guid.NewGuid().ToString();
-        var (args, _, _) = _service.BuildClaudeArgs(ws, resumeSessionId: sessionId);
+        var (args, _, _) = _service.BuildLaunchArgs(ws, resumeSessionId: sessionId);
 
         Assert.Contains("--resume", args);
         Assert.DoesNotContain("--session-id", args);
@@ -240,14 +240,14 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_WithSharedDir_IncludesAddDir()
+    public void BuildLaunchArgs_WithSharedDir_IncludesAddDir()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
             var ws = MakeWorkspace();
-            var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: tempDir);
+            var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: tempDir);
 
             Assert.Equal(2, args.Count(a => a == "--add-dir"));
             Assert.Contains(args, a => a == tempDir);
@@ -259,23 +259,23 @@ public class LaunchServiceTests
     }
 
     [Fact]
-    public void BuildClaudeArgs_NullSharedDir_NotIncluded()
+    public void BuildLaunchArgs_NullSharedDir_NotIncluded()
     {
         var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: null);
+        var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: null);
 
         Assert.Single(args, a => a == "--add-dir");
     }
 
     [Fact]
-    public void BuildClaudeArgs_SharedDir_BeforeWorkspaceFolder()
+    public void BuildLaunchArgs_SharedDir_BeforeWorkspaceFolder()
     {
         var sharedDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(sharedDir);
         try
         {
             var ws = MakeWorkspace();
-            var (args, _, _) = _service.BuildClaudeArgs(ws, sharedDirPath: sharedDir);
+            var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: sharedDir);
 
             var sharedIdx = args.IndexOf(sharedDir);
             var wsIdx = args.IndexOf(ws.FolderPath);

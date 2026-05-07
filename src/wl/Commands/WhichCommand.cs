@@ -14,7 +14,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             return;
         }
 
-        if (!launcher.ValidateTool(ws, toolOverride: null))
+        if (!launcher.TryResolveAdapter(ws, toolOverride: null, out var adapter))
         {
             return;
         }
@@ -55,11 +55,11 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine();
             if (sharedSkills.Count > 0)
             {
-                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => "/" + s)));
+                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => FormatSkillName(s, adapter))));
             }
             if (skills.Count > 0)
             {
-                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => "/" + s)));
+                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => FormatSkillName(s, adapter))));
             }
         }
 
@@ -121,4 +121,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
 
         return "NOT FOUND";
     }
+
+    private static string FormatSkillName(string skill, IToolAdapter adapter)
+        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }

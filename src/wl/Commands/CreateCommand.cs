@@ -38,10 +38,6 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             }
         }
 
-        var prompt = name is not null
-            ? $"/wl-create-workspace {name}"
-            : "/wl-create-workspace";
-
         var resolvedTool = tool ?? DetectAvailableTool();
         if (!adapters.TryResolve(resolvedTool, out var adapter))
         {
@@ -50,7 +46,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
                 $"Available: {string.Join(", ", adapters.Names)}.");
             return;
         }
-        adapter.InvokeCreateSkill(prompt, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
+        adapter.InvokeCreateSkill("wl-create-workspace", name, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
     private string DetectAvailableTool()

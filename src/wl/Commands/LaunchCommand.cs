@@ -28,7 +28,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return;
         }
 
-        if (!launcher.ValidateTool(ws, toolOverride))
+        if (!launcher.TryResolveAdapter(ws, toolOverride, out var adapter))
         {
             return;
         }
@@ -74,7 +74,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
         }
 
-        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, toolOverride);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, toolOverride);
 
         foreach (var dir in skippedDirs)
         {
@@ -100,7 +100,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         if (skillNames.Count > 0)
         {
-            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => "/" + s)));
+            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => FormatSkillName(s, adapter))));
         }
 
         if (ws.AdditionalDirs.Count > 0)
@@ -143,4 +143,11 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         launcher.Launch(ws, args, toolOverride);
     }
+
+    // Claude lists skills as `/<skill-name>`; Copilot reserves slash for
+    // built-in commands and triggers custom skills by description match,
+    // so we render them bare for adapters that report
+    // SkillsAreSlashInvokable=false.
+    private static string FormatSkillName(string skill, IToolAdapter adapter)
+        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }

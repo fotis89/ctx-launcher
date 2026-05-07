@@ -222,8 +222,8 @@ public class SetupService(VersionService versionService, WlPaths paths)
         var result = RunSetup();
         Console.WriteLine();
         Console.WriteLine(result.PreviousVersion is null
-            ? "  First run: installed Claude skills."
-            : $"  Upgraded {result.PreviousVersion} → {result.CurrentVersion}: refreshed Claude skills.");
+            ? "  First run: installed wl skills."
+            : $"  Upgraded {result.PreviousVersion} → {result.CurrentVersion}: refreshed wl skills.");
         return true;
     }
 }

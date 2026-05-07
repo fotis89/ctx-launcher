@@ -8,16 +8,25 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     private Func<string, string?> Lookup => paths.Get;
 
     /// <summary>
-    /// Validate that the tool resolution chain (override → workspace.json →
-    /// .config.json → default) lands on a registered adapter. Prints a
-    /// labeled error to stderr if not. Callers should invoke this once at
-    /// the top of their flow and bail on false; downstream service methods
-    /// trust the resolution and use <see cref="ToolAdapterRegistry.Resolve"/>.
+    /// Validate the tool resolution chain (override → workspace.json →
+    /// .config.json → default) and return the resolved adapter. Prints a
+    /// labeled error to stderr and returns false if the chain lands on
+    /// an unregistered tool. Callers should invoke this once at the top
+    /// of their flow and bail on false; downstream service methods
+    /// trust valid input and use <see cref="ToolAdapterRegistry.Resolve"/>.
     /// </summary>
-    public bool ValidateTool(Workspace ws, string? toolOverride)
-        => config.TryResolveValidatedTool(ws, toolOverride, adapters, out _);
+    public bool TryResolveAdapter(Workspace ws, string? toolOverride, out IToolAdapter adapter)
+    {
+        if (config.TryResolveValidatedTool(ws, toolOverride, adapters, out var tool))
+        {
+            adapter = adapters.Resolve(tool);
+            return true;
+        }
+        adapter = null!;
+        return false;
+    }
 
-    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null, string? toolOverride = null)
+    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildLaunchArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null, string? toolOverride = null)
     {
         var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
         var resolvedDirs = new List<string>();
@@ -51,7 +60,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
         var adapter = adapters.Resolve(config.ResolveTool(ws));
-        var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
+        var (args, _, _) = BuildLaunchArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
         var groups = new List<string> { adapter.DisplayName };
         var current = "";
