@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 using wl.Models;
 
 namespace wl.Services;
@@ -29,46 +27,39 @@ public class CopilotAdapter : IToolAdapter
             File.Delete(agentsPath);
         }
 
-        // Register .claude/skills directories with Copilot via settings.json.
-        // No mirror — Copilot reads SKILL.md straight from the workspace's
-        // .claude/skills/ and the shared .shared/.claude/skills/. Single
-        // source of truth, no auto-generated artifacts to gitignore.
-        // CleanupAfterLaunch unregisters these when the session ends so the
-        // global settings file stays bounded.
-        var settingsPath = GetCopilotSettingsPath();
-        foreach (var skillsDir in GetManagedSkillsDirs(ws))
+        // Each .claude/ dir is exposed to Copilot as a local plugin via
+        // --plugin-dir (emitted in BuildArgs). A plugin needs a manifest;
+        // ensure one exists at <dir>/plugin.json. Manifests are gitignored
+        // and idempotently regenerated — no global state mutation, no
+        // race against Copilot's startup read.
+        foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
         {
-            if (HasSkills(skillsDir))
+            if (HasSkills(claudeDir))
             {
-                RegisterSkillsDir(skillsDir, settingsPath);
+                EnsurePluginManifest(claudeDir, name);
             }
         }
     }
 
     public void CleanupAfterLaunch(Workspace ws)
     {
-        // Unregister the skill-directory entries we wrote in PrepareLaunch
-        // so the user's ~/.copilot/settings.json reverts to its prior
-        // state. LaunchService schedules this on a Timer 2s after spawn
-        // (so Copilot has time to read settings) and also calls it once
-        // more in the launch finally as a safety net — UnregisterSkillsDirs
-        // is idempotent.
-        var settingsPath = GetCopilotSettingsPath();
-        UnregisterSkillsDirs(GetManagedSkillsDirs(ws), settingsPath);
+        // No global state to revert — skill loading is per-invocation
+        // via --plugin-dir flags now.
     }
 
-    private static IEnumerable<string> GetManagedSkillsDirs(Workspace ws)
+    private static IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
-        yield return ws.SkillsPath;
+        yield return (Path.Combine(ws.FolderPath, ".claude"), $"wl-{ws.FolderName}");
         var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
         if (workspacesRoot is not null)
         {
-            yield return Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, ".claude", "skills");
+            yield return (Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, ".claude"), "wl-shared");
         }
     }
 
-    private static bool HasSkills(string skillsDir)
+    private static bool HasSkills(string claudeDir)
     {
+        var skillsDir = Path.Combine(claudeDir, "skills");
         if (!Directory.Exists(skillsDir))
         {
             return false;
@@ -77,110 +68,16 @@ public class CopilotAdapter : IToolAdapter
             .Any(d => File.Exists(Path.Combine(d, "SKILL.md")));
     }
 
-    public static string GetCopilotSettingsPath()
+    public static void EnsurePluginManifest(string claudeDir, string pluginName)
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(home, ".copilot", "settings.json");
-    }
-
-    public static void RegisterSkillsDir(string skillsDir, string settingsPath)
-    {
-        var copilotDir = Path.GetDirectoryName(settingsPath)!;
-
-        JsonObject settings;
-        if (File.Exists(settingsPath))
-        {
-            try
+        Directory.CreateDirectory(claudeDir);
+        var manifestPath = Path.Combine(claudeDir, "plugin.json");
+        var content = $$"""
             {
-                settings = JsonNode.Parse(File.ReadAllText(settingsPath)) as JsonObject ?? new JsonObject();
+              "name": "{{pluginName}}"
             }
-            catch
-            {
-                // Don't overwrite a malformed user settings file — bail.
-                return;
-            }
-        }
-        else
-        {
-            settings = new JsonObject();
-        }
-
-        // Schema guard: if Copilot ever changes 'skillDirectories' to a
-        // non-array shape, refuse to touch the file rather than silently
-        // overwriting the user's data with a fresh empty array.
-        if (settings.ContainsKey("skillDirectories") && settings["skillDirectories"] is not JsonArray)
-        {
-            Console.Error.WriteLine(
-                $"Error: 'skillDirectories' in {settingsPath} has an unexpected shape (expected array). " +
-                "Copilot CLI may have changed its config schema. " +
-                "Refusing to modify the file — please file an issue at https://github.com/fotis89/ctx-launcher/issues.");
-            return;
-        }
-
-        var dirs = settings["skillDirectories"] as JsonArray ?? new JsonArray();
-
-        foreach (var item in dirs)
-        {
-            if (item is JsonValue v && v.TryGetValue<string>(out var existing)
-                && string.Equals(existing, skillsDir, StringComparison.OrdinalIgnoreCase))
-            {
-                return; // already registered
-            }
-        }
-
-        dirs.Add((JsonNode)JsonValue.Create(skillsDir)!);
-        settings["skillDirectories"] = dirs;
-
-        Directory.CreateDirectory(copilotDir);
-        WriteSettingsAtomic(settingsPath, settings);
-    }
-
-    public static void UnregisterSkillsDirs(IEnumerable<string> skillsDirs, string settingsPath)
-    {
-        if (!File.Exists(settingsPath))
-        {
-            return;
-        }
-
-        JsonObject settings;
-        try
-        {
-            settings = JsonNode.Parse(File.ReadAllText(settingsPath)) as JsonObject ?? new JsonObject();
-        }
-        catch
-        {
-            return;
-        }
-
-        if (settings["skillDirectories"] is not JsonArray dirs)
-        {
-            return;
-        }
-
-        var toRemove = new HashSet<string>(skillsDirs, StringComparer.OrdinalIgnoreCase);
-        var changed = false;
-        for (var i = dirs.Count - 1; i >= 0; i--)
-        {
-            if (dirs[i] is JsonValue v && v.TryGetValue<string>(out var existing) && toRemove.Contains(existing))
-            {
-                dirs.RemoveAt(i);
-                changed = true;
-            }
-        }
-
-        if (!changed)
-        {
-            return;
-        }
-
-        WriteSettingsAtomic(settingsPath, settings);
-    }
-
-    private static void WriteSettingsAtomic(string settingsPath, JsonObject settings)
-    {
-        var tmp = settingsPath + ".tmp";
-        File.WriteAllText(tmp, settings.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-        File.Move(tmp, settingsPath, overwrite: true);
+            """;
+        File.WriteAllText(manifestPath, content);
     }
 
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
@@ -195,36 +92,15 @@ public class CopilotAdapter : IToolAdapter
 
     public void InvokeCreateSkill(string prompt, string cwd, string sharedDir, ClaudeRunner runner)
     {
-        // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Copilot
-        // doesn't auto-discover skills outside cwd/git-root, so register
-        // that dir in settings.json for the duration of this create flow,
-        // the same way per-launch does for workspace skills. Cleanup runs
-        // 2s after spawn (Timer) and again when the spawned process exits
-        // (finally), idempotent.
-        var skillsDir = Path.Combine(sharedDir, ".claude", "skills");
-        var settingsPath = GetCopilotSettingsPath();
-
-        RegisterSkillsDir(skillsDir, settingsPath);
-
-        var cleanupOnce = 0;
-        void Cleanup()
+        // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Expose
+        // it via --plugin-dir so Copilot loads it for this single
+        // invocation only — no global state mutation.
+        var sharedClaudeDir = Path.Combine(sharedDir, ".claude");
+        if (HasSkills(sharedClaudeDir))
         {
-            if (Interlocked.Exchange(ref cleanupOnce, 1) == 0)
-            {
-                UnregisterSkillsDirs([skillsDir], settingsPath);
-            }
+            EnsurePluginManifest(sharedClaudeDir, "wl-shared");
         }
-
-        using var cleanupTimer = new Timer(_ => Cleanup(), null, TimeSpan.FromSeconds(2), Timeout.InfiniteTimeSpan);
-
-        try
-        {
-            runner.Run(ExecutableName, cwd, ["-i", prompt]);
-        }
-        finally
-        {
-            Cleanup();
-        }
+        runner.Run(ExecutableName, cwd, ["--plugin-dir", sharedClaudeDir, "-i", prompt]);
     }
 
     public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
@@ -250,10 +126,20 @@ public class CopilotAdapter : IToolAdapter
 
         spec.AppendAddDirArgs(args);
 
+        // Load workspace + shared skills as local plugins. Manifests are
+        // written by PrepareLaunch; here we just emit the flag for each
+        // dir that has skills.
+        foreach (var (claudeDir, _) in GetManagedClaudeDirs(ws))
+        {
+            if (HasSkills(claudeDir))
+            {
+                args.Add("--plugin-dir");
+                args.Add(claudeDir);
+            }
+        }
+
         // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
         // discovered by Copilot via COPILOT_CUSTOM_INSTRUCTIONS_DIRS.
-        // Skills are registered in ~/.copilot/settings.json's
-        // skillDirectories by PrepareLaunch — no CLI flag needed.
 
         if (spec.Yolo)
         {
