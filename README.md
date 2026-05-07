@@ -105,19 +105,19 @@ Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
 | `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking an AI CLI |
 | `wl create <name> --tool copilot` | Forces the create flow through Copilot (override auto-detect) |
 | `wl launch [name]` | Launches a workspace; omit `name` to use the last one launched |
-| `wl launch <name> --resume` | Resumes the previous Claude session for that workspace |
+| `wl launch <name> --resume` | Resumes the previous session for that workspace |
 | `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |
-| `wl launch <name> --yolo` | Skips Claude's permission prompts |
+| `wl launch <name> --yolo` | Skips the AI's permission prompts |
 | `wl launch <name> -p <name-or-text>` | Starts with a saved prompt, or with raw prompt text |
 | `wl launch <name> --tool claude\|copilot` | Override the workspace's tool for this launch only |
 | `wl list` | Lists all workspaces |
-| `wl which <name>` | Shows the exact `claude` command `wl` will run, and checks paths exist |
+| `wl which <name>` | Shows the exact command `wl` will run, and checks paths exist |
 | `wl edit <name>` | Opens the workspace folder in your system file explorer |
 | `wl paths set <name> <value>` | Set a path variable (e.g. `REPOS_ROOT`) used by `$VAR` references in `workspace.json` |
 | `wl paths list` | Show defined and referenced path variables |
 | `wl paths init` | Prompt for any path variables referenced in workspaces but not defined |
 | `wl clone <git-url>` | Clone a workspaces repo into `~/.wl-workspaces` and run `wl setup` + `wl paths init` |
-| `wl setup` | (Optional) prints a tab-completion snippet and verifies `claude` is reachable |
+| `wl setup` | (Optional) prints a tab-completion snippet and reports which AI CLIs are on your PATH |
 
 ## What's a workspace?
 

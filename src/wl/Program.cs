@@ -43,7 +43,7 @@ promptOpt.CompletionSources.Add(ctx =>
 
     return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
 });
-var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Claude permission prompts" };
+var yoloOpt = new Option<bool>("--yolo") { Description = "Skip permission prompts" };
 var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session (overrides resume: true)" };
 var launchToolOpt = new Option<string?>("--tool") { Description = $"Override the tool for this launch ({string.Join(" | ", toolAdapters.Names)})" };
