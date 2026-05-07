@@ -14,6 +14,11 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             return;
         }
 
+        if (!launcher.ValidateTool(ws, toolOverride: null))
+        {
+            return;
+        }
+
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 

@@ -28,6 +28,11 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return;
         }
 
+        if (!launcher.ValidateTool(ws, toolOverride))
+        {
+            return;
+        }
+
         var (repoExists, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
         if (!repoExists)
         {

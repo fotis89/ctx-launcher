@@ -7,14 +7,19 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 {
     private Func<string, string?> Lookup => paths.Get;
 
+    /// <summary>
+    /// Validate that the tool resolution chain (override → workspace.json →
+    /// .config.json → default) lands on a registered adapter. Prints a
+    /// labeled error to stderr if not. Callers should invoke this once at
+    /// the top of their flow and bail on false; downstream service methods
+    /// trust the resolution and use <see cref="ToolAdapterRegistry.Resolve"/>.
+    /// </summary>
+    public bool ValidateTool(Workspace ws, string? toolOverride)
+        => config.TryResolveValidatedTool(ws, toolOverride, adapters, out _);
 
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null, string? toolOverride = null)
     {
-        if (!config.TryResolveValidatedTool(ws, toolOverride, adapters, out var tool))
-        {
-            return ([], [], null);
-        }
-        var adapter = adapters.Resolve(tool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
         var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
 
@@ -45,11 +50,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        if (!config.TryResolveValidatedTool(ws, overrideTool: null, adapters, out var tool))
-        {
-            return "(unable to build command — see error above)";
-        }
-        var adapter = adapters.Resolve(tool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws));
         var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
         var groups = new List<string> { adapter.DisplayName };
@@ -88,11 +89,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
 
     public void Launch(Workspace ws, List<string> args, string? toolOverride = null)
     {
-        if (!config.TryResolveValidatedTool(ws, toolOverride, adapters, out var tool))
-        {
-            return;
-        }
-        var adapter = adapters.Resolve(tool);
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
 
         adapter.PrepareLaunch(ws);
         claudeRunner.Run(
