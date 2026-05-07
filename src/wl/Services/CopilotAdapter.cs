@@ -42,12 +42,6 @@ public class CopilotAdapter : IToolAdapter
         }
     }
 
-    public void CleanupAfterLaunch(Workspace ws)
-    {
-        // No global state to revert — skill loading is per-invocation
-        // via --plugin-dir flags now.
-    }
-
     private static IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
         // Plugin names must be kebab-case per Copilot's plugin.json spec.

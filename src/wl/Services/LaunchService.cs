@@ -83,17 +83,10 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
 
         adapter.PrepareLaunch(ws);
-        try
-        {
-            claudeRunner.Run(
-                adapter.ExecutableName,
-                PathHelper.ResolvePath(ws.PrimaryRepo, Lookup),
-                args,
-                adapter.GetEnvironment(ws));
-        }
-        finally
-        {
-            adapter.CleanupAfterLaunch(ws);
-        }
+        claudeRunner.Run(
+            adapter.ExecutableName,
+            PathHelper.ResolvePath(ws.PrimaryRepo, Lookup),
+            args,
+            adapter.GetEnvironment(ws));
     }
 }

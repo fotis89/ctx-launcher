@@ -12,11 +12,6 @@ public class ClaudeAdapter : IToolAdapter
         // Claude reads instructions.md directly via --append-system-prompt-file; no prep needed.
     }
 
-    public void CleanupAfterLaunch(Workspace ws)
-    {
-        // No cleanup — Claude didn't mutate any global state at PrepareLaunch.
-    }
-
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => new Dictionary<string, string>();
 
