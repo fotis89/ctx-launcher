@@ -2,6 +2,8 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+using wl.Helpers;
+
 namespace wl.Services;
 
 public record SetupResult(bool CreateWorkspaceFresh, bool UpdateWorkspaceFresh, string? PreviousVersion, string CurrentVersion);
@@ -22,7 +24,7 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
 
     private static bool WriteSkill(string skillDir, string resourceName)
     {
-        var skillFile = Path.Combine(skillDir, WorkspaceService.SkillFileName);
+        var skillFile = Path.Combine(skillDir, WlPaths.SkillFileName);
         var existed = File.Exists(skillFile);
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(skillFile, LoadResource(resourceName));

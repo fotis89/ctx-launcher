@@ -7,12 +7,7 @@ namespace wl.Services;
 
 public class WorkspaceService
 {
-    public const string SharedDirName = ".shared";
-    public const string ClaudeDirName = ".claude";
-    public const string SkillsDirName = "skills";
-    public const string SkillFileName = "SKILL.md";
-    public const string PluginManifestFileName = "plugin.json";
-    public const string InstructionsFileName = "instructions.md";
+    public const string SharedDirName = WlPaths.SharedDirName;
 
     private string? _root;
 
@@ -29,7 +24,7 @@ public class WorkspaceService
     }
 
     public string GetSharedDirPath()
-        => Path.Combine(GetWorkspacesRoot(), SharedDirName);
+        => WlPaths.SharedDir(GetWorkspacesRoot());
 
     public string? GetSharedDirIfExists()
     {
@@ -38,15 +33,15 @@ public class WorkspaceService
     }
 
     public string GetSharedClaudeDirPath()
-        => Path.Combine(GetSharedDirPath(), ClaudeDirName);
+        => WlPaths.ClaudeDir(GetSharedDirPath());
 
     public string GetSharedSkillsPath()
-        => Path.Combine(GetSharedClaudeDirPath(), SkillsDirName);
+        => WlPaths.SkillsDir(GetSharedDirPath());
 
     public string EnsureSharedDir()
     {
         var path = GetSharedDirPath();
-        Directory.CreateDirectory(Path.Combine(path, ClaudeDirName, SkillsDirName));
+        Directory.CreateDirectory(WlPaths.SkillsDir(path));
         return path;
     }
 
