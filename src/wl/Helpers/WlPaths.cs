@@ -8,11 +8,12 @@ namespace wl.Helpers;
 ///
 /// Layout:
 ///   &lt;WorkspacesRoot&gt;/
-///     .version, .last, .last-session, .paths.json, .config.json, .gitignore
+///     .version, .last, .paths.json, .config.json, .gitignore
 ///     &lt;name&gt;/                   ← workspace folder
 ///       workspace.json
 ///       instructions.md
 ///       AGENTS.md                 (auto-generated for Copilot)
+///       .last-session
 ///       prompts/
 ///       .claude/
 ///         plugin.json             (auto-generated for Copilot)
