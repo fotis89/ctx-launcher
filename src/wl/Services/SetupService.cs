@@ -177,7 +177,10 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
             for (var i = dirs.Count - 1; i >= 0; i--)
             {
                 if (dirs[i] is JsonValue v && v.TryGetValue<string>(out var existing)
-                    && existing.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    && existing.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                    && (existing.Length == prefix.Length
+                        || existing[prefix.Length] == Path.DirectorySeparatorChar
+                        || existing[prefix.Length] == Path.AltDirectorySeparatorChar))
                 {
                     dirs.RemoveAt(i);
                     changed = true;

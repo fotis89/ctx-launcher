@@ -1,3 +1,4 @@
+using wl.Helpers;
 using wl.Models;
 
 namespace wl.Services;
@@ -49,7 +50,10 @@ public class CopilotAdapter : IToolAdapter
 
     private static IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
-        yield return (Path.Combine(ws.FolderPath, ".claude"), $"wl-{ws.FolderName}");
+        // Plugin names must be kebab-case per Copilot's plugin.json spec.
+        // FolderName is usually already a slug (from `wl create`) but may
+        // be arbitrary user input on hand-created or migrated workspaces.
+        yield return (Path.Combine(ws.FolderPath, ".claude"), $"wl-{PathHelper.Slugify(ws.FolderName)}");
         var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
         if (workspacesRoot is not null)
         {

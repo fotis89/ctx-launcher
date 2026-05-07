@@ -330,4 +330,37 @@ public class CopilotAdapterTests
             Directory.Delete(tempRoot, true);
         }
     }
+
+    [Fact]
+    public void PrepareLaunch_FolderNameWithSpaces_PluginNameIsSlugified()
+    {
+        // Existing/hand-created workspaces may have folder names that
+        // aren't kebab-case. Plugin manifest names must be kebab-case
+        // per Copilot's plugin.json spec.
+        var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        var wsFolder = Path.Combine(tempRoot, "My Workspace");
+        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        Directory.CreateDirectory(skillDir);
+        File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
+        try
+        {
+            var ws = new Workspace
+            {
+                Name = "My Workspace",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = wsFolder,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
+            var name = json["name"]!.GetValue<string>();
+            Assert.Equal("wl-my-workspace", name);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, true);
+        }
+    }
 }

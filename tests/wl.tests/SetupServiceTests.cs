@@ -73,4 +73,77 @@ public class SetupServiceTests
         Assert.True(secretIdx > userIdx);
         Assert.True(configIdx > secretIdx);
     }
+
+    [Fact]
+    public void StripStaleCopilotSkillDirs_RemovesEntriesUnderWorkspacesRoot()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "wl-strip-" + Guid.NewGuid().ToString("N")[..8]);
+        var copilotDir = Path.Combine(temp, ".copilot");
+        var workspacesRoot = Path.Combine(temp, ".wl-workspaces");
+        Directory.CreateDirectory(copilotDir);
+        try
+        {
+            var settings = Path.Combine(copilotDir, "settings.json");
+            var inside = Path.Combine(workspacesRoot, "ws-a", ".claude", "skills").Replace("\\", "\\\\");
+            var outside = (temp + Path.DirectorySeparatorChar + "other-tool" + Path.DirectorySeparatorChar + "skills").Replace("\\", "\\\\");
+            File.WriteAllText(settings, $$"""
+                {"model":"x","skillDirectories":["{{inside}}","{{outside}}"]}
+                """);
+
+            SetupService.StripStaleCopilotSkillDirs(temp, workspacesRoot);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settings))!.AsObject();
+            var dirs = json["skillDirectories"]!.AsArray().Select(d => d!.GetValue<string>()).ToList();
+            Assert.Single(dirs);
+            Assert.Equal("x", json["model"]!.GetValue<string>());
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public void StripStaleCopilotSkillDirs_PrefixIsBoundedToDirectorySeparator()
+    {
+        // Sibling dirs that share a prefix (e.g. .wl-workspaces vs
+        // .wl-workspaces-backup) must not be matched.
+        var temp = Path.Combine(Path.GetTempPath(), "wl-strip-" + Guid.NewGuid().ToString("N")[..8]);
+        var copilotDir = Path.Combine(temp, ".copilot");
+        var workspacesRoot = Path.Combine(temp, ".wl-workspaces");
+        Directory.CreateDirectory(copilotDir);
+        try
+        {
+            var settings = Path.Combine(copilotDir, "settings.json");
+            var sibling = Path.Combine(temp, ".wl-workspaces-backup", "ws", ".claude", "skills").Replace("\\", "\\\\");
+            File.WriteAllText(settings, $$"""
+                {"skillDirectories":["{{sibling}}"]}
+                """);
+
+            SetupService.StripStaleCopilotSkillDirs(temp, workspacesRoot);
+
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(settings))!.AsObject();
+            var dirs = json["skillDirectories"]!.AsArray().Select(d => d!.GetValue<string>()).ToList();
+            Assert.Single(dirs);
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public void StripStaleCopilotSkillDirs_NoSettingsFile_NoError()
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "wl-strip-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            // No ~/.copilot dir, no settings.json — must not throw.
+            SetupService.StripStaleCopilotSkillDirs(temp, Path.Combine(temp, ".wl-workspaces"));
+        }
+        finally
+        {
+            if (Directory.Exists(temp)) Directory.Delete(temp, true);
+        }
+    }
 }
