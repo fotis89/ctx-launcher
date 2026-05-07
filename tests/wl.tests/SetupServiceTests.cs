@@ -44,6 +44,28 @@ public class SetupServiceTests
     }
 
     [Fact]
+    public void MergeGitignore_WhitespaceOnlyBlankLine_DoesNotDuplicateHeader()
+    {
+        // Hand-edited .gitignore files often have stray whitespace on
+        // visually-blank lines. The block-boundary scan must treat those
+        // as separators, otherwise we'd append a second "Added by wl
+        // setup" header instead of merging into the existing block.
+        var firstPass = SetupService.MergeGitignore(
+            "# User stuff\n.DS_Store",
+            ["*/AGENTS.md"]);
+
+        // Inject whitespace into the blank line between user content and
+        // our managed block before merging again.
+        var withWhitespace = firstPass.Replace("\n\n#", "\n   \n#");
+
+        var secondPass = SetupService.MergeGitignore(withWhitespace, [".config.json"]);
+
+        var headerCount = secondPass.Split("# Added by `wl setup`").Length - 1;
+        Assert.Equal(1, headerCount);
+        Assert.Contains(".config.json", secondPass);
+    }
+
+    [Fact]
     public void MergeGitignore_HandlesCrlfLineEndings()
     {
         var existing = "# User stuff\r\n.DS_Store\r\n";

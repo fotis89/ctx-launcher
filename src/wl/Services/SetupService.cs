@@ -138,11 +138,14 @@ public class SetupService(VersionService versionService, WlPaths paths)
         var trimmed = existing.TrimEnd();
         var lines = trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
         var blockStart = lines.Count;
-        while (blockStart > 0 && !string.IsNullOrEmpty(lines[blockStart - 1]))
+        // Walk back over non-blank lines; treat whitespace-only lines as
+        // separators too so a manually-edited .gitignore with stray spaces
+        // doesn't fool the "last block is ours" detection.
+        while (blockStart > 0 && !string.IsNullOrWhiteSpace(lines[blockStart - 1]))
         {
             blockStart--;
         }
-        var lastBlockIsOurs = blockStart < lines.Count && lines[blockStart] == AddedByHeader;
+        var lastBlockIsOurs = blockStart < lines.Count && lines[blockStart].Trim() == AddedByHeader;
 
         var sb = new System.Text.StringBuilder(trimmed);
         sb.AppendLine();

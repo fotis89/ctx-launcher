@@ -212,7 +212,7 @@ wl launch wl-dev -p "investigate the failing test and explain the root cause"
 
 ### `.claude/skills/`
 
-Claude Code skills that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically.
+Skills (`SKILL.md` definitions) that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically — Claude reads them via auto-discovery; for Copilot, `wl` exposes the directory through `--plugin-dir` with an auto-generated `plugin.json`.
 
 ## What's behind a launch
 
@@ -247,14 +247,14 @@ $ wl which wl-dev
 
 No magic — `wl launch` just spawns `claude` with the composed flags. `wl which` previews path resolution, skill discovery, and the exact command before you run it.
 
-## Claude skills shipped with wl
+## Skills shipped with wl
 
-`wl` ships two Claude Code skills, installed automatically on first use:
+`wl` ships two skills, installed automatically on first use:
 
 - **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files.
 - **`/wl-update-workspace`** — run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
 
-Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install.
+Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install. They work in both Claude Code and Copilot CLI sessions; in Copilot they trigger by description match (slash is reserved for Copilot's built-in commands).
 
 ## Syncing across PCs
 

@@ -43,7 +43,13 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             : "/wl-create-workspace";
 
         var resolvedTool = tool ?? DetectAvailableTool();
-        var adapter = adapters.Resolve(resolvedTool);
+        if (!adapters.TryResolve(resolvedTool, out var adapter))
+        {
+            Console.Error.WriteLine(
+                $"Error: unknown tool '{resolvedTool}'. " +
+                $"Available: {string.Join(", ", adapters.Names)}.");
+            return;
+        }
         adapter.InvokeCreateSkill(prompt, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
@@ -65,6 +71,11 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
 
     private void WriteBasicWorkspace(string slug, string? tool)
     {
+        // Omit Tool when it equals the documented default ("claude") so
+        // generated workspace.json matches the README convention. Users
+        // who explicitly want to pin claude can edit workspace.json by
+        // hand; --tool claude on the command line means "use the default".
+        var normalizedTool = string.Equals(tool, "claude", StringComparison.OrdinalIgnoreCase) ? null : tool;
         var ws = new Workspace
         {
             Name = slug,
@@ -72,7 +83,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             AdditionalDirs = [],
             Yolo = false,
             Resume = true,
-            Tool = tool,
+            Tool = normalizedTool,
         };
         workspaces.SaveWorkspace(ws, slug);
         Console.WriteLine($"Created workspace '{slug}' at {ws.FolderPath}");

@@ -85,6 +85,28 @@ public class ConfigService(string filePath)
     public string ResolveTool(Workspace ws, string? overrideTool = null)
         => ResolveToolWithSource(ws, overrideTool).Tool;
 
+    public bool TryResolveValidatedTool(Workspace ws, string? overrideTool, ToolAdapterRegistry adapters, out string tool)
+    {
+        var (resolved, source) = ResolveToolWithSource(ws, overrideTool);
+        tool = resolved;
+        if (adapters.TryResolve(resolved, out _))
+        {
+            return true;
+        }
+
+        var sourceLabel = source switch
+        {
+            ToolSource.Override => "--tool override",
+            ToolSource.Workspace => $"'{ws.Name}'/workspace.json (tool field)",
+            ToolSource.Config => "~/.wl-workspaces/.config.json (defaultTool)",
+            _ => "default",
+        };
+        Console.Error.WriteLine(
+            $"Error: unknown tool '{resolved}' from {sourceLabel}. " +
+            $"Available: {string.Join(", ", adapters.Names)}.");
+        return false;
+    }
+
     public (string Tool, ToolSource Source) ResolveToolWithSource(Workspace ws, string? overrideTool = null)
     {
         if (!string.IsNullOrEmpty(overrideTool))
