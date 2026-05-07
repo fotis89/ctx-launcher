@@ -117,7 +117,7 @@ Does this look right? Any changes before I create it?
 
 **Tool-specific notes for the proposal:**
 - For `tool: copilot` workspaces, `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it). Copilot skills are exposed at launch via `--plugin-dir`, where wl generates a temporary plugin directory and `plugin.json` from `.claude/skills/*`. Treat `instructions.md` and `.claude/skills/*` as the source of truth — `AGENTS.md` and the generated plugin metadata are recreated by wl on each launch.
-- Skills in Copilot workspaces remain invokable as `/<skill-name>` slash commands, but wl does this without mutating Copilot's global `settings.json`.
+- Skills in Copilot workspaces are triggered by description match (the `description` field in `SKILL.md` frontmatter), not by `/<skill-name>` slash commands — slash is reserved for Copilot's built-in commands like `/init`, `/skills`, `/clear`.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 

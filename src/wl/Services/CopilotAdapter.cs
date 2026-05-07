@@ -26,8 +26,11 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
             var instructions = File.ReadAllText(ws.InstructionsPath);
             File.WriteAllText(agentsPath, AgentsMdMarker + Environment.NewLine + Environment.NewLine + instructions);
         }
-        else if (File.Exists(agentsPath))
+        else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
         {
+            // Only delete AGENTS.md if wl wrote it (marker header is present).
+            // A user-managed AGENTS.md or one created by another tool is left
+            // alone — wl shouldn't clobber files it doesn't own.
             File.Delete(agentsPath);
         }
 
@@ -66,6 +69,20 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         }
         return Directory.GetDirectories(skillsDir)
             .Any(d => File.Exists(Path.Combine(d, WlPaths.SkillFileName)));
+    }
+
+    private static bool IsWlManaged(string agentsPath)
+    {
+        try
+        {
+            using var reader = new StreamReader(agentsPath);
+            var firstLine = reader.ReadLine();
+            return firstLine is not null && firstLine.StartsWith(AgentsMdMarker, StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public static void EnsurePluginManifest(string claudeDir, string pluginName)

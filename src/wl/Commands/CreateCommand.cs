@@ -49,8 +49,15 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
 
     private string DetectAvailableTool()
     {
+        // Respect the machine-local default if it points at a CLI that's
+        // actually on PATH. If the user set defaultTool=copilot but only
+        // claude is installed (or vice versa), fall through to the probe
+        // chain rather than fail with "tool not found".
         var configDefault = config.DefaultTool;
-        if (!string.IsNullOrEmpty(configDefault)) return configDefault;
+        if (!string.IsNullOrEmpty(configDefault) && claudeRunner.TryGetVersion(configDefault, out _))
+        {
+            return configDefault;
+        }
         if (claudeRunner.TryGetVersion("claude", out _)) return "claude";
         if (claudeRunner.TryGetVersion("copilot", out _)) return "copilot";
         return "claude"; // fall through; ClaudeRunner.Run will print a clear "not found" error

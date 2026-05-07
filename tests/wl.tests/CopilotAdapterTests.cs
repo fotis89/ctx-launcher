@@ -217,6 +217,68 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
+    public void PrepareLaunch_NoInstructions_PreservesUserManagedAgentsFile()
+    {
+        // If AGENTS.md exists without the wl marker, it's user-managed (or
+        // written by another tool). PrepareLaunch must not delete it just
+        // because instructions.md is missing.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
+            const string userContent = "# My hand-written agent guide\n\nKeep this file.";
+            File.WriteAllText(agentsPath, userContent);
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            Assert.True(File.Exists(agentsPath));
+            Assert.Equal(userContent, File.ReadAllText(agentsPath));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_NoInstructions_DeletesWlManagedAgentsFile()
+    {
+        // Conversely, if AGENTS.md was previously written by wl (marker
+        // present), PrepareLaunch should clean it up when instructions.md
+        // disappears so we don't keep stale workspace context around.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
+            File.WriteAllText(agentsPath, CopilotAdapter.AgentsMdMarker + "\n\nold context");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            Assert.False(File.Exists(agentsPath));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void PrepareLaunch_OverwritesStaleAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
