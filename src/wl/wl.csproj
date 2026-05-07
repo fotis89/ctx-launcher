@@ -10,6 +10,7 @@
     <PublishAot>true</PublishAot>
     <MinVerDefaultPreReleaseIdentifiers>dev.0</MinVerDefaultPreReleaseIdentifiers>
     <MinVerTagPrefix>v</MinVerTagPrefix>
+    <MinVerMinimumMajorMinor>0.8</MinVerMinimumMajorMinor>
   </PropertyGroup>
 
   <ItemGroup>
