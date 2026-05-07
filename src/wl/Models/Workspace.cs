@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 
+using wl.Services;
+
 namespace wl.Models;
 
 public class Workspace
@@ -14,7 +16,7 @@ public class Workspace
 
     [JsonIgnore] public string FolderName => Path.GetFileName(FolderPath);
     [JsonIgnore] public string FolderPath { get; set; } = "";
-    [JsonIgnore] public string InstructionsPath => Path.Combine(FolderPath, "instructions.md");
+    [JsonIgnore] public string InstructionsPath => Path.Combine(FolderPath, WorkspaceService.InstructionsFileName);
     [JsonIgnore] public string PromptsPath => Path.Combine(FolderPath, "prompts");
-    [JsonIgnore] public string SkillsPath => Path.Combine(FolderPath, ".claude", "skills");
+    [JsonIgnore] public string SkillsPath => Path.Combine(FolderPath, WorkspaceService.ClaudeDirName, WorkspaceService.SkillsDirName);
 }

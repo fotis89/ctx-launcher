@@ -8,6 +8,10 @@ public class CopilotAdapter : IToolAdapter
     public string ExecutableName => "copilot";
     public string DisplayName => "copilot";
 
+    public const string AgentsFileName = "AGENTS.md";
+    public const string SharedPluginName = "wl-shared";
+    public const string WorkspacePluginPrefix = "wl-";
+
     public const string AgentsMdMarker = "<!-- managed by wl: this file is auto-generated from instructions.md on each launch — edits will be overwritten -->";
 
     public void PrepareLaunch(Workspace ws)
@@ -17,7 +21,7 @@ public class CopilotAdapter : IToolAdapter
         // (in GetEnvironment) tells Copilot to also look in the workspace
         // folder for AGENTS.md. Marker header makes it obvious to anyone
         // who opens the file that it's auto-generated.
-        var agentsPath = Path.Combine(ws.FolderPath, "AGENTS.md");
+        var agentsPath = Path.Combine(ws.FolderPath, AgentsFileName);
         if (File.Exists(ws.InstructionsPath))
         {
             var instructions = File.ReadAllText(ws.InstructionsPath);
@@ -47,29 +51,29 @@ public class CopilotAdapter : IToolAdapter
         // Plugin names must be kebab-case per Copilot's plugin.json spec.
         // FolderName is usually already a slug (from `wl create`) but may
         // be arbitrary user input on hand-created or migrated workspaces.
-        yield return (Path.Combine(ws.FolderPath, ".claude"), $"wl-{PathHelper.Slugify(ws.FolderName)}");
+        yield return (Path.Combine(ws.FolderPath, WorkspaceService.ClaudeDirName), $"{WorkspacePluginPrefix}{PathHelper.Slugify(ws.FolderName)}");
         var workspacesRoot = Path.GetDirectoryName(ws.FolderPath);
         if (workspacesRoot is not null)
         {
-            yield return (Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, ".claude"), "wl-shared");
+            yield return (Path.Combine(workspacesRoot, WorkspaceService.SharedDirName, WorkspaceService.ClaudeDirName), SharedPluginName);
         }
     }
 
     private static bool HasSkills(string claudeDir)
     {
-        var skillsDir = Path.Combine(claudeDir, "skills");
+        var skillsDir = Path.Combine(claudeDir, WorkspaceService.SkillsDirName);
         if (!Directory.Exists(skillsDir))
         {
             return false;
         }
         return Directory.GetDirectories(skillsDir)
-            .Any(d => File.Exists(Path.Combine(d, "SKILL.md")));
+            .Any(d => File.Exists(Path.Combine(d, WorkspaceService.SkillFileName)));
     }
 
     public static void EnsurePluginManifest(string claudeDir, string pluginName)
     {
         Directory.CreateDirectory(claudeDir);
-        var manifestPath = Path.Combine(claudeDir, "plugin.json");
+        var manifestPath = Path.Combine(claudeDir, WorkspaceService.PluginManifestFileName);
         var content = $$"""
             {
               "name": "{{pluginName}}"
@@ -93,10 +97,10 @@ public class CopilotAdapter : IToolAdapter
         // /wl-create-workspace lives in <sharedDir>/.claude/skills/. Expose
         // it via --plugin-dir so Copilot loads it for this single
         // invocation only — no global state mutation.
-        var sharedClaudeDir = Path.Combine(sharedDir, ".claude");
+        var sharedClaudeDir = Path.Combine(sharedDir, WorkspaceService.ClaudeDirName);
         if (HasSkills(sharedClaudeDir))
         {
-            EnsurePluginManifest(sharedClaudeDir, "wl-shared");
+            EnsurePluginManifest(sharedClaudeDir, SharedPluginName);
         }
         runner.Run(ExecutableName, cwd, ["--plugin-dir", sharedClaudeDir, "-i", prompt]);
     }

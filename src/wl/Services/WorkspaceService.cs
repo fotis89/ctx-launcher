@@ -8,6 +8,11 @@ namespace wl.Services;
 public class WorkspaceService
 {
     public const string SharedDirName = ".shared";
+    public const string ClaudeDirName = ".claude";
+    public const string SkillsDirName = "skills";
+    public const string SkillFileName = "SKILL.md";
+    public const string PluginManifestFileName = "plugin.json";
+    public const string InstructionsFileName = "instructions.md";
 
     private string? _root;
 
@@ -33,12 +38,12 @@ public class WorkspaceService
     }
 
     public string GetSharedSkillsPath()
-        => Path.Combine(GetSharedDirPath(), ".claude", "skills");
+        => Path.Combine(GetSharedDirPath(), ClaudeDirName, SkillsDirName);
 
     public string EnsureSharedDir()
     {
         var path = GetSharedDirPath();
-        Directory.CreateDirectory(Path.Combine(path, ".claude", "skills"));
+        Directory.CreateDirectory(Path.Combine(path, ClaudeDirName, SkillsDirName));
         return path;
     }
 

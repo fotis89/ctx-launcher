@@ -22,7 +22,7 @@ public class SetupService(WorkspaceService workspaces, VersionService versionSer
 
     private static bool WriteSkill(string skillDir, string resourceName)
     {
-        var skillFile = Path.Combine(skillDir, "SKILL.md");
+        var skillFile = Path.Combine(skillDir, WorkspaceService.SkillFileName);
         var existed = File.Exists(skillFile);
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(skillFile, LoadResource(resourceName));
