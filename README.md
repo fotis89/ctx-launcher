@@ -283,7 +283,13 @@ Values live in `~/.wl-workspaces/.paths.json` (machine-local, not synced).
 
 ### Step 3 — Commit `~/.wl-workspaces/` to git
 
-`wl setup` drops a default `.gitignore` that excludes machine-local state (`.paths.json`, `.last-session`, `.last`, `.version`, and wl's installed skill). User-authored skills in `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
+`wl setup` drops a default `.gitignore` that excludes machine-local state and auto-generated artifacts:
+
+- **Machine-local state** — `.last-session`, `.last`, `.version`, `.paths.json`, `.config.json` (paths and tool defaults differ per PC; install state varies).
+- **wl-installed skills** — `.shared/.claude/skills/wl-create-workspace/` and `.shared/.claude/skills/wl-update-workspace/` (re-installed on each PC by `wl setup`).
+- **Copilot launch artifacts** — `*/AGENTS.md` (mirror of `instructions.md`, regenerated each launch) and `*/.claude/plugin.json` + `.shared/.claude/plugin.json` (auto-generated plugin manifests).
+
+User-authored skills elsewhere under `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
 
 ```bash
 cd ~/.wl-workspaces
