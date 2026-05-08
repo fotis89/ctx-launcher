@@ -118,6 +118,28 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         };
     }
 
+    public IEnumerable<string> DescribeLaunchPrep(Workspace ws)
+    {
+        // Mirror what PrepareLaunch will actually do. Pure — no IO beyond
+        // File.Exists / Directory.GetDirectories which are observational.
+        if (File.Exists(ws.InstructionsPath))
+        {
+            yield return $"writes {ws.AgentsPath} (mirror of instructions.md)";
+        }
+        else if (File.Exists(ws.AgentsPath))
+        {
+            yield return $"may delete {ws.AgentsPath} (only if wl-managed)";
+        }
+
+        foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
+        {
+            if (HasSkills(claudeDir))
+            {
+                yield return $"writes {Path.Combine(claudeDir, WlPaths.PluginManifestFileName)} (plugin name: {name})";
+            }
+        }
+    }
+
     public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
     {
         // The shared skill lives under <sharedDir>/.claude/skills/. Expose

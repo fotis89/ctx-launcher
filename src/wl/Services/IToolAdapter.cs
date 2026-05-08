@@ -23,6 +23,15 @@ public interface IToolAdapter
     IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws);
 
     /// <summary>
+    /// Human-readable description of files this adapter will write or
+    /// modify during PrepareLaunch (e.g., AGENTS.md mirror, plugin.json
+    /// manifests). Used by `wl which` to surface non-argument prep so
+    /// the launch preview is complete. Pure — must not perform IO.
+    /// Returns an empty sequence for adapters that don't do any prep.
+    /// </summary>
+    IEnumerable<string> DescribeLaunchPrep(Workspace ws);
+
+    /// <summary>
     /// Spawn the tool with a one-shot prompt that triggers the named
     /// shared skill. Each adapter formats the invocation for its tool —
     /// Claude takes `/skill-name [arg]`; Copilot needs natural-language

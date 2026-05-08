@@ -99,6 +99,27 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
+        var prep = adapter.DescribeLaunchPrep(ws).ToList();
+        var env = adapter.GetEnvironment(ws);
+        if (prep.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Launch prep:");
+            foreach (var line in prep)
+            {
+                Console.WriteLine($"    - {line}");
+            }
+        }
+        if (env.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Environment:");
+            foreach (var (k, v) in env)
+            {
+                Console.WriteLine($"    {k}={v}");
+            }
+        }
+
         Console.WriteLine();
         Console.WriteLine("  Command:");
         Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");

@@ -16,6 +16,8 @@ public class ClaudeAdapter : IToolAdapter
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => new Dictionary<string, string>();
 
+    public IEnumerable<string> DescribeLaunchPrep(Workspace ws) => [];
+
     public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
     {
         // <skillName> lives in <sharedDir>/.claude/skills/. Attach the

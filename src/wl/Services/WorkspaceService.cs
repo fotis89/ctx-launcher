@@ -127,5 +127,13 @@ public class WorkspaceService(WlPaths paths)
             Console.Error.WriteLine($"Warning: {jsonPath} is not valid JSON ({ex.Message}); ignoring workspace.");
             return null;
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // File exists but isn't readable. Treat as an ignored
+            // workspace rather than crashing `wl list` / `wl which` /
+            // `wl launch` for every workspace if one is locked.
+            Console.Error.WriteLine($"Warning: cannot read {jsonPath} ({ex.GetType().Name}); ignoring workspace.");
+            return null;
+        }
     }
 }
