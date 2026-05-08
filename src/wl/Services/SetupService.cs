@@ -137,15 +137,12 @@ public class SetupService(VersionService versionService, WlPaths paths)
         // runs don't litter the file with duplicate headers.
         var trimmed = existing.TrimEnd();
         var lines = trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
-        var blockStart = lines.Count;
-        // Walk back over non-blank lines; treat whitespace-only lines as
-        // separators too so a manually-edited .gitignore with stray spaces
-        // doesn't fool the "last block is ours" detection.
-        while (blockStart > 0 && !string.IsNullOrWhiteSpace(lines[blockStart - 1]))
-        {
-            blockStart--;
-        }
-        var lastBlockIsOurs = blockStart < lines.Count && lines[blockStart].Trim() == AddedByHeader;
+        // Search backward for our managed header in the trimmed footer content
+        // rather than requiring it to be preceded by a blank-line separator.
+        // This keeps us from duplicating the header if a user manually removes
+        // the blank line before the managed block.
+        var lastManagedHeader = lines.FindLastIndex(line => line.Trim() == AddedByHeader);
+        var lastBlockIsOurs = lastManagedHeader >= 0;
 
         var sb = new System.Text.StringBuilder(trimmed);
         sb.AppendLine();
