@@ -16,9 +16,10 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             return;
         }
 
+        string? slug = null;
         if (name is not null)
         {
-            var slug = PathHelper.Slugify(name);
+            slug = PathHelper.Slugify(name);
             if (slug == WorkspaceService.SharedDirName.TrimStart('.'))
             {
                 Console.Error.WriteLine("'shared' is reserved. Choose a different name.");
@@ -46,7 +47,11 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
                 $"Available: {string.Join(", ", adapters.Names)}.");
             return;
         }
-        adapter.InvokeCreateSkill("wl-create-workspace", name, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
+        // Pass the validated slug, not the raw name, so the AI skill works
+        // with the same identifier we just verified is available and not
+        // reserved. Avoids any divergence between wl's slugifier and how
+        // the AI might reinterpret the user's input.
+        adapter.InvokeCreateSkill("wl-create-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
     private string DetectAvailableTool()

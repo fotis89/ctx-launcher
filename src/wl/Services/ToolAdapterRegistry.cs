@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace wl.Services;
 
 public class ToolAdapterRegistry
@@ -11,8 +13,8 @@ public class ToolAdapterRegistry
 
     public string[] Names => [.. _adapters.Keys];
 
-    public bool TryResolve(string tool, out IToolAdapter adapter)
-        => _adapters.TryGetValue(tool, out adapter!);
+    public bool TryResolve(string tool, [NotNullWhen(true)] out IToolAdapter? adapter)
+        => _adapters.TryGetValue(tool, out adapter);
 
     public IToolAdapter Resolve(string tool)
     {
