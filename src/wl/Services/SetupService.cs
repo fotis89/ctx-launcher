@@ -175,11 +175,14 @@ public class SetupService(VersionService versionService, WlPaths paths)
             }
 
             var prefix = workspacesRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var pathComparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             var changed = false;
             for (var i = dirs.Count - 1; i >= 0; i--)
             {
                 if (dirs[i] is JsonValue v && v.TryGetValue<string>(out var existing)
-                    && existing.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                    && existing.StartsWith(prefix, pathComparison)
                     && (existing.Length == prefix.Length
                         || existing[prefix.Length] == Path.DirectorySeparatorChar
                         || existing[prefix.Length] == Path.AltDirectorySeparatorChar))
