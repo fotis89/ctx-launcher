@@ -6,22 +6,22 @@ namespace wl.Services;
 
 public class ClaudeRunner
 {
-    public static string ResolveExecutable(string? pathEnv = null, string? pathExtEnv = null)
+    public static string ResolveExecutable(string command, string? pathEnv = null, string? pathExtEnv = null)
     {
         if (!OperatingSystem.IsWindows())
         {
-            return "claude";
+            return command;
         }
 
-        return PathHelper.FindCommandOnPath("claude", pathEnv, pathExtEnv)
-            ?? "claude";
+        return PathHelper.FindCommandOnPath(command, pathEnv, pathExtEnv)
+            ?? command;
     }
 
-    public virtual void Run(string workingDirectory, IEnumerable<string> args)
+    public virtual bool Run(string command, string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = ResolveExecutable(),
+            FileName = ResolveExecutable(command),
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
         };
@@ -29,28 +29,38 @@ public class ClaudeRunner
         {
             psi.ArgumentList.Add(arg);
         }
+        if (environment is not null)
+        {
+            foreach (var (key, value) in environment)
+            {
+                psi.Environment[key] = value;
+            }
+        }
 
         try
         {
             var process = Process.Start(psi);
-            process?.WaitForExit();
+            if (process is null) return false;
+            process.WaitForExit();
+            return true;
         }
         catch (System.ComponentModel.Win32Exception)
         {
-            Console.Error.WriteLine("Error: 'claude' not found.");
+            Console.Error.WriteLine($"Error: '{command}' not found.");
             Console.Error.WriteLine();
             Console.Error.WriteLine("  Troubleshooting:");
-            Console.Error.WriteLine("  1. Open a new terminal and run: claude --version");
+            Console.Error.WriteLine($"  1. Open a new terminal and run: {command} --version");
             Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
-            Console.Error.WriteLine("  3. If not, install Claude Code and ensure its CLI is in your PATH");
+            Console.Error.WriteLine($"  3. If not, install {command} and ensure its CLI is in your PATH");
+            return false;
         }
     }
 
-    public virtual bool TryGetVersion(out string version)
+    public virtual bool TryGetVersion(string command, out string version)
     {
         var psi = new ProcessStartInfo
         {
-            FileName = ResolveExecutable(),
+            FileName = ResolveExecutable(command),
             UseShellExecute = false,
             RedirectStandardOutput = true,
         };

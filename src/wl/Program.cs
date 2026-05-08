@@ -2,20 +2,26 @@ using System.CommandLine;
 using System.CommandLine.Completions;
 
 using wl.Commands;
+using wl.Helpers;
 using wl.Services;
 
-var workspaceService = new WorkspaceService();
+var paths = new WlPaths();
+var workspaceService = new WorkspaceService(paths);
 var promptService = new PromptService();
 var claudeRunner = new ClaudeRunner();
-var pathsService = new PathsService(Path.Combine(workspaceService.GetWorkspacesRoot(), ".paths.json"));
-var launchService = new LaunchService(claudeRunner, pathsService);
-var versionService = new VersionService(workspaceService);
-var setupService = new SetupService(workspaceService, versionService);
+var pathsService = new PathsService(paths.PathsConfigFile);
+var configService = new ConfigService(paths.ToolConfigFile);
+var toolAdapters = new ToolAdapterRegistry();
+toolAdapters.Register(new ClaudeAdapter());
+toolAdapters.Register(new CopilotAdapter(paths));
+var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters, configService);
+var versionService = new VersionService(paths);
+var setupService = new SetupService(versionService, paths);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
 
-var root = new RootCommand("wl — AI context launcher for Claude Code");
+var root = new RootCommand("wl — AI workspace launcher");
 
 // launch
 var launchNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
@@ -37,10 +43,12 @@ promptOpt.CompletionSources.Add(ctx =>
 
     return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
 });
-var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Claude permission prompts" };
+var yoloOpt = new Option<bool>("--yolo") { Description = "Skip permission prompts" };
 var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session (overrides resume: true)" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt };
+var launchToolOpt = new Option<string?>("--tool") { Description = $"Override the tool for this launch ({string.Join(" | ", toolAdapters.Names)})" };
+launchToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt, launchToolOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
@@ -48,18 +56,22 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew);
+    var toolOverride = parseResult.GetValue(launchToolOpt);
+    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew, toolOverride);
 });
 
 // create
-var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude will propose one)" };
-var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking Claude" };
-var createCmd = new Command("create", "Create a new workspace (via Claude, or --basic for a minimal scaffold)") { createNameArg, basicOpt };
+var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude/Copilot will propose one)" };
+var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking an AI CLI" };
+var createToolOpt = new Option<string?>("--tool") { Description = $"Which AI CLI to invoke ({string.Join(" | ", toolAdapters.Names)}); default: auto-detect" };
+createToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
+var createCmd = new Command("create", "Create a new workspace (via Claude/Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt, createToolOpt };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService, claudeRunner, setupService).Execute(
+    new CreateCommand(workspaceService, claudeRunner, setupService, toolAdapters, configService).Execute(
         parseResult.GetValue(createNameArg),
-        parseResult.GetValue(basicOpt));
+        parseResult.GetValue(basicOpt),
+        parseResult.GetValue(createToolOpt));
 });
 
 // list
@@ -81,7 +93,7 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    new WhichCommand(workspaceService, promptService, launchService, pathsService).Execute(parseResult.GetValue(whichNameArg)!);
+    new WhichCommand(workspaceService, promptService, launchService, pathsService, configService).Execute(parseResult.GetValue(whichNameArg)!);
 });
 
 // setup

@@ -1,40 +1,45 @@
+using System.Diagnostics.CodeAnalysis;
+
 using wl.Helpers;
 using wl.Models;
 
 namespace wl.Services;
 
-public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
+public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAdapterRegistry adapters, ConfigService config)
 {
     private Func<string, string?> Lookup => paths.Get;
 
-
-    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildClaudeArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
+    /// <summary>
+    /// Validate the tool resolution chain (override → workspace.json →
+    /// .config.json → default) and return the resolved adapter. Prints a
+    /// labeled error to stderr and returns false if the chain lands on
+    /// an unregistered tool. Callers should invoke this once at the top
+    /// of their flow and bail on false; downstream service methods
+    /// trust valid input and use <see cref="ToolAdapterRegistry.Resolve"/>.
+    /// </summary>
+    public bool TryResolveAdapter(Workspace ws, string? toolOverride, [NotNullWhen(true)] out IToolAdapter? adapter)
     {
-        var args = new List<string>();
-        var skippedDirs = new List<string>();
-        string? newSessionId = null;
+        if (config.TryResolveValidatedTool(ws, toolOverride, adapters, out var tool))
+        {
+            adapter = adapters.Resolve(tool);
+            return true;
+        }
+        adapter = null;
+        return false;
+    }
 
-        if (resumeSessionId is not null)
-        {
-            args.Add("--resume");
-            args.Add(resumeSessionId);
-        }
-        else
-        {
-            newSessionId = Guid.NewGuid().ToString();
-            args.Add("--session-id");
-            args.Add(newSessionId);
-            args.Add("--name");
-            args.Add(ws.Name);
-        }
+    public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildLaunchArgs(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null, string? toolOverride = null)
+    {
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
+        var resolvedDirs = new List<string>();
+        var skippedDirs = new List<string>();
 
         foreach (var dir in ws.AdditionalDirs)
         {
             var (exists, resolved) = PathHelper.ValidatePath(dir, Lookup);
             if (exists)
             {
-                args.Add("--add-dir");
-                args.Add(resolved);
+                resolvedDirs.Add(resolved);
             }
             else
             {
@@ -42,39 +47,24 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
             }
         }
 
-        if (sharedDirPath is not null)
-        {
-            args.Add("--add-dir");
-            args.Add(sharedDirPath);
-        }
+        var spec = new AdapterLaunchSpec(
+            Workspace: ws,
+            ResolvedAdditionalDirs: resolvedDirs,
+            ResolvedSharedDir: sharedDirPath,
+            Prompt: prompt,
+            Yolo: yolo,
+            ResumeSessionId: resumeSessionId);
 
-        args.Add("--add-dir");
-        args.Add(ws.FolderPath);
-
-        if (File.Exists(ws.InstructionsPath))
-        {
-            args.Add("--append-system-prompt-file");
-            args.Add(ws.InstructionsPath);
-        }
-
-        if (yolo)
-        {
-            args.Add("--dangerously-skip-permissions");
-        }
-
-        if (!string.IsNullOrEmpty(prompt))
-        {
-            args.Add(prompt);
-        }
-
-        return (args, skippedDirs, newSessionId);
+        var result = adapter.BuildArgs(spec);
+        return (result.Args, skippedDirs, result.NewSessionId);
     }
 
     public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false, string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var (args, _, _) = BuildClaudeArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
+        var adapter = adapters.Resolve(config.ResolveTool(ws));
+        var (args, _, _) = BuildLaunchArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
 
-        var groups = new List<string> { "claude" };
+        var groups = new List<string> { adapter.DisplayName };
         var current = "";
         foreach (var arg in args)
         {
@@ -96,18 +86,49 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths)
 
     public static string? LoadLastSession(Workspace ws)
     {
-        var path = Path.Combine(ws.FolderPath, ".last-session");
+        var path = ws.LastSessionPath;
         if (!File.Exists(path))
             return null;
-        var value = File.ReadAllText(path).Trim();
-        return Guid.TryParse(value, out _) ? value : null;
+        try
+        {
+            var value = File.ReadAllText(path).Trim();
+            return Guid.TryParse(value, out _) ? value : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // .last-session is a convenience pointer; if it's unreadable
+            // (locked by AV, permission issue) fall back to "no session"
+            // and let the launch start fresh.
+            Console.Error.WriteLine($"Warning: cannot read {path} ({ex.GetType().Name}); starting a new session.");
+            return null;
+        }
     }
 
     public static void SaveLastSession(Workspace ws, string sessionId)
     {
-        File.WriteAllText(Path.Combine(ws.FolderPath, ".last-session"), sessionId);
+        try
+        {
+            File.WriteAllText(ws.LastSessionPath, sessionId);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Best effort — failing here means subsequent --resume won't
+            // find a session, but the launch already happened. Surface
+            // the reason so the user can investigate (e.g. read-only
+            // workspace folder).
+            Console.Error.WriteLine($"Warning: cannot write {ws.LastSessionPath} ({ex.GetType().Name}); next --resume will start fresh.");
+        }
     }
 
-    public void Launch(Workspace ws, List<string> args)
-        => claudeRunner.Run(PathHelper.ResolvePath(ws.PrimaryRepo, Lookup), args);
+    public bool Launch(Workspace ws, List<string> args, string? toolOverride = null)
+    {
+        var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
+
+        adapter.PrepareLaunch(ws);
+        return claudeRunner.Run(
+            adapter.ExecutableName,
+            PathHelper.ResolvePath(ws.PrimaryRepo, Lookup),
+            args,
+            adapter.GetEnvironment(ws));
+    }
 }

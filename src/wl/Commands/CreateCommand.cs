@@ -4,9 +4,9 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunner, SetupService setup)
+public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunner, SetupService setup, ToolAdapterRegistry adapters, ConfigService config)
 {
-    public void Execute(string? name, bool basic = false)
+    public void Execute(string? name, bool basic = false, string? tool = null)
     {
         setup.EnsureInstalled();
 
@@ -16,9 +16,10 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             return;
         }
 
+        string? slug = null;
         if (name is not null)
         {
-            var slug = PathHelper.Slugify(name);
+            slug = PathHelper.Slugify(name);
             if (slug == WorkspaceService.SharedDirName.TrimStart('.'))
             {
                 Console.Error.WriteLine("'shared' is reserved. Choose a different name.");
@@ -33,20 +34,51 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
 
             if (basic)
             {
-                WriteBasicWorkspace(slug);
+                WriteBasicWorkspace(slug, tool);
                 return;
             }
         }
 
-        var prompt = name is not null
-            ? $"/wl-create-workspace {name}"
-            : "/wl-create-workspace";
-
-        claudeRunner.Run(Directory.GetCurrentDirectory(), [prompt]);
+        var resolvedTool = tool ?? DetectAvailableTool();
+        if (!adapters.TryResolve(resolvedTool, out var adapter))
+        {
+            Console.Error.WriteLine(
+                $"Error: unknown tool '{resolvedTool}'. " +
+                $"Available: {string.Join(", ", adapters.Names)}.");
+            return;
+        }
+        // Pass the validated slug, not the raw name, so the AI skill works
+        // with the same identifier we just verified is available and not
+        // reserved. Avoids any divergence between wl's slugifier and how
+        // the AI might reinterpret the user's input.
+        adapter.InvokeCreateSkill("wl-create-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
-    private void WriteBasicWorkspace(string slug)
+    private string DetectAvailableTool()
     {
+        // Respect the machine-local default if it points at a CLI that's
+        // actually on PATH. If the user set defaultTool=copilot but only
+        // claude is installed (or vice versa), fall through to the probe
+        // chain rather than fail with "tool not found". Normalize the
+        // casing first so a config value like "Copilot" still resolves
+        // on Linux/macOS where the executable name is case-sensitive.
+        var configDefault = config.DefaultTool?.ToLowerInvariant();
+        if (!string.IsNullOrEmpty(configDefault) && claudeRunner.TryGetVersion(configDefault, out _))
+        {
+            return configDefault;
+        }
+        if (claudeRunner.TryGetVersion("claude", out _)) return "claude";
+        if (claudeRunner.TryGetVersion("copilot", out _)) return "copilot";
+        return "claude"; // fall through; ClaudeRunner.Run will print a clear "not found" error
+    }
+
+    private void WriteBasicWorkspace(string slug, string? tool)
+    {
+        // Omit Tool when it equals the documented default ("claude") so
+        // generated workspace.json matches the README convention. Users
+        // who explicitly want to pin claude can edit workspace.json by
+        // hand; --tool claude on the command line means "use the default".
+        var normalizedTool = string.Equals(tool, "claude", StringComparison.OrdinalIgnoreCase) ? null : tool;
         var ws = new Workspace
         {
             Name = slug,
@@ -54,6 +86,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
             AdditionalDirs = [],
             Yolo = false,
             Resume = true,
+            Tool = normalizedTool,
         };
         workspaces.SaveWorkspace(ws, slug);
         Console.WriteLine($"Created workspace '{slug}' at {ws.FolderPath}");

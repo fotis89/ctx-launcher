@@ -1,18 +1,18 @@
-# ctx-launcher (wl) - Named Claude Code setups you can relaunch
+# ctx-launcher (wl) - Named AI workspaces you can relaunch
 
 [![npm](https://img.shields.io/npm/v/@ctx-launcher/wl)](https://npmjs.com/package/@ctx-launcher/wl)
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> Companion to [Claude Code](https://code.claude.com). Prebuilt for Windows x64, Linux x64, and macOS arm64.
+> Companion to [Claude Code](https://code.claude.com) and [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli). Prebuilt for Windows x64, Linux x64, and macOS arm64.
 
-Switching between Claude Code projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
+Switching between AI coding projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
 
-`wl` saves each Claude Code setup (repos, folders, instructions, skills) under a name you pick. Switch between them with one command; resume the previous session when you want.
+`wl` saves each project setup (repos, folders, instructions, skills) under a name you pick, then launches it through your AI CLI. Switch between them with one command; resume the previous session when you want.
 
-Your repo's `CLAUDE.md` stays the team's shared context. `wl` adds your personal layer on top — not committed, not shared.
+Your repo's shared context (`CLAUDE.md`, `AGENTS.md`) stays the team's. `wl` adds your personal layer on top — not committed, not shared.
 
-A workspace is a local folder outside your repos, storing the Claude launch config, optional instructions, optional prompts, optional skills, and a pointer to the last Claude session.
+A workspace is a local folder outside your repos, storing the launch config, optional instructions, optional prompts, optional skills, and a pointer to the last session.
 
 This is what using `wl` looks like:
 
@@ -25,7 +25,7 @@ cd ~/repos/ctx-launcher
 wl create wl-dev
 ```
 
-Open Claude with that workspace from any directory:
+Open the workspace from any directory:
 
 ```bash
 wl launch wl-dev
@@ -41,21 +41,21 @@ wl launch wl-dev --resume
 
 ## What you can do with it
 
-- Launch Claude with a saved workspace by name, from any directory
+- Launch a saved workspace by name, from any directory
 - Switch between projects without re-explaining context or re-attaching folders
-- See which workspace is active at a glance — Claude Code shows the name in its statusline and terminal tab
+- See which workspace is active at a glance — Claude Code shows the name in its statusline and terminal tab; Copilot tracks the session by UUID + name internally
 - Come back to a task and pick up where you left off
-- Work across multiple repos or folders in one Claude session
-- Give Claude notes, instructions, and skills that travel with the workspace, not the repo
-- Let Claude create the workspace for you - no JSON to write by hand
+- Work across multiple repos or folders in one session
+- Give the AI notes, instructions, and skills that travel with the workspace, not the repo
+- Let the AI create the workspace for you — no JSON to write by hand
 
-**Why not just a bash alias?** An alias can attach folders and instructions to `claude`. What it can't do: track which Claude session belongs to which project (`wl` saves a per-workspace session pointer), carry workspace-local skills Claude auto-invokes, or preview the exact launched command before running. Those are `wl`'s real differentiators.
+**Why not just a bash alias?** An alias can attach folders and instructions to `claude` or `copilot`. What it can't do: track which session belongs to which project (`wl` saves a per-workspace session pointer), carry workspace-local skills the AI auto-invokes, or preview the exact launched command before running. Those are `wl`'s real differentiators.
 
 ## Install
 
 ### Prebuilt (Windows / Linux / macOS)
 
-Requires [Node.js](https://nodejs.org/) and [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) on your `PATH`.
+Requires [Node.js](https://nodejs.org/) and at least one of [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) or [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) on your `PATH`.
 
 ```bash
 npm install -g @ctx-launcher/wl
@@ -101,21 +101,23 @@ Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
 
 | Command | What it does |
 | --- | --- |
-| `wl create [name]` | Creates a workspace from the current repo (asks Claude to fill it in) |
-| `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking Claude |
+| `wl create [name]` | Creates a workspace from the current repo (asks Claude or Copilot to fill it in — auto-detects which CLI is on PATH) |
+| `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking an AI CLI |
+| `wl create <name> --tool copilot` | Forces the create flow through Copilot (override auto-detect) |
 | `wl launch [name]` | Launches a workspace; omit `name` to use the last one launched |
-| `wl launch <name> --resume` | Resumes the previous Claude session for that workspace |
+| `wl launch <name> --resume` | Resumes the previous session for that workspace |
 | `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |
-| `wl launch <name> --yolo` | Skips Claude's permission prompts |
+| `wl launch <name> --yolo` | Skips the AI's permission prompts |
 | `wl launch <name> -p <name-or-text>` | Starts with a saved prompt, or with raw prompt text |
+| `wl launch <name> --tool claude\|copilot` | Override the workspace's tool for this launch only |
 | `wl list` | Lists all workspaces |
-| `wl which <name>` | Shows the exact `claude` command `wl` will run, and checks paths exist |
+| `wl which <name>` | Shows the exact command `wl` will run, and checks paths exist |
 | `wl edit <name>` | Opens the workspace folder in your system file explorer |
 | `wl paths set <name> <value>` | Set a path variable (e.g. `REPOS_ROOT`) used by `$VAR` references in `workspace.json` |
 | `wl paths list` | Show defined and referenced path variables |
 | `wl paths init` | Prompt for any path variables referenced in workspaces but not defined |
 | `wl clone <git-url>` | Clone a workspaces repo into `~/.wl-workspaces` and run `wl setup` + `wl paths init` |
-| `wl setup` | (Optional) prints a tab-completion snippet and verifies `claude` is reachable |
+| `wl setup` | (Optional) prints a tab-completion snippet and reports which AI CLIs are on your PATH |
 
 ## What's a workspace?
 
@@ -135,7 +137,7 @@ A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos.
 
 ### `workspace.json`
 
-The only required file. It defines the workspace name, the repo Claude starts in, any additional folders to attach, and launch defaults.
+The only required file. It defines the workspace name, the repo the AI CLI starts in, any additional folders to attach, and launch defaults.
 
 ```json
 {
@@ -149,14 +151,42 @@ The only required file. It defines the workspace name, the repo Claude starts in
 }
 ```
 
-- `primaryRepo` - Claude's working directory when the session starts
+- `primaryRepo` - working directory when the session starts
 - `additionalDirs` - extra repos or folders attached with `--add-dir`
-- `yolo` - default `wl launch` to `--dangerously-skip-permissions`
+- `yolo` - default `wl launch` to skip permission prompts
 - `resume` - default `wl launch` to resuming the last session
+- `tool` *(optional)* - which AI CLI to launch: `"claude"` (default) or `"copilot"`. Omit for Claude.
+
+#### Copilot workspaces
+
+Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
+
+- **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` and related custom-instruction files. On every Copilot launch, `wl` writes the workspace's `instructions.md` to `<workspace-folder>/AGENTS.md`. `COPILOT_CUSTOM_INSTRUCTIONS_DIRS=<workspace-folder>` is set so Copilot searches there (default search is cwd + git root only). Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten.
+- **`.claude/skills/*` is bridged via Copilot's `--plugin-dir`.** Copilot reads `SKILL.md` files using the same format as Claude. On each Copilot launch, `wl` writes a tiny `plugin.json` manifest (auto-generated, gitignored) into the workspace's `.claude/` and the shared `.shared/.claude/` and passes both via `--plugin-dir <path>` so Copilot loads them as local plugins. Per-invocation only — no mutation of `~/.copilot/settings.json`, no leakage into unrelated Copilot sessions. `.claude/skills/` remains the single source of truth.
+
+#### Default tool (machine-local)
+
+If most or all of your workspaces target the same tool on a given machine, set it once instead of stamping `tool` into every workspace:
+
+```json
+// ~/.wl-workspaces/.config.json
+{ "defaultTool": "copilot" }
+```
+
+The file is gitignored (machine-local — install state may differ per PC). Resolution precedence (highest to lowest):
+
+1. `--tool` flag on `wl launch` or `wl create` — always wins, per-invocation only
+2. Workspace's explicit `tool` field in `workspace.json` — wins when `--tool` is omitted
+3. `.config.json` `defaultTool` — wins when both above are unset
+4. `claude` — final fallback
+
+`wl create` without `--tool` uses the same precedence (steps 3–4 only, since there's no workspace yet) to decide which CLI to spawn for the create flow.
 
 ### `instructions.md`
 
 If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for notes that don't belong in a repo's `CLAUDE.md`: multi-repo relationships, cross-repo workflows, project-specific context.
+
+(For Copilot workspaces, `instructions.md` is auto-mirrored to `AGENTS.md` so Copilot picks it up — see the Copilot section above.)
 
 ### `prompts/*.md`
 
@@ -183,7 +213,7 @@ wl launch wl-dev -p "investigate the failing test and explain the root cause"
 
 ### `.claude/skills/`
 
-Claude Code skills that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically.
+Skills (`SKILL.md` definitions) that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically — Claude reads them via auto-discovery; for Copilot, `wl` exposes the directory through `--plugin-dir` with an auto-generated `plugin.json`.
 
 ## What's behind a launch
 
@@ -216,16 +246,16 @@ $ wl which wl-dev
       --dangerously-skip-permissions
 ```
 
-No magic — `wl launch` just spawns `claude` with the composed flags. `wl which` previews path resolution, skill discovery, and the exact command before you run it.
+No magic — `wl launch` prepares the workspace as needed, then launches the configured AI CLI with the composed arguments. `wl which` previews path resolution, skill discovery, any launch prep, and the resulting command before you run it.
 
-## Claude skills shipped with wl
+## Skills shipped with wl
 
-`wl` ships two Claude Code skills, installed automatically on first use:
+`wl` ships two skills, installed automatically on first use:
 
-- **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files. You can also invoke it directly inside any Claude Code session.
+- **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files.
 - **`/wl-update-workspace`** — run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
 
-Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install.
+Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install. They work in both Claude Code and Copilot CLI sessions; in Copilot they trigger by description match (slash is reserved for Copilot's built-in commands).
 
 ## Syncing across PCs
 
@@ -253,7 +283,13 @@ Values live in `~/.wl-workspaces/.paths.json` (machine-local, not synced).
 
 ### Step 3 — Commit `~/.wl-workspaces/` to git
 
-`wl setup` drops a default `.gitignore` that excludes machine-local state (`.paths.json`, `.last-session`, `.last`, `.version`, and wl's installed skill). User-authored skills in `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
+`wl setup` drops a default `.gitignore` that excludes machine-local state and auto-generated artifacts:
+
+- **Machine-local state** — `.last-session`, `.last`, `.version`, `.paths.json`, `.config.json` (paths and tool defaults differ per PC; install state varies).
+- **wl-installed skills** — `.shared/.claude/skills/wl-create-workspace/` and `.shared/.claude/skills/wl-update-workspace/` (re-installed on each PC by `wl setup`).
+- **Copilot launch artifacts** — `*/AGENTS.md` (mirror of `instructions.md`, regenerated each launch) and `*/.claude/plugin.json` + `.shared/.claude/plugin.json` (auto-generated plugin manifests).
+
+User-authored skills elsewhere under `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
 
 ```bash
 cd ~/.wl-workspaces

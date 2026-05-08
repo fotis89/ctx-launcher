@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup, PathsService paths)
 {
-    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
+    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false, string? toolOverride = null)
     {
         setup.EnsureInstalled();
 
@@ -25,6 +25,11 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
             Console.Error.WriteLine("Run 'wl list' to see available workspaces.");
+            return;
+        }
+
+        if (!launcher.TryResolveAdapter(ws, toolOverride, out var adapter))
+        {
             return;
         }
 
@@ -69,7 +74,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
         }
 
-        var (args, skippedDirs, newSessionId) = launcher.BuildClaudeArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, toolOverride);
 
         foreach (var dir in skippedDirs)
         {
@@ -95,7 +100,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         if (skillNames.Count > 0)
         {
-            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => "/" + s)));
+            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => FormatSkillName(s, adapter))));
         }
 
         if (ws.AdditionalDirs.Count > 0)
@@ -129,13 +134,25 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         Console.WriteLine();
-        workspaces.SetLastUsed(name);
 
-        if (newSessionId is not null)
+        // Persist last-used / last-session only after the AI CLI actually
+        // started. Otherwise a failed launch (e.g. claude not on PATH)
+        // would leave the workspace marked last-used and a fake session
+        // ID stored on disk.
+        if (launcher.Launch(ws, args, toolOverride))
         {
-            LaunchService.SaveLastSession(ws, newSessionId);
+            workspaces.SetLastUsed(name);
+            if (newSessionId is not null)
+            {
+                LaunchService.SaveLastSession(ws, newSessionId);
+            }
         }
-
-        launcher.Launch(ws, args);
     }
+
+    // Claude lists skills as `/<skill-name>`; Copilot reserves slash for
+    // built-in commands and triggers custom skills by description match,
+    // so we render them bare for adapters that report
+    // SkillsAreSlashInvokable=false.
+    private static string FormatSkillName(string skill, IToolAdapter adapter)
+        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }

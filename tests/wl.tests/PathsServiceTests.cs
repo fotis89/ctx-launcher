@@ -2,6 +2,7 @@ using wl.Services;
 
 namespace wl.tests;
 
+[Collection("StderrCapture")]
 public class PathsServiceTests
 {
     private static string TempFile() => Path.Combine(Path.GetTempPath(), $"wl-paths-{Guid.NewGuid():N}.json");

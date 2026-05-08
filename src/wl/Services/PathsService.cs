@@ -35,6 +35,13 @@ public partial class PathsService(string filePath)
             Console.Error.WriteLine($"Warning: {filePath} is not valid JSON; treating as empty.");
             _cache = new Dictionary<string, string>(StringComparer.Ordinal);
         }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // File exists but isn't readable. Treat as empty rather than
+            // crashing wl on every command that resolves a $VAR path.
+            Console.Error.WriteLine($"Warning: cannot read {filePath} ({ex.GetType().Name}); treating as empty.");
+            _cache = new Dictionary<string, string>(StringComparer.Ordinal);
+        }
 
         return _cache;
     }

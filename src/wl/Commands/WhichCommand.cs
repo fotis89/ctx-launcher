@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths)
+public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, ConfigService config)
 {
     public void Execute(string name)
     {
@@ -14,8 +14,25 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             return;
         }
 
+        if (!launcher.TryResolveAdapter(ws, toolOverride: null, out var adapter))
+        {
+            return;
+        }
+
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
+
+        var (resolvedTool, toolSource) = config.ResolveToolWithSource(ws);
+        if (toolSource != ToolSource.Default)
+        {
+            var sourceLabel = toolSource switch
+            {
+                ToolSource.Workspace => "from workspace.json",
+                ToolSource.Config => "from .config.json",
+                _ => null,
+            };
+            ConsoleLabel.WriteLine("Tool:", sourceLabel is null ? resolvedTool : $"{resolvedTool} ({sourceLabel})");
+        }
 
         var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
         ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({PathStatus(ws.PrimaryRepo, repoOk)})");
@@ -38,11 +55,11 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine();
             if (sharedSkills.Count > 0)
             {
-                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => "/" + s)));
+                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => FormatSkillName(s, adapter))));
             }
             if (skills.Count > 0)
             {
-                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => "/" + s)));
+                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => FormatSkillName(s, adapter))));
             }
         }
 
@@ -82,6 +99,27 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
+        var prep = adapter.DescribeLaunchPrep(ws).ToList();
+        var env = adapter.GetEnvironment(ws);
+        if (prep.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Launch prep:");
+            foreach (var line in prep)
+            {
+                Console.WriteLine($"    - {line}");
+            }
+        }
+        if (env.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Environment:");
+            foreach (var (k, v) in env)
+            {
+                Console.WriteLine($"    {k}={v}");
+            }
+        }
+
         Console.WriteLine();
         Console.WriteLine("  Command:");
         Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
@@ -104,4 +142,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
 
         return "NOT FOUND";
     }
+
+    private static string FormatSkillName(string skill, IToolAdapter adapter)
+        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }
