@@ -440,4 +440,69 @@ public class CopilotAdapterTests : IDisposable
             Directory.Delete(tempRoot, true);
         }
     }
+
+    [Fact]
+    public void PrepareLaunch_FolderNameSlugifiesEmpty_FallsBackToWorkspaceName()
+    {
+        // If the folder name is all non-slug characters (e.g. "~~~"),
+        // Slugify returns "" and we'd produce an invalid plugin name
+        // ("wl-"). Fall back to ws.Name first.
+        var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        var wsFolder = Path.Combine(tempRoot, "~~~");
+        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        Directory.CreateDirectory(skillDir);
+        File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
+        try
+        {
+            var ws = new Workspace
+            {
+                Name = "Homelab",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = wsFolder,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
+            Assert.Equal("wl-homelab", json["name"]!.GetValue<string>());
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_FolderAndNameSlugifyEmpty_FallsBackToLiteralWorkspace()
+    {
+        // Last-resort fallback: if both FolderName and Name slugify to
+        // empty, the plugin name must still be a valid kebab-case
+        // identifier. Use the literal "workspace".
+        var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        var wsFolder = Path.Combine(tempRoot, "~~~");
+        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        Directory.CreateDirectory(skillDir);
+        File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
+        try
+        {
+            var ws = new Workspace
+            {
+                Name = "___",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = wsFolder,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
+            Assert.Equal("wl-workspace", json["name"]!.GetValue<string>());
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, true);
+        }
+    }
 }
+

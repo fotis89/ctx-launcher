@@ -51,13 +51,17 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
     private IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
-        // Plugin names must be kebab-case per Copilot's plugin.json spec.
-        // FolderName is usually already a slug (from `wl create`) but may
-        // be arbitrary user input on hand-created or migrated workspaces.
-        yield return (ws.ClaudeDirPath, $"{WorkspacePluginPrefix}{PathHelper.Slugify(ws.FolderName)}");
-        // Assumes ws.FolderPath lives under paths.WorkspacesRoot, which
-        // is invariant in production: workspaces are always saved via
-        // WorkspaceService.SaveWorkspace under paths.WorkspaceFolder(name).
+        // Plugin names must be kebab-case per Copilot's plugin.json spec
+        // (letters, numbers, hyphens only). Slugify the folder name first
+        // because it's the disk identity and guaranteed unique within
+        // ~/.wl-workspaces/. Fall through to ws.Name (user-friendly label
+        // in workspace.json) and finally a literal "workspace" so the
+        // plugin name is never empty for exotic hand-created folder names
+        // like "~~~" or characters that produce an empty slug.
+        var slug = PathHelper.Slugify(ws.FolderName);
+        if (string.IsNullOrEmpty(slug)) slug = PathHelper.Slugify(ws.Name);
+        if (string.IsNullOrEmpty(slug)) slug = "workspace";
+        yield return (ws.ClaudeDirPath, $"{WorkspacePluginPrefix}{slug}");
         yield return (paths.SharedClaudeDir, SharedPluginName);
     }
 
