@@ -132,30 +132,46 @@ public class SetupService(VersionService versionService, WlPaths paths)
 
     public static string MergeGitignore(string existing, IEnumerable<string> missing)
     {
-        // If the file already ends with our managed "# Added by wl setup"
-        // block, append patterns directly under it so multiple migration
-        // runs don't litter the file with duplicate headers.
+        // The wl-managed block is identified by its header line ("# Added
+        // by `wl setup`"). Past versions only handled the case where that
+        // block sat at the end of the file — if a user added their own
+        // lines below it, the next merge would emit a second header at
+        // EOF and split wl's patterns across two blocks. Now we locate
+        // the header anywhere and insert into the existing block.
         var trimmed = existing.TrimEnd();
         var lines = trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
-        // Search backward for our managed header in the trimmed footer content
-        // rather than requiring it to be preceded by a blank-line separator.
-        // This keeps us from duplicating the header if a user manually removes
-        // the blank line before the managed block.
-        var lastManagedHeader = lines.FindLastIndex(line => line.Trim() == AddedByHeader);
-        var lastBlockIsOurs = lastManagedHeader >= 0;
 
-        var sb = new System.Text.StringBuilder(trimmed);
-        sb.AppendLine();
-        if (!lastBlockIsOurs)
+        var headerIndex = lines.FindIndex(l => l.Trim() == AddedByHeader);
+        if (headerIndex < 0)
         {
+            // No managed block yet — append a fresh one at the end.
+            var sb = new System.Text.StringBuilder(trimmed);
+            sb.AppendLine();
             sb.AppendLine();
             sb.AppendLine(AddedByHeader);
+            foreach (var line in missing)
+            {
+                sb.AppendLine(line);
+            }
+            return sb.ToString();
         }
-        foreach (var line in missing)
+
+        // Walk forward from the header over non-blank lines; the next
+        // blank (or EOF) marks the end of the managed block. Insert the
+        // missing patterns right before that boundary.
+        var insertAt = headerIndex + 1;
+        while (insertAt < lines.Count && !string.IsNullOrWhiteSpace(lines[insertAt]))
         {
-            sb.AppendLine(line);
+            insertAt++;
         }
-        return sb.ToString();
+        lines.InsertRange(insertAt, missing);
+
+        var result = new System.Text.StringBuilder();
+        foreach (var line in lines)
+        {
+            result.AppendLine(line);
+        }
+        return result.ToString();
     }
 
     public static void StripStaleCopilotSkillDirs(string home, string workspacesRoot)

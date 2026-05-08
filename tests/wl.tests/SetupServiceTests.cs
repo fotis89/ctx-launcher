@@ -44,6 +44,37 @@ public class SetupServiceTests
     }
 
     [Fact]
+    public void MergeGitignore_UserContentAfterManagedBlock_InsertsIntoBlockNotAtEof()
+    {
+        // ~/.wl-workspaces/.gitignore is the user's own file; they may
+        // legitimately add their own patterns after wl's managed block.
+        // The next merge must insert new wl patterns INTO the existing
+        // managed block — not append a second header at EOF that splits
+        // wl's patterns across two blocks.
+        var existing =
+            "# Added by `wl setup`\n" +
+            ".last-session\n" +
+            "\n" +
+            "# my custom stuff\n" +
+            "*.bak";
+
+        var result = SetupService.MergeGitignore(existing, [".config.json"]);
+
+        // Exactly one header — the existing one was reused.
+        var headerCount = result.Split("# Added by `wl setup`").Length - 1;
+        Assert.Equal(1, headerCount);
+
+        // The new pattern landed inside wl's block (above the user's
+        // content), not after "*.bak".
+        var configIdx = result.IndexOf(".config.json", StringComparison.Ordinal);
+        var customIdx = result.IndexOf("# my custom stuff", StringComparison.Ordinal);
+        var bakIdx = result.IndexOf("*.bak", StringComparison.Ordinal);
+        Assert.True(configIdx > 0 && customIdx > 0 && bakIdx > 0);
+        Assert.True(configIdx < customIdx, "new wl pattern should come before user content");
+        Assert.True(customIdx < bakIdx, "user content should be preserved in original order");
+    }
+
+    [Fact]
     public void MergeGitignore_WhitespaceOnlyBlankLine_DoesNotDuplicateHeader()
     {
         // Hand-edited .gitignore files often have stray whitespace on
