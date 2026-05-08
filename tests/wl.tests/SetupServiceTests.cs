@@ -155,6 +155,48 @@ public class SetupServiceTests
     }
 
     [Fact]
+    public void MergeGitignore_PreservesCrlfNewlines_NoChurnOnCrlfInput()
+    {
+        // ~/.wl-workspaces/.gitignore is meant to be synced across OSes
+        // via `wl clone`. If the file was authored on Windows (CRLF) and
+        // a Linux user runs `wl setup` later, we must preserve CRLF on
+        // output — otherwise the next git commit shows every line as
+        // changed.
+        var existing = "# User stuff\r\n.DS_Store\r\n";
+
+        var result = SetupService.MergeGitignore(existing, [".config.json"]);
+
+        Assert.Contains("\r\n", result);
+        Assert.DoesNotMatch(@"(?<!\r)\n", result);
+    }
+
+    [Fact]
+    public void MergeGitignore_PreservesLfNewlines_NoChurnOnLfInput()
+    {
+        // Authored on Linux (LF). On a Windows runner, output must stay
+        // LF to avoid the same churn problem in reverse.
+        var existing = "# User stuff\n.DS_Store\n";
+
+        var result = SetupService.MergeGitignore(existing, [".config.json"]);
+
+        Assert.DoesNotContain("\r\n", result);
+        Assert.Contains("\n", result);
+    }
+
+    [Fact]
+    public void MergeGitignore_WhitespaceOnlyExisting_TreatedAsEmpty()
+    {
+        // A file containing only whitespace (spaces, tabs, newlines)
+        // should produce the same output as an empty file: header on
+        // line 1, no leading blank lines.
+        var result = SetupService.MergeGitignore("   \n\t\n  ", [".config.json"]);
+
+        Assert.False(result.StartsWith('\n') || result.StartsWith(' ') || result.StartsWith('\t'),
+            "whitespace-only input should not produce leading whitespace");
+        Assert.StartsWith("# Added by `wl setup`", result);
+    }
+
+    [Fact]
     public void MergeGitignore_PreservesUserContent()
     {
         var existing = """

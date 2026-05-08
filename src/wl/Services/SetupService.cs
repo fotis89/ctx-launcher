@@ -140,33 +140,46 @@ public class SetupService(VersionService versionService, WlPaths paths)
 
     public static string MergeGitignore(string existing, IEnumerable<string> missing)
     {
+        // Preserve the existing file's newline style (CRLF or LF) so a
+        // wl-managed .gitignore synced across OSes via `wl clone` doesn't
+        // churn every line on the next setup run. If the input doesn't
+        // have a newline yet (empty/single-line), fall back to the
+        // platform default.
+        var newline = DetectNewline(existing);
+
+        // Whitespace-only is treated as empty so a fresh file starts with
+        // the header on line 1 (no leading blanks).
+        var hasContent = !string.IsNullOrWhiteSpace(existing);
+        var trimmed = hasContent ? existing.TrimEnd() : "";
+        var lines = trimmed.Length == 0
+            ? new List<string>()
+            : trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
+
         // The wl-managed block is identified by its header line ("# Added
         // by `wl setup`"). Past versions only handled the case where that
         // block sat at the end of the file — if a user added their own
         // lines below it, the next merge would emit a second header at
         // EOF and split wl's patterns across two blocks. Now we locate
         // the header anywhere and insert into the existing block.
-        var trimmed = existing.TrimEnd();
-        var lines = trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
-
         var headerIndex = lines.FindIndex(l => l.Trim() == AddedByHeader);
         if (headerIndex < 0)
         {
             // No managed block yet — append a fresh one. Only emit the
             // visual separator (blank line) when there's existing
-            // content; otherwise an empty file would start with two
-            // blank lines.
-            var sb = new System.Text.StringBuilder(trimmed);
+            // content; otherwise an empty file would start with blank
+            // lines before the header.
+            var sb = new System.Text.StringBuilder();
             if (trimmed.Length > 0)
             {
-                sb.AppendLine();
-                sb.AppendLine();
+                sb.Append(trimmed);
+                sb.Append(newline).Append(newline);
             }
-            sb.AppendLine(AddedByHeader);
+            sb.Append(AddedByHeader);
             foreach (var line in missing)
             {
-                sb.AppendLine(line);
+                sb.Append(newline).Append(line);
             }
+            sb.Append(newline);
             return sb.ToString();
         }
 
@@ -180,12 +193,14 @@ public class SetupService(VersionService versionService, WlPaths paths)
         }
         lines.InsertRange(insertAt, missing);
 
-        var result = new System.Text.StringBuilder();
-        foreach (var line in lines)
-        {
-            result.AppendLine(line);
-        }
-        return result.ToString();
+        return string.Join(newline, lines) + newline;
+    }
+
+    private static string DetectNewline(string content)
+    {
+        if (content.Contains("\r\n", StringComparison.Ordinal)) return "\r\n";
+        if (content.Contains('\n')) return "\n";
+        return Environment.NewLine;
     }
 
     public static void StripStaleCopilotSkillDirs(string home, string workspacesRoot)
