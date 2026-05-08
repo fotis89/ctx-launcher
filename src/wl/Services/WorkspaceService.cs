@@ -113,14 +113,18 @@ public class WorkspaceService(WlPaths paths)
             var ws = JsonSerializer.Deserialize(json, WlJsonContext.Default.Workspace);
             if (ws is null)
             {
+                Console.Error.WriteLine($"Warning: {jsonPath} deserialized to null; ignoring workspace.");
                 return null;
             }
 
             ws.FolderPath = folderPath;
             return ws;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            // Malformed workspace.json — surface the failure so the user
+            // can tell why their workspace doesn't appear in `wl list`.
+            Console.Error.WriteLine($"Warning: {jsonPath} is not valid JSON ({ex.Message}); ignoring workspace.");
             return null;
         }
     }

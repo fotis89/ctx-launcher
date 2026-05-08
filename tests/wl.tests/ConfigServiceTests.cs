@@ -236,4 +236,33 @@ public class ConfigServiceTests
 
         Assert.Empty(stderr.ToString());
     }
+
+    [Fact]
+    public void Load_FileLocked_ReturnsNullAndWarns()
+    {
+        // Simulate "file exists but isn't readable" — open it with no
+        // sharing so File.ReadAllText fails. wl should warn and continue
+        // with defaults rather than crash on every command.
+        var file = TempFile();
+        File.WriteAllText(file, """{ "defaultTool": "copilot" }""");
+
+        var stderr = new StringWriter();
+        var prev = Console.Error;
+        using var locker = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            Console.SetError(stderr);
+            var svc = new ConfigService(file);
+            // Should not throw; should fall back to null (no DefaultTool).
+            Assert.Null(svc.DefaultTool);
+        }
+        finally
+        {
+            Console.SetError(prev);
+            locker.Dispose();
+            File.Delete(file);
+        }
+
+        Assert.Contains("cannot read", stderr.ToString());
+    }
 }

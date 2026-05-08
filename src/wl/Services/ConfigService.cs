@@ -35,8 +35,12 @@ public class ConfigService(string filePath)
         {
             json = File.ReadAllText(filePath);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
+            // File exists but isn't readable (locked, permission denied,
+            // antivirus quarantine, etc.). Treat as missing rather than
+            // crashing wl on every command.
+            Console.Error.WriteLine($"Warning: cannot read {filePath} ({ex.GetType().Name}); ignoring.");
             return null;
         }
 

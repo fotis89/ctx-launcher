@@ -74,7 +74,13 @@ public class SetupService(VersionService versionService, WlPaths paths)
         if (Directory.Exists(legacyCreateDir))
         {
             try { Directory.Delete(legacyCreateDir, recursive: true); }
-            catch { /* best effort — user can remove manually if needed */ }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                // Best effort — user can remove manually if needed. Surface the
+                // reason so they aren't left wondering why a stale folder
+                // remains under ~/.claude/skills/.
+                Console.Error.WriteLine($"Warning: could not delete legacy {legacyCreateDir} ({ex.GetType().Name}); remove manually if desired.");
+            }
         }
 
         // Migrate from versions that registered skill dirs in
@@ -217,9 +223,12 @@ public class SetupService(VersionService versionService, WlPaths paths)
             File.WriteAllText(tmp, settings.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             File.Move(tmp, settingsPath, overwrite: true);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
         {
-            // Best effort — never let migration break setup.
+            // Best effort — never let migration break setup. Surface the
+            // reason so users running into a locked or corrupted Copilot
+            // settings file aren't left guessing.
+            Console.Error.WriteLine($"Warning: could not migrate {settingsPath} ({ex.GetType().Name}); skill loading still works via --plugin-dir.");
         }
     }
 

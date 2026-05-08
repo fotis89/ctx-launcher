@@ -86,6 +86,12 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         }
         catch
         {
+            // Intentionally silent. This is a defensive check — if we
+            // can't read AGENTS.md (locked, permission denied, deleted
+            // mid-launch), the safe answer is "treat as user-managed,
+            // don't delete". Warning here would fire on every launch
+            // that races a file system event and adds noise without a
+            // user-actionable signal.
             return false;
         }
     }

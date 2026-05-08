@@ -173,13 +173,14 @@ If most or all of your workspaces target the same tool on a given machine, set i
 { "defaultTool": "copilot" }
 ```
 
-The file is gitignored (machine-local — install state may differ per PC). Resolution precedence:
+The file is gitignored (machine-local — install state may differ per PC). Resolution precedence (highest to lowest):
 
-1. Workspace's explicit `tool` field — always wins
-2. `.config.json` `defaultTool` — wins when `tool` is unset
-3. `claude` — final fallback
+1. `--tool` flag on `wl launch` or `wl create` — always wins, per-invocation only
+2. Workspace's explicit `tool` field in `workspace.json` — wins when `--tool` is omitted
+3. `.config.json` `defaultTool` — wins when both above are unset
+4. `claude` — final fallback
 
-`wl create` without `--tool` uses the same precedence to decide which CLI to spawn.
+`wl create` without `--tool` uses the same precedence (steps 3–4 only, since there's no workspace yet) to decide which CLI to spawn for the create flow.
 
 ### `instructions.md`
 
