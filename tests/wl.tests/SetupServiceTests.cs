@@ -44,6 +44,39 @@ public class SetupServiceTests
     }
 
     [Fact]
+    public void MergeGitignore_FreshDefaultGitignore_UpgradeAddsPatternUnderHeader()
+    {
+        // First-run scenario: SetupService writes DefaultGitignore (which
+        // includes the "# Added by `wl setup`" sentinel at the end). A
+        // future wl version adds a new required pattern; on the next
+        // setup run, MergeGitignore must insert it under the existing
+        // sentinel — not append a second managed block at EOF.
+        // Mimics the shape of the real DefaultGitignore: a few well-
+        // known patterns, then the sentinel header.
+        var defaultIsh =
+            ".last-session\n" +
+            ".last\n" +
+            "\n" +
+            "*/AGENTS.md\n" +
+            "\n" +
+            "# Added by `wl setup`";
+
+        var result = SetupService.MergeGitignore(defaultIsh, [".future-pattern"]);
+
+        var headerCount = result.Split("# Added by `wl setup`").Length - 1;
+        Assert.Equal(1, headerCount);
+
+        // The new pattern lands AFTER the sentinel, not before any of
+        // the existing wl-managed patterns and not as a fresh block.
+        var sentinelIdx = result.IndexOf("# Added by `wl setup`", StringComparison.Ordinal);
+        var futureIdx = result.IndexOf(".future-pattern", StringComparison.Ordinal);
+        var agentsIdx = result.IndexOf("*/AGENTS.md", StringComparison.Ordinal);
+        Assert.True(sentinelIdx > 0 && futureIdx > 0 && agentsIdx > 0);
+        Assert.True(agentsIdx < sentinelIdx, "existing wl patterns stay in place");
+        Assert.True(sentinelIdx < futureIdx, "new pattern follows the sentinel");
+    }
+
+    [Fact]
     public void MergeGitignore_UserContentAfterManagedBlock_InsertsIntoBlockNotAtEof()
     {
         // ~/.wl-workspaces/.gitignore is the user's own file; they may

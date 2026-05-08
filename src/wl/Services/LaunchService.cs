@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using wl.Helpers;
 using wl.Models;
 
@@ -15,14 +17,14 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     /// of their flow and bail on false; downstream service methods
     /// trust valid input and use <see cref="ToolAdapterRegistry.Resolve"/>.
     /// </summary>
-    public bool TryResolveAdapter(Workspace ws, string? toolOverride, out IToolAdapter adapter)
+    public bool TryResolveAdapter(Workspace ws, string? toolOverride, [NotNullWhen(true)] out IToolAdapter? adapter)
     {
         if (config.TryResolveValidatedTool(ws, toolOverride, adapters, out var tool))
         {
             adapter = adapters.Resolve(tool);
             return true;
         }
-        adapter = null!;
+        adapter = null;
         return false;
     }
 

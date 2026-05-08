@@ -51,6 +51,8 @@ public class SetupService(VersionService versionService, WlPaths paths)
         # Auto-generated plugin manifests for Copilot's --plugin-dir loader
         */.claude/plugin.json
         .shared/.claude/plugin.json
+
+        # Added by `wl setup`
         """;
 
     public SetupResult RunSetup()
