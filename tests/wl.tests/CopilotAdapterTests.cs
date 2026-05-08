@@ -340,6 +340,46 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
+    public void PrepareLaunch_LockedInstructionsMd_DoesNotThrow_PrintsWarning()
+    {
+        // Best-effort IO contract: if instructions.md is locked or
+        // unreadable mid-launch, PrepareLaunch must surface a warning
+        // and return so the launch can still proceed (Copilot will run
+        // without refreshed workspace instructions for this session).
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        var instructionsPath = Path.Combine(tempDir, "instructions.md");
+        File.WriteAllText(instructionsPath, "context");
+
+        var stderr = new StringWriter();
+        var prev = Console.Error;
+        // Hold an exclusive lock so File.ReadAllText fails.
+        using var locker = new FileStream(instructionsPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            Console.SetError(stderr);
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            // Should not throw.
+            _adapter.PrepareLaunch(ws);
+        }
+        finally
+        {
+            Console.SetError(prev);
+            locker.Dispose();
+            Directory.Delete(tempDir, true);
+        }
+
+        Assert.Contains("could not refresh", stderr.ToString());
+    }
+
+    [Fact]
     public void PrepareLaunch_OverwritesStaleAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);

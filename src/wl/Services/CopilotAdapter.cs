@@ -21,34 +21,53 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         // (in GetEnvironment) tells Copilot to also look in the workspace
         // folder for AGENTS.md. Marker header makes it obvious to anyone
         // who opens the file that it's auto-generated.
+        //
+        // All filesystem work below is best-effort: if instructions.md is
+        // locked, the workspace folder is unwritable, etc., we surface a
+        // warning and let the launch proceed. Copilot will still start;
+        // it just won't have refreshed instructions / plugin manifests
+        // for this run. Better degraded than aborted.
         var agentsPath = ws.AgentsPath;
-        if (File.Exists(ws.InstructionsPath))
+        try
         {
-            var instructions = File.ReadAllText(ws.InstructionsPath);
-            // Use the source file's newline style so the generated
-            // AGENTS.md isn't a mix of platform-newline (marker block)
-            // and user-newline (instructions body).
-            var newline = SetupService.DetectNewline(instructions);
-            File.WriteAllText(agentsPath, AgentsMdMarker + newline + newline + instructions);
+            if (File.Exists(ws.InstructionsPath))
+            {
+                var instructions = File.ReadAllText(ws.InstructionsPath);
+                // Use the source file's newline style so the generated
+                // AGENTS.md isn't a mix of platform-newline (marker block)
+                // and user-newline (instructions body).
+                var newline = SetupService.DetectNewline(instructions);
+                File.WriteAllText(agentsPath, AgentsMdMarker + newline + newline + instructions);
+            }
+            else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
+            {
+                // Only delete AGENTS.md if wl wrote it (marker header is present).
+                // A user-managed AGENTS.md or one created by another tool is left
+                // alone — wl shouldn't clobber files it doesn't own.
+                File.Delete(agentsPath);
+            }
         }
-        else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            // Only delete AGENTS.md if wl wrote it (marker header is present).
-            // A user-managed AGENTS.md or one created by another tool is left
-            // alone — wl shouldn't clobber files it doesn't own.
-            File.Delete(agentsPath);
+            Console.Error.WriteLine($"Warning: could not refresh {agentsPath} ({ex.GetType().Name}); launching without updated workspace instructions.");
         }
 
         // Each .claude/ dir is exposed to Copilot as a local plugin via
         // --plugin-dir (emitted in BuildArgs). A plugin needs a manifest;
         // ensure one exists at <dir>/plugin.json. Manifests are gitignored
         // and idempotently regenerated — no global state mutation, no
-        // race against Copilot's startup read.
+        // race against Copilot's startup read. Per-dir try so one
+        // failing dir doesn't block the others.
         foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
         {
-            if (HasSkills(claudeDir))
+            if (!HasSkills(claudeDir)) continue;
+            try
             {
                 EnsurePluginManifest(claudeDir, name);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                Console.Error.WriteLine($"Warning: could not write {Path.Combine(claudeDir, WlPaths.PluginManifestFileName)} ({ex.GetType().Name}); skills in this directory may not load.");
             }
         }
     }
