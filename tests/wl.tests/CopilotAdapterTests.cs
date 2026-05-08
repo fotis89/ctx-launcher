@@ -4,6 +4,7 @@ using wl.Services;
 
 namespace wl.tests;
 
+[Collection("StderrCapture")]
 public class CopilotAdapterTests : IDisposable
 {
     // Per-test-class temp root so the adapter's SharedClaudeDir resolves
