@@ -152,10 +152,16 @@ public class SetupService(VersionService versionService, WlPaths paths)
         var headerIndex = lines.FindIndex(l => l.Trim() == AddedByHeader);
         if (headerIndex < 0)
         {
-            // No managed block yet — append a fresh one at the end.
+            // No managed block yet — append a fresh one. Only emit the
+            // visual separator (blank line) when there's existing
+            // content; otherwise an empty file would start with two
+            // blank lines.
             var sb = new System.Text.StringBuilder(trimmed);
-            sb.AppendLine();
-            sb.AppendLine();
+            if (trimmed.Length > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine();
+            }
             sb.AppendLine(AddedByHeader);
             foreach (var line in missing)
             {
@@ -222,8 +228,19 @@ public class SetupService(VersionService versionService, WlPaths paths)
             }
 
             var tmp = settingsPath + ".tmp";
-            File.WriteAllText(tmp, settings.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
-            File.Move(tmp, settingsPath, overwrite: true);
+            try
+            {
+                File.WriteAllText(tmp, settings.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+                File.Move(tmp, settingsPath, overwrite: true);
+            }
+            catch
+            {
+                // Don't leave a half-written .tmp behind if either the
+                // write or the atomic move fails. Best effort — re-throw
+                // so the outer catch surfaces a warning to the user.
+                try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* swallowed */ }
+                throw;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
         {

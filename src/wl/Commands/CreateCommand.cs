@@ -59,8 +59,10 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
         // Respect the machine-local default if it points at a CLI that's
         // actually on PATH. If the user set defaultTool=copilot but only
         // claude is installed (or vice versa), fall through to the probe
-        // chain rather than fail with "tool not found".
-        var configDefault = config.DefaultTool;
+        // chain rather than fail with "tool not found". Normalize the
+        // casing first so a config value like "Copilot" still resolves
+        // on Linux/macOS where the executable name is case-sensitive.
+        var configDefault = config.DefaultTool?.ToLowerInvariant();
         if (!string.IsNullOrEmpty(configDefault) && claudeRunner.TryGetVersion(configDefault, out _))
         {
             return configDefault;

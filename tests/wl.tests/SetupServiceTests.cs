@@ -44,6 +44,20 @@ public class SetupServiceTests
     }
 
     [Fact]
+    public void MergeGitignore_EmptyExisting_NoLeadingBlankLines()
+    {
+        // Edge case: existing .gitignore is empty. The fresh-block path
+        // must not emit visual-separator blank lines that would push the
+        // header off the first line.
+        var result = SetupService.MergeGitignore("", [".future-pattern"]);
+
+        Assert.False(result.StartsWith('\n') || result.StartsWith("\r\n"),
+            "fresh empty file should not start with blank lines");
+        Assert.StartsWith("# Added by `wl setup`", result);
+        Assert.Contains(".future-pattern", result);
+    }
+
+    [Fact]
     public void MergeGitignore_FreshDefaultGitignore_UpgradeAddsPatternUnderHeader()
     {
         // First-run scenario: SetupService writes DefaultGitignore (which
