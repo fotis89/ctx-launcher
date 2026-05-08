@@ -245,7 +245,7 @@ $ wl which wl-dev
       --dangerously-skip-permissions
 ```
 
-No magic — `wl launch` just spawns `claude` with the composed flags. `wl which` previews path resolution, skill discovery, and the exact command before you run it.
+No magic — `wl launch` prepares the workspace as needed, then launches the configured AI CLI with the composed arguments. `wl which` previews path resolution, skill discovery, any launch prep, and the resulting command before you run it.
 
 ## Skills shipped with wl
 
