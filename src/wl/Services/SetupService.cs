@@ -196,7 +196,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
         return string.Join(newline, lines) + newline;
     }
 
-    private static string DetectNewline(string content)
+    public static string DetectNewline(string content)
     {
         if (content.Contains("\r\n", StringComparison.Ordinal)) return "\r\n";
         if (content.Contains('\n')) return "\n";

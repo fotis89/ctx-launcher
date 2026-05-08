@@ -25,7 +25,11 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         if (File.Exists(ws.InstructionsPath))
         {
             var instructions = File.ReadAllText(ws.InstructionsPath);
-            File.WriteAllText(agentsPath, AgentsMdMarker + Environment.NewLine + Environment.NewLine + instructions);
+            // Use the source file's newline style so the generated
+            // AGENTS.md isn't a mix of platform-newline (marker block)
+            // and user-newline (instructions body).
+            var newline = SetupService.DetectNewline(instructions);
+            File.WriteAllText(agentsPath, AgentsMdMarker + newline + newline + instructions);
         }
         else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
         {

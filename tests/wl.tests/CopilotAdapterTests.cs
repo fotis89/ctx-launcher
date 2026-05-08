@@ -279,6 +279,67 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
+    public void PrepareLaunch_AgentsMdMatchesInstructionsNewlineStyle_LfInput()
+    {
+        // instructions.md is user-controlled and may use any newline
+        // style. The generated AGENTS.md (marker + body) must use the
+        // SAME style throughout — no mixed CRLF/LF.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "line one\nline two\n");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
+            Assert.DoesNotContain("\r\n", contents);
+            Assert.Contains("\n", contents);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void PrepareLaunch_AgentsMdMatchesInstructionsNewlineStyle_CrlfInput()
+    {
+        // CRLF-authored instructions.md should produce CRLF-only AGENTS.md
+        // even on Linux runners.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "line one\r\nline two\r\n");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            _adapter.PrepareLaunch(ws);
+
+            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
+            Assert.Contains("\r\n", contents);
+            Assert.DoesNotMatch(@"(?<!\r)\n", contents);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void PrepareLaunch_OverwritesStaleAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
