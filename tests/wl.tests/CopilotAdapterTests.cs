@@ -218,6 +218,64 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
+    public void DescribeLaunchPrep_UserManagedAgentsMd_NoDeleteEntry()
+    {
+        // Without instructions.md but WITH a user-managed AGENTS.md (no
+        // wl marker), DescribeLaunchPrep must not advertise a deletion
+        // since PrepareLaunch won't perform one. The earlier version
+        // emitted "may delete" for any AGENTS.md, which was misleading.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "# My hand-written guide");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            var prep = _adapter.DescribeLaunchPrep(ws).ToList();
+
+            Assert.DoesNotContain(prep, line => line.Contains("delete", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void DescribeLaunchPrep_WlManagedAgentsMd_HasDeleteEntry()
+    {
+        // With a wl-marker AGENTS.md and no instructions.md, the prep
+        // SHOULD advertise the deletion that PrepareLaunch will perform.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), CopilotAdapter.AgentsMdMarker + "\n\nold context");
+
+            var ws = new Workspace
+            {
+                Name = "test",
+                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
+                FolderPath = tempDir,
+            };
+
+            var prep = _adapter.DescribeLaunchPrep(ws).ToList();
+
+            Assert.Contains(prep, line => line.Contains("deletes", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
     public void PrepareLaunch_NoInstructions_PreservesUserManagedAgentsFile()
     {
         // If AGENTS.md exists without the wl marker, it's user-managed (or

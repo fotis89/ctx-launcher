@@ -3,6 +3,7 @@ using wl.Services;
 
 namespace wl.tests;
 
+[Collection("StderrCapture")]
 public class LaunchServiceTests
 {
     private readonly LaunchService _service = MakeService();
@@ -336,5 +337,35 @@ public class LaunchServiceTests
         {
             Directory.Delete(tempDir, true);
         }
+    }
+
+    [Fact]
+    public void LoadLastSession_LockedFile_ReturnsNullAndWarns()
+    {
+        // .last-session is a convenience pointer; failing to read it
+        // (locked, permission denied) should warn and start a fresh
+        // session rather than crash the launch flow.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        var sessionPath = Path.Combine(tempDir, ".last-session");
+        File.WriteAllText(sessionPath, Guid.NewGuid().ToString());
+
+        var stderr = new StringWriter();
+        var prev = Console.Error;
+        using var locker = new FileStream(sessionPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            Console.SetError(stderr);
+            var ws = MakeWorkspace(folderPath: tempDir);
+            Assert.Null(LaunchService.LoadLastSession(ws));
+        }
+        finally
+        {
+            Console.SetError(prev);
+            locker.Dispose();
+            Directory.Delete(tempDir, true);
+        }
+
+        Assert.Contains("cannot read", stderr.ToString());
     }
 }

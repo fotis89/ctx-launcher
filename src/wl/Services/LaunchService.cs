@@ -89,21 +89,43 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         var path = ws.LastSessionPath;
         if (!File.Exists(path))
             return null;
-        var value = File.ReadAllText(path).Trim();
-        return Guid.TryParse(value, out _) ? value : null;
+        try
+        {
+            var value = File.ReadAllText(path).Trim();
+            return Guid.TryParse(value, out _) ? value : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // .last-session is a convenience pointer; if it's unreadable
+            // (locked by AV, permission issue) fall back to "no session"
+            // and let the launch start fresh.
+            Console.Error.WriteLine($"Warning: cannot read {path} ({ex.GetType().Name}); starting a new session.");
+            return null;
+        }
     }
 
     public static void SaveLastSession(Workspace ws, string sessionId)
     {
-        File.WriteAllText(ws.LastSessionPath, sessionId);
+        try
+        {
+            File.WriteAllText(ws.LastSessionPath, sessionId);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Best effort — failing here means subsequent --resume won't
+            // find a session, but the launch already happened. Surface
+            // the reason so the user can investigate (e.g. read-only
+            // workspace folder).
+            Console.Error.WriteLine($"Warning: cannot write {ws.LastSessionPath} ({ex.GetType().Name}); next --resume will start fresh.");
+        }
     }
 
-    public void Launch(Workspace ws, List<string> args, string? toolOverride = null)
+    public bool Launch(Workspace ws, List<string> args, string? toolOverride = null)
     {
         var adapter = adapters.Resolve(config.ResolveTool(ws, toolOverride));
 
         adapter.PrepareLaunch(ws);
-        claudeRunner.Run(
+        return claudeRunner.Run(
             adapter.ExecutableName,
             PathHelper.ResolvePath(ws.PrimaryRepo, Lookup),
             args,

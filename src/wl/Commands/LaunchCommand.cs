@@ -134,14 +134,19 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         }
 
         Console.WriteLine();
-        workspaces.SetLastUsed(name);
 
-        if (newSessionId is not null)
+        // Persist last-used / last-session only after the AI CLI actually
+        // started. Otherwise a failed launch (e.g. claude not on PATH)
+        // would leave the workspace marked last-used and a fake session
+        // ID stored on disk.
+        if (launcher.Launch(ws, args, toolOverride))
         {
-            LaunchService.SaveLastSession(ws, newSessionId);
+            workspaces.SetLastUsed(name);
+            if (newSessionId is not null)
+            {
+                LaunchService.SaveLastSession(ws, newSessionId);
+            }
         }
-
-        launcher.Launch(ws, args, toolOverride);
     }
 
     // Claude lists skills as `/<skill-name>`; Copilot reserves slash for

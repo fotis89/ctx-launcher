@@ -143,15 +143,19 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
     public IEnumerable<string> DescribeLaunchPrep(Workspace ws)
     {
-        // Mirror what PrepareLaunch will actually do. Pure — no IO beyond
-        // File.Exists / Directory.GetDirectories which are observational.
+        // Mirror what PrepareLaunch will actually do. Observational IO
+        // only (File.Exists, Directory.GetDirectories, single-line read
+        // via IsWlManaged for the cleanup branch).
         if (File.Exists(ws.InstructionsPath))
         {
             yield return $"writes {ws.AgentsPath} (mirror of instructions.md)";
         }
-        else if (File.Exists(ws.AgentsPath))
+        else if (File.Exists(ws.AgentsPath) && IsWlManaged(ws.AgentsPath))
         {
-            yield return $"may delete {ws.AgentsPath} (only if wl-managed)";
+            // Only describe the deletion when AGENTS.md is wl-managed —
+            // PrepareLaunch leaves user-written AGENTS.md alone, so
+            // describing a deletion that won't happen would be misleading.
+            yield return $"deletes {ws.AgentsPath} (was wl-managed; instructions.md no longer present)";
         }
 
         foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))

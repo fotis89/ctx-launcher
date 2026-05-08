@@ -17,7 +17,7 @@ public class ClaudeRunner
             ?? command;
     }
 
-    public virtual void Run(string command, string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
+    public virtual bool Run(string command, string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -40,7 +40,9 @@ public class ClaudeRunner
         try
         {
             var process = Process.Start(psi);
-            process?.WaitForExit();
+            if (process is null) return false;
+            process.WaitForExit();
+            return true;
         }
         catch (System.ComponentModel.Win32Exception)
         {
@@ -50,6 +52,7 @@ public class ClaudeRunner
             Console.Error.WriteLine($"  1. Open a new terminal and run: {command} --version");
             Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
             Console.Error.WriteLine($"  3. If not, install {command} and ensure its CLI is in your PATH");
+            return false;
         }
     }
 

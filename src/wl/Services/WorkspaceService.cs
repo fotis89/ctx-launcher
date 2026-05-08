@@ -40,8 +40,36 @@ public class WorkspaceService(WlPaths paths)
         var root = paths.WorkspacesRoot;
         var workspaces = new List<Workspace>();
 
-        foreach (var dir in Directory.GetDirectories(root))
+        // EnumerateDirectories streams the result so a permission-denied
+        // entry can be skipped without aborting the whole list. (The
+        // bare GetDirectories call would throw on the first inaccessible
+        // subdir and fail `wl list` entirely.)
+        IEnumerable<string> dirs;
+        try
         {
+            dirs = Directory.EnumerateDirectories(root);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Console.Error.WriteLine($"Warning: cannot enumerate {root} ({ex.GetType().Name}); returning no workspaces.");
+            return workspaces;
+        }
+
+        using var enumerator = dirs.GetEnumerator();
+        while (true)
+        {
+            string dir;
+            try
+            {
+                if (!enumerator.MoveNext()) break;
+                dir = enumerator.Current;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+            {
+                Console.Error.WriteLine($"Warning: enumeration of {root} hit {ex.GetType().Name}; some workspaces may not be listed.");
+                break;
+            }
+
             if (Path.GetFileName(dir) == WlPaths.SharedDirName)
                 continue;
 
@@ -67,7 +95,22 @@ public class WorkspaceService(WlPaths paths)
         Directory.CreateDirectory(folderPath);
         var jsonPath = WlPaths.WorkspaceConfig(folderPath);
         var json = JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace);
-        File.WriteAllText(jsonPath, json);
+
+        // Atomic write: write to a temp file then rename, so a process
+        // killed mid-write can't leave workspace.json half-written and
+        // unparseable. File.Move with overwrite:true is the standard
+        // pattern for safe config file updates on .NET.
+        var tmp = jsonPath + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, jsonPath, overwrite: true);
+        }
+        catch
+        {
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* swallowed */ }
+            throw;
+        }
         ws.FolderPath = folderPath;
     }
 
@@ -96,13 +139,31 @@ public class WorkspaceService(WlPaths paths)
             return null;
         }
 
-        var name = File.ReadAllText(paths.LastWorkspaceFile).Trim();
-        return string.IsNullOrEmpty(name) ? null : name;
+        try
+        {
+            var name = File.ReadAllText(paths.LastWorkspaceFile).Trim();
+            return string.IsNullOrEmpty(name) ? null : name;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            // Last-used pointer is a convenience for `wl launch` (no
+            // name). Treat read failure as "no last used" rather than
+            // crashing the launch flow.
+            Console.Error.WriteLine($"Warning: cannot read {paths.LastWorkspaceFile} ({ex.GetType().Name}); ignoring last-used pointer.");
+            return null;
+        }
     }
 
     public void SetLastUsed(string name)
     {
-        File.WriteAllText(paths.LastWorkspaceFile, name);
+        try
+        {
+            File.WriteAllText(paths.LastWorkspaceFile, name);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Console.Error.WriteLine($"Warning: cannot update {paths.LastWorkspaceFile} ({ex.GetType().Name}); next bare `wl launch` may not find this workspace.");
+        }
     }
 
     private static Workspace? LoadWorkspaceFromPath(string folderPath, string jsonPath)
