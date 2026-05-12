@@ -50,7 +50,7 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
-    public void NewSession_EmitsResumeUuidAndName()
+    public void NewSession_EmitsResumeUuid_NoName()
     {
         var spec = MakeSpec();
         var result = _adapter.BuildArgs(spec);
@@ -59,10 +59,10 @@ public class CopilotAdapterTests : IDisposable
         Assert.True(Guid.TryParse(result.NewSessionId, out _));
 
         Assert.Contains(result.Args, a => a == $"--resume={result.NewSessionId}");
-        Assert.Contains("--name", result.Args);
-
-        var nameIdx = result.Args.IndexOf("--name");
-        Assert.Equal("test", result.Args[nameIdx + 1]);
+        // Copilot 1.0.43+ refuses --name alongside --resume, even on a fresh
+        // UUID. We skip --name to keep the launch working; the session is
+        // tracked by UUID via .last-session.
+        Assert.DoesNotContain("--name", result.Args);
     }
 
     [Fact]

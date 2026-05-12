@@ -194,6 +194,13 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         // Copilot's --resume=<uuid> is idempotent: starts a new session if
         // the UUID doesn't exist, resumes if it does. Always emit it so wl
         // can track session IDs the same way it does for Claude.
+        //
+        // Copilot 1.0.43+ refuses --name alongside --resume (even though
+        // --resume on a non-existent UUID creates a fresh session). So
+        // for new sessions we skip --name; Copilot will display the
+        // session by UUID in /resume listings. Cosmetic only — wl
+        // tracks the session via .last-session, so the user never has
+        // to type or remember it.
         if (spec.ResumeSessionId is not null)
         {
             args.Add($"--resume={spec.ResumeSessionId}");
@@ -202,8 +209,6 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         {
             newSessionId = Guid.NewGuid().ToString();
             args.Add($"--resume={newSessionId}");
-            args.Add("--name");
-            args.Add(ws.Name);
         }
 
         spec.AppendAddDirArgs(args);
