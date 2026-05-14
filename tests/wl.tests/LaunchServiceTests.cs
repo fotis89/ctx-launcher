@@ -1,3 +1,4 @@
+using wl.Helpers;
 using wl.Models;
 using wl.Services;
 
@@ -228,9 +229,10 @@ public class LaunchServiceTests
         {
             var ws = MakeWorkspace(folderPath: tempDir);
             var sessionId = Guid.NewGuid().ToString();
+            var adapter = new ClaudeAdapter();
 
-            LaunchService.SaveLastSession(ws, sessionId);
-            var loaded = LaunchService.LoadLastSession(ws);
+            LaunchService.SaveLastSession(ws, adapter, sessionId);
+            var loaded = LaunchService.LoadLastSession(ws, adapter);
 
             Assert.Equal(sessionId, loaded);
         }
@@ -314,7 +316,7 @@ public class LaunchServiceTests
         try
         {
             var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws));
+            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
         }
         finally
         {
@@ -331,7 +333,7 @@ public class LaunchServiceTests
         {
             File.WriteAllText(Path.Combine(tempDir, ".last-session"), "not-a-guid");
             var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws));
+            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
         }
         finally
         {
@@ -357,7 +359,7 @@ public class LaunchServiceTests
         {
             Console.SetError(stderr);
             var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws));
+            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
         }
         finally
         {
@@ -367,5 +369,93 @@ public class LaunchServiceTests
         }
 
         Assert.Contains("cannot read", stderr.ToString());
+    }
+
+    // LaunchService.{Load,Save}LastSession only uses adapter.ExecutableName
+    // as the JSON map key, so any WlPaths root is fine here.
+    private static CopilotAdapter MakeCopilotAdapter()
+        => new(new WlPaths(Path.Combine(Path.GetTempPath(), $"wl-test-copilot-{Guid.NewGuid():N}")));
+
+    [Fact]
+    public void LastSession_PerTool_IsolatedAcrossAgents()
+    {
+        // Regression test for the bug: launching the same workspace in
+        // Copilot then Claude must not overwrite Copilot's resume pointer
+        // (the two agents have separate session stores, so a Claude UUID
+        // is unresolvable in Copilot and vice versa).
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var ws = MakeWorkspace(folderPath: tempDir);
+            var copilot = MakeCopilotAdapter();
+            var claude = new ClaudeAdapter();
+
+            var copilotId = Guid.NewGuid().ToString();
+            var claudeId = Guid.NewGuid().ToString();
+
+            LaunchService.SaveLastSession(ws, copilot, copilotId);
+            LaunchService.SaveLastSession(ws, claude, claudeId);
+
+            Assert.Equal(copilotId, LaunchService.LoadLastSession(ws, copilot));
+            Assert.Equal(claudeId, LaunchService.LoadLastSession(ws, claude));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void LastSession_SecondSave_PreservesOtherToolEntry()
+    {
+        // After both tools have a session saved, overwriting one must
+        // preserve the other.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var ws = MakeWorkspace(folderPath: tempDir);
+            var copilot = MakeCopilotAdapter();
+            var claude = new ClaudeAdapter();
+
+            var copilotInitial = Guid.NewGuid().ToString();
+            var copilotUpdated = Guid.NewGuid().ToString();
+            var claudeId = Guid.NewGuid().ToString();
+
+            LaunchService.SaveLastSession(ws, copilot, copilotInitial);
+            LaunchService.SaveLastSession(ws, claude, claudeId);
+            LaunchService.SaveLastSession(ws, copilot, copilotUpdated);
+
+            Assert.Equal(copilotUpdated, LaunchService.LoadLastSession(ws, copilot));
+            Assert.Equal(claudeId, LaunchService.LoadLastSession(ws, claude));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void LoadLastSession_LegacyBareUuid_ReturnsNull()
+    {
+        // Pre-0.8.0 .last-session files contained a bare UUID. Load
+        // no longer handles that format — SetupService migrates them
+        // to JSON on first launch after install. Until the migration
+        // runs, the file looks like "no session" to Load.
+        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, ".last-session"), Guid.NewGuid().ToString());
+            var ws = MakeWorkspace(folderPath: tempDir);
+
+            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
+            Assert.Null(LaunchService.LoadLastSession(ws, MakeCopilotAdapter()));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
     }
 }

@@ -40,10 +40,8 @@ public class WorkspaceService(WlPaths paths)
         var root = paths.WorkspacesRoot;
         var workspaces = new List<Workspace>();
 
-        // EnumerateDirectories streams the result so a permission-denied
-        // entry can be skipped without aborting the whole list. (The
-        // bare GetDirectories call would throw on the first inaccessible
-        // subdir and fail `wl list` entirely.)
+        // EnumerateDirectories streams so a permission-denied entry can
+        // be skipped without aborting `wl list` entirely.
         IEnumerable<string> dirs;
         try
         {
@@ -96,10 +94,8 @@ public class WorkspaceService(WlPaths paths)
         var jsonPath = WlPaths.WorkspaceConfig(folderPath);
         var json = JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace);
 
-        // Atomic write: write to a temp file then rename, so a process
-        // killed mid-write can't leave workspace.json half-written and
-        // unparseable. File.Move with overwrite:true is the standard
-        // pattern for safe config file updates on .NET.
+        // Atomic write: tmp + Move so a process killed mid-write can't
+        // leave workspace.json half-written and unparseable.
         var tmp = jsonPath + ".tmp";
         try
         {
@@ -146,9 +142,7 @@ public class WorkspaceService(WlPaths paths)
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            // Last-used pointer is a convenience for `wl launch` (no
-            // name). Treat read failure as "no last used" rather than
-            // crashing the launch flow.
+            // Read failure on the last-used pointer is non-fatal.
             Console.Error.WriteLine($"Warning: cannot read {paths.LastWorkspaceFile} ({ex.GetType().Name}); ignoring last-used pointer.");
             return null;
         }
@@ -183,16 +177,13 @@ public class WorkspaceService(WlPaths paths)
         }
         catch (JsonException ex)
         {
-            // Malformed workspace.json — surface the failure so the user
-            // can tell why their workspace doesn't appear in `wl list`.
             Console.Error.WriteLine($"Warning: {jsonPath} is not valid JSON ({ex.Message}); ignoring workspace.");
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            // File exists but isn't readable. Treat as an ignored
-            // workspace rather than crashing `wl list` / `wl which` /
-            // `wl launch` for every workspace if one is locked.
+            // Locked / permission denied — ignore this workspace rather
+            // than fail every wl command that enumerates workspaces.
             Console.Error.WriteLine($"Warning: cannot read {jsonPath} ({ex.GetType().Name}); ignoring workspace.");
             return null;
         }

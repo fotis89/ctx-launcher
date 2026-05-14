@@ -8,11 +8,9 @@ public interface IToolAdapter
     string DisplayName { get; }
 
     /// <summary>
-    /// Whether this adapter's tool routes built-in slash commands the way
-    /// Claude does. Used by user-facing displays that show skill names
-    /// (Claude lists skills as `/wl-create-workspace`; in Copilot, slash
-    /// is reserved for built-ins like `/init`, `/skills`, so skills are
-    /// shown bare and triggered by description match instead).
+    /// Whether this tool routes built-in slash commands like Claude.
+    /// `wl which` uses this to render skill names as `/skill` (Claude)
+    /// vs. bare `skill` (Copilot, which reserves `/` for built-ins).
     /// </summary>
     bool SkillsAreSlashInvokable { get; }
 
@@ -24,18 +22,16 @@ public interface IToolAdapter
 
     /// <summary>
     /// Human-readable description of files this adapter will write or
-    /// modify during PrepareLaunch (e.g., AGENTS.md mirror, plugin.json
-    /// manifests). Used by `wl which` to surface non-argument prep so
-    /// the launch preview is complete. Pure — must not perform IO.
-    /// Returns an empty sequence for adapters that don't do any prep.
+    /// modify during PrepareLaunch (AGENTS.md mirror, plugin.json
+    /// manifests). Used by `wl which`. Pure — no IO mutation. Empty
+    /// for adapters that don't prep anything.
     /// </summary>
     IEnumerable<string> DescribeLaunchPrep(Workspace ws);
 
     /// <summary>
     /// Spawn the tool with a one-shot prompt that triggers the named
-    /// shared skill. Each adapter formats the invocation for its tool —
-    /// Claude takes `/skill-name [arg]`; Copilot needs natural-language
-    /// description-match phrasing.
+    /// shared skill. Adapters format the invocation per tool — Claude
+    /// uses `/skill-name`; Copilot needs description-match phrasing.
     /// </summary>
     void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner);
 }
@@ -48,10 +44,8 @@ public record AdapterLaunchSpec(
     bool Yolo,
     string? ResumeSessionId)
 {
-    // Both Claude and Copilot use --add-dir for additional dirs, shared dir,
-    // and the workspace folder. The primary repo is not added here via
-    // --add-dir; it is provided as the process working directory. Centralized
-    // here so adapters don't drift when the order or set of attached paths changes.
+    // Centralized so adapters don't drift when the set or order of
+    // attached paths changes. PrimaryRepo is the cwd, not an --add-dir.
     public void AppendAddDirArgs(List<string> args)
     {
         foreach (var dir in ResolvedAdditionalDirs)

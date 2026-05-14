@@ -60,7 +60,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         string? resumeSessionId = null;
         if (shouldResume)
         {
-            resumeSessionId = LaunchService.LoadLastSession(ws);
+            resumeSessionId = LaunchService.LoadLastSession(ws, adapter);
             if (resumeSessionId is null)
             {
                 if (resume)
@@ -135,24 +135,21 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         Console.WriteLine();
 
-        // Persist last-used / last-session only after the AI CLI actually
-        // started. Otherwise a failed launch (e.g. claude not on PATH)
-        // would leave the workspace marked last-used and a fake session
-        // ID stored on disk.
+        // Persist last-used / last-session only after the AI CLI started.
+        // A failed launch (e.g. claude not on PATH) shouldn't leave a
+        // fake last-used pointer or session ID on disk.
         if (launcher.Launch(ws, args, toolOverride))
         {
             workspaces.SetLastUsed(name);
             if (newSessionId is not null)
             {
-                LaunchService.SaveLastSession(ws, newSessionId);
+                LaunchService.SaveLastSession(ws, adapter, newSessionId);
             }
         }
     }
 
-    // Claude lists skills as `/<skill-name>`; Copilot reserves slash for
-    // built-in commands and triggers custom skills by description match,
-    // so we render them bare for adapters that report
-    // SkillsAreSlashInvokable=false.
+    // Claude renders skills as `/<skill-name>`; Copilot reserves slash
+    // for built-ins, so its skills are rendered bare.
     private static string FormatSkillName(string skill, IToolAdapter adapter)
         => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }
