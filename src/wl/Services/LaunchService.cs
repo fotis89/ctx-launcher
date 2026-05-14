@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 using wl.Helpers;
 using wl.Models;
@@ -84,31 +85,62 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         return string.Join(continuation + Environment.NewLine + "      ", groups);
     }
 
-    public static string? LoadLastSession(Workspace ws)
+    public static string? LoadLastSession(Workspace ws, IToolAdapter adapter)
     {
         var path = ws.LastSessionPath;
         if (!File.Exists(path))
             return null;
         try
         {
-            var value = File.ReadAllText(path).Trim();
-            return Guid.TryParse(value, out _) ? value : null;
+            var content = File.ReadAllText(path).Trim();
+            if (content.Length == 0 || !content.StartsWith('{'))
+                return null;
+
+            // .last-session is a JSON map of tool name → session id so a
+            // workspace can hold a separate resume pointer per agent.
+            // Pre-0.8.0 stored a bare UUID; that legacy format is
+            // converted to JSON by SetupService.MigrateLastSessionFiles
+            // during the first `wl launch` after install, so this load
+            // path never has to handle it.
+            var map = JsonSerializer.Deserialize(content, WlJsonContext.Default.DictionaryStringString);
+            if (map is not null && map.TryGetValue(ToolKey(adapter), out var id) && Guid.TryParse(id, out _))
+            {
+                return id;
+            }
+            return null;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
         {
             // .last-session is a convenience pointer; if it's unreadable
-            // (locked by AV, permission issue) fall back to "no session"
-            // and let the launch start fresh.
+            // (locked by AV, permission issue, malformed JSON) fall back
+            // to "no session" and let the launch start fresh.
             Console.Error.WriteLine($"Warning: cannot read {path} ({ex.GetType().Name}); starting a new session.");
             return null;
         }
     }
 
-    public static void SaveLastSession(Workspace ws, string sessionId)
+    public static void SaveLastSession(Workspace ws, IToolAdapter adapter, string sessionId)
     {
+        var path = ws.LastSessionPath;
         try
         {
-            File.WriteAllText(ws.LastSessionPath, sessionId);
+            var map = LoadSessionMap(path);
+            map[ToolKey(adapter)] = sessionId;
+            var json = JsonSerializer.Serialize(map, WlJsonContext.Default.DictionaryStringString);
+
+            // Atomic write: tmp + Move so a process killed mid-write
+            // can't leave .last-session half-written and unparseable.
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, json);
+            try
+            {
+                File.Move(tmp, path, overwrite: true);
+            }
+            catch
+            {
+                try { File.Delete(tmp); } catch { /* best-effort cleanup */ }
+                throw;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -116,7 +148,35 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
             // find a session, but the launch already happened. Surface
             // the reason so the user can investigate (e.g. read-only
             // workspace folder).
-            Console.Error.WriteLine($"Warning: cannot write {ws.LastSessionPath} ({ex.GetType().Name}); next --resume will start fresh.");
+            Console.Error.WriteLine($"Warning: cannot write {path} ({ex.GetType().Name}); next --resume will start fresh.");
+        }
+    }
+
+    // Canonical key for the JSON map. Always use the adapter's
+    // ExecutableName (lowercased) so user-supplied casing in
+    // workspace.json / --tool / .config.json doesn't fragment entries.
+    private static string ToolKey(IToolAdapter adapter)
+        => adapter.ExecutableName.ToLowerInvariant();
+
+    // Reads the existing JSON map for merging on save. Returns an empty
+    // dict if the file is missing, empty, malformed, or in the legacy
+    // bare-UUID format — the legacy value is dropped here because save
+    // will replace it with an explicit entry for the saving tool.
+    private static Dictionary<string, string> LoadSessionMap(string path)
+    {
+        if (!File.Exists(path))
+            return new Dictionary<string, string>();
+        try
+        {
+            var content = File.ReadAllText(path).Trim();
+            if (content.Length == 0 || !content.StartsWith('{'))
+                return new Dictionary<string, string>();
+            return JsonSerializer.Deserialize(content, WlJsonContext.Default.DictionaryStringString)
+                   ?? new Dictionary<string, string>();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
+        {
+            return new Dictionary<string, string>();
         }
     }
 

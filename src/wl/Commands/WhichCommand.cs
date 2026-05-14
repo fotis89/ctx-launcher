@@ -83,7 +83,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
-        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
+        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws, adapter) : null;
 
         if (ws.Yolo || ws.Resume)
         {

@@ -60,7 +60,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         string? resumeSessionId = null;
         if (shouldResume)
         {
-            resumeSessionId = LaunchService.LoadLastSession(ws);
+            resumeSessionId = LaunchService.LoadLastSession(ws, adapter);
             if (resumeSessionId is null)
             {
                 if (resume)
@@ -144,7 +144,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             workspaces.SetLastUsed(name);
             if (newSessionId is not null)
             {
-                LaunchService.SaveLastSession(ws, newSessionId);
+                LaunchService.SaveLastSession(ws, adapter, newSessionId);
             }
         }
     }

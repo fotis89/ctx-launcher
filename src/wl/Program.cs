@@ -16,7 +16,7 @@ toolAdapters.Register(new ClaudeAdapter());
 toolAdapters.Register(new CopilotAdapter(paths));
 var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters, configService);
 var versionService = new VersionService(paths);
-var setupService = new SetupService(versionService, paths);
+var setupService = new SetupService(versionService, paths, configService);
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
     workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));

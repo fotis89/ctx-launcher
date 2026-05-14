@@ -3,12 +3,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 
 using wl.Helpers;
+using wl.Models;
 
 namespace wl.Services;
 
 public record SetupResult(bool CreateWorkspaceFresh, bool UpdateWorkspaceFresh, string? PreviousVersion, string CurrentVersion);
 
-public class SetupService(VersionService versionService, WlPaths paths)
+public class SetupService(VersionService versionService, WlPaths paths, ConfigService config)
 {
     private const string CreateSkillName = "wl-create-workspace";
     private const string UpdateSkillName = "wl-update-workspace";
@@ -91,6 +92,16 @@ public class SetupService(VersionService versionService, WlPaths paths)
         // weight (and would silently leak skills into unrelated copilot
         // sessions). Strip entries pointing inside ~/.wl-workspaces/.
         StripStaleCopilotSkillDirs(home, paths.WorkspacesRoot);
+
+        // Migrate per-workspace .last-session files from the legacy
+        // bare-UUID format to the JSON map keyed by tool. Pre-0.8.0
+        // stored one UUID per workspace, shared across all agents —
+        // launching the same workspace in Copilot then Claude (or vice
+        // versa) silently overwrote the previous agent's resume
+        // pointer. The new format is { "copilot": "...", "claude":
+        // "..." }; this pass converts any pre-existing bare UUID once,
+        // attributing it to the workspace's resolved tool.
+        MigrateLastSessionFiles();
 
         EnsureGitignore();
 
@@ -263,6 +274,103 @@ public class SetupService(VersionService versionService, WlPaths paths)
             // reason so users running into a locked or corrupted Copilot
             // settings file aren't left guessing.
             Console.Error.WriteLine($"Warning: could not migrate {settingsPath} ({ex.GetType().Name}); skill loading still works via --plugin-dir.");
+        }
+    }
+
+    // One-time migration of per-workspace .last-session files from
+    // the legacy bare-UUID format (one session id per workspace,
+    // shared across all agents) to the JSON map keyed by tool name.
+    // Idempotent: files already in JSON form are left alone, files
+    // that don't parse as a UUID are skipped (LaunchService.Load
+    // will treat them as no-session and start fresh).
+    //
+    // Public + static so it's unit-testable without standing up the
+    // whole DI graph. The instance wrapper below pipes in the
+    // workspaces root and the global default tool from ConfigService.
+    public void MigrateLastSessionFiles()
+    {
+        MigrateLastSessionFiles(paths.WorkspacesRoot, config.DefaultTool);
+    }
+
+    public static void MigrateLastSessionFiles(string workspacesRoot, string? defaultTool)
+    {
+        if (!Directory.Exists(workspacesRoot))
+            return;
+
+        IEnumerable<string> workspaceDirs;
+        try
+        {
+            workspaceDirs = Directory.EnumerateDirectories(workspacesRoot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Console.Error.WriteLine($"Warning: could not enumerate {workspacesRoot} ({ex.GetType().Name}); skipping .last-session migration.");
+            return;
+        }
+
+        foreach (var workspaceDir in workspaceDirs)
+        {
+            // Skip the .shared/ sibling and other wl-internal dirs —
+            // none of them have .last-session, but be defensive.
+            if (Path.GetFileName(workspaceDir).StartsWith('.'))
+                continue;
+
+            var lastSessionPath = Path.Combine(workspaceDir, WlPaths.LastSessionFileName);
+            if (!File.Exists(lastSessionPath))
+                continue;
+
+            try
+            {
+                var content = File.ReadAllText(lastSessionPath).Trim();
+
+                // Already migrated (JSON), empty, or non-UUID corrupt — nothing to do.
+                if (content.Length == 0 || content.StartsWith('{') || !Guid.TryParse(content, out _))
+                    continue;
+
+                // Attribute the bare UUID to the workspace's resolved
+                // tool: workspace.json's `tool` field first, then the
+                // global defaultTool, then "claude" (pre-0.8 wl was
+                // Claude-only, so single-tool users get a correct
+                // migration; cross-tool users had already lost data
+                // under the legacy code).
+                var wsTool = ReadWorkspaceTool(Path.Combine(workspaceDir, WlPaths.WorkspaceConfigFileName));
+                var toolKey = (wsTool ?? defaultTool ?? "claude").ToLowerInvariant();
+                var map = new Dictionary<string, string> { [toolKey] = content };
+                var json = JsonSerializer.Serialize(map, WlJsonContext.Default.DictionaryStringString);
+
+                var tmp = lastSessionPath + ".tmp";
+                File.WriteAllText(tmp, json);
+                try
+                {
+                    File.Move(tmp, lastSessionPath, overwrite: true);
+                }
+                catch
+                {
+                    try { File.Delete(tmp); } catch { /* swallowed */ }
+                    throw;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
+            {
+                // Best effort — leave the file as-is and warn. The user
+                // will start a fresh session on next launch.
+                Console.Error.WriteLine($"Warning: could not migrate {lastSessionPath} ({ex.GetType().Name}); next --resume will start fresh.");
+            }
+        }
+    }
+
+    private static string? ReadWorkspaceTool(string workspaceJsonPath)
+    {
+        if (!File.Exists(workspaceJsonPath))
+            return null;
+        try
+        {
+            var ws = JsonSerializer.Deserialize(File.ReadAllText(workspaceJsonPath), WlJsonContext.Default.Workspace);
+            return string.IsNullOrEmpty(ws?.Tool) ? null : ws.Tool;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
+        {
+            return null;
         }
     }
 

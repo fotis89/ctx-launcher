@@ -1,3 +1,7 @@
+using System.Text.Json;
+
+using wl.Helpers;
+using wl.Models;
 using wl.Services;
 
 namespace wl.tests;
@@ -287,5 +291,144 @@ public class SetupServiceTests
         {
             if (Directory.Exists(temp)) Directory.Delete(temp, true);
         }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_BareUuid_RewritesAsJsonKeyedByWorkspaceTool()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            var legacyId = WriteWorkspaceWithLegacySession(root, "ws-copilot", tool: "copilot");
+
+            SetupService.MigrateLastSessionFiles(root, defaultTool: null);
+
+            var map = ReadSessionMap(Path.Combine(root, "ws-copilot", ".last-session"));
+            Assert.Equal(legacyId, map["copilot"]);
+            Assert.Single(map);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_NoWorkspaceTool_FallsBackToDefaultTool()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            var legacyId = WriteWorkspaceWithLegacySession(root, "ws-noTool", tool: null);
+
+            SetupService.MigrateLastSessionFiles(root, defaultTool: "copilot");
+
+            var map = ReadSessionMap(Path.Combine(root, "ws-noTool", ".last-session"));
+            Assert.Equal(legacyId, map["copilot"]);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_NoToolAnywhere_DefaultsToClaude()
+    {
+        // Pre-0.8 wl was Claude-only, so an unattributable bare UUID
+        // is most likely a Claude session.
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            var legacyId = WriteWorkspaceWithLegacySession(root, "ws-bare", tool: null);
+
+            SetupService.MigrateLastSessionFiles(root, defaultTool: null);
+
+            var map = ReadSessionMap(Path.Combine(root, "ws-bare", ".last-session"));
+            Assert.Equal(legacyId, map["claude"]);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_AlreadyJson_LeftAlone()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            var wsDir = Path.Combine(root, "ws-already-migrated");
+            Directory.CreateDirectory(wsDir);
+            var alreadyJson = "{\"copilot\":\"" + Guid.NewGuid() + "\",\"claude\":\"" + Guid.NewGuid() + "\"}";
+            var path = Path.Combine(wsDir, ".last-session");
+            File.WriteAllText(path, alreadyJson);
+
+            SetupService.MigrateLastSessionFiles(root, defaultTool: null);
+
+            Assert.Equal(alreadyJson, File.ReadAllText(path));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_NonUuidContent_LeftAlone()
+    {
+        // If the file isn't bare UUID and isn't JSON, leave it alone —
+        // LaunchService.LoadLastSession will treat it as no-session.
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(root);
+        try
+        {
+            var wsDir = Path.Combine(root, "ws-garbage");
+            Directory.CreateDirectory(wsDir);
+            var path = Path.Combine(wsDir, ".last-session");
+            File.WriteAllText(path, "not-a-uuid-and-not-json");
+
+            SetupService.MigrateLastSessionFiles(root, defaultTool: null);
+
+            Assert.Equal("not-a-uuid-and-not-json", File.ReadAllText(path));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void MigrateLastSessionFiles_NoRoot_NoThrow()
+    {
+        // Migration must be safe to call before any workspaces exist —
+        // e.g. a first-run wl install where ~/.wl-workspaces was just
+        // created.
+        var root = Path.Combine(Path.GetTempPath(), "wl-test-migrate-missing-" + Guid.NewGuid().ToString("N")[..8]);
+        SetupService.MigrateLastSessionFiles(root, defaultTool: null);
+    }
+
+    private static string WriteWorkspaceWithLegacySession(string root, string name, string? tool)
+    {
+        var wsDir = Path.Combine(root, name);
+        Directory.CreateDirectory(wsDir);
+        var ws = new Workspace { Name = name, Tool = tool };
+        File.WriteAllText(Path.Combine(wsDir, "workspace.json"),
+            JsonSerializer.Serialize(ws, WlJsonContext.Default.Workspace));
+        var legacyId = Guid.NewGuid().ToString();
+        File.WriteAllText(Path.Combine(wsDir, ".last-session"), legacyId);
+        return legacyId;
+    }
+
+    private static Dictionary<string, string> ReadSessionMap(string path)
+    {
+        var json = File.ReadAllText(path);
+        return JsonSerializer.Deserialize(json, WlJsonContext.Default.DictionaryStringString)
+               ?? throw new InvalidOperationException("file did not deserialize to a dict");
     }
 }
