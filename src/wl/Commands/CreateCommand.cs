@@ -47,21 +47,17 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
                 $"Available: {string.Join(", ", adapters.Names)}.");
             return;
         }
-        // Pass the validated slug, not the raw name, so the AI skill works
-        // with the same identifier we just verified is available and not
-        // reserved. Avoids any divergence between wl's slugifier and how
-        // the AI might reinterpret the user's input.
+        // Pass the validated slug, not the raw name, so the skill works
+        // with the identifier we just checked is available and unreserved.
         adapter.InvokeCreateSkill("wl-create-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), claudeRunner);
     }
 
     private string DetectAvailableTool()
     {
-        // Respect the machine-local default if it points at a CLI that's
-        // actually on PATH. If the user set defaultTool=copilot but only
-        // claude is installed (or vice versa), fall through to the probe
-        // chain rather than fail with "tool not found". Normalize the
-        // casing first so a config value like "Copilot" still resolves
-        // on Linux/macOS where the executable name is case-sensitive.
+        // Respect the configured default if it's on PATH; otherwise
+        // probe claude → copilot so a defaultTool pointing at a missing
+        // CLI doesn't fail with "tool not found". Normalize casing for
+        // case-sensitive Linux/macOS filesystems.
         var configDefault = config.DefaultTool?.ToLowerInvariant();
         if (!string.IsNullOrEmpty(configDefault) && claudeRunner.TryGetVersion(configDefault, out _))
         {
@@ -75,9 +71,7 @@ public class CreateCommand(WorkspaceService workspaces, ClaudeRunner claudeRunne
     private void WriteBasicWorkspace(string slug, string? tool)
     {
         // Omit Tool when it equals the documented default ("claude") so
-        // generated workspace.json matches the README convention. Users
-        // who explicitly want to pin claude can edit workspace.json by
-        // hand; --tool claude on the command line means "use the default".
+        // generated workspace.json stays minimal and matches the README.
         var normalizedTool = string.Equals(tool, "claude", StringComparison.OrdinalIgnoreCase) ? null : tool;
         var ws = new Workspace
         {

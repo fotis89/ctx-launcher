@@ -17,33 +17,25 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
     public void PrepareLaunch(Workspace ws)
     {
         // Mirror instructions.md → AGENTS.md so Copilot's auto-discovery
-        // picks up workspace context. COPILOT_CUSTOM_INSTRUCTIONS_DIRS
-        // (in GetEnvironment) tells Copilot to also look in the workspace
-        // folder for AGENTS.md. Marker header makes it obvious to anyone
-        // who opens the file that it's auto-generated.
-        //
-        // All filesystem work below is best-effort: if instructions.md is
-        // locked, the workspace folder is unwritable, etc., we surface a
-        // warning and let the launch proceed. Copilot will still start;
-        // it just won't have refreshed instructions / plugin manifests
-        // for this run. Better degraded than aborted.
+        // picks up workspace context (COPILOT_CUSTOM_INSTRUCTIONS_DIRS
+        // points it at this folder). Marker header makes the
+        // auto-generated nature obvious. Best-effort: a locked file
+        // or unwritable folder warns and launches anyway.
         var agentsPath = ws.AgentsPath;
         try
         {
             if (File.Exists(ws.InstructionsPath))
             {
                 var instructions = File.ReadAllText(ws.InstructionsPath);
-                // Use the source file's newline style so the generated
-                // AGENTS.md isn't a mix of platform-newline (marker block)
-                // and user-newline (instructions body).
+                // Preserve the source file's newline style so AGENTS.md
+                // isn't a mix of platform and user line endings.
                 var newline = SetupService.DetectNewline(instructions);
                 File.WriteAllText(agentsPath, AgentsMdMarker + newline + newline + instructions);
             }
             else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
             {
-                // Only delete AGENTS.md if wl wrote it (marker header is present).
-                // A user-managed AGENTS.md or one created by another tool is left
-                // alone — wl shouldn't clobber files it doesn't own.
+                // Only delete wl-managed files (marker present). User-managed
+                // AGENTS.md is left alone.
                 File.Delete(agentsPath);
             }
         }
@@ -52,12 +44,9 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
             Console.Error.WriteLine($"Warning: could not refresh {agentsPath} ({ex.GetType().Name}); launching without updated workspace instructions.");
         }
 
-        // Each .claude/ dir is exposed to Copilot as a local plugin via
-        // --plugin-dir (emitted in BuildArgs). A plugin needs a manifest;
-        // ensure one exists at <dir>/plugin.json. Manifests are gitignored
-        // and idempotently regenerated — no global state mutation, no
-        // race against Copilot's startup read. Per-dir try so one
-        // failing dir doesn't block the others.
+        // Each .claude/ dir is exposed as a local plugin via --plugin-dir;
+        // ensure a plugin.json manifest exists. Per-dir try so one failure
+        // doesn't block the others.
         foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
         {
             if (!HasSkills(claudeDir)) continue;
@@ -74,13 +63,10 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
     private IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
     {
-        // Plugin names must be kebab-case per Copilot's plugin.json spec
-        // (letters, numbers, hyphens only). Slugify the folder name first
-        // because it's the disk identity and guaranteed unique within
-        // ~/.wl-workspaces/. Fall through to ws.Name (user-friendly label
-        // in workspace.json) and finally a literal "workspace" so the
-        // plugin name is never empty for exotic hand-created folder names
-        // like "~~~" or characters that produce an empty slug.
+        // Plugin names must be kebab-case per Copilot's plugin.json spec.
+        // Slugify the folder name (disk identity, guaranteed unique), then
+        // ws.Name, then a literal "workspace" so exotic folder names that
+        // slugify to empty (e.g. "~~~") still produce a valid plugin name.
         var slug = PathHelper.Slugify(ws.FolderName);
         if (string.IsNullOrEmpty(slug)) slug = PathHelper.Slugify(ws.Name);
         if (string.IsNullOrEmpty(slug)) slug = "workspace";
@@ -109,12 +95,7 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         }
         catch
         {
-            // Intentionally silent. This is a defensive check — if we
-            // can't read AGENTS.md (locked, permission denied, deleted
-            // mid-launch), the safe answer is "treat as user-managed,
-            // don't delete". Warning here would fire on every launch
-            // that races a file system event and adds noise without a
-            // user-actionable signal.
+            // Defensive: if we can't read, treat as user-managed (don't delete).
             return false;
         }
     }
@@ -143,18 +124,13 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
     public IEnumerable<string> DescribeLaunchPrep(Workspace ws)
     {
-        // Mirror what PrepareLaunch will actually do. Observational IO
-        // only (File.Exists, Directory.GetDirectories, single-line read
-        // via IsWlManaged for the cleanup branch).
+        // Mirror what PrepareLaunch will do. Observational IO only.
         if (File.Exists(ws.InstructionsPath))
         {
             yield return $"writes {ws.AgentsPath} (mirror of instructions.md)";
         }
         else if (File.Exists(ws.AgentsPath) && IsWlManaged(ws.AgentsPath))
         {
-            // Only describe the deletion when AGENTS.md is wl-managed —
-            // PrepareLaunch leaves user-written AGENTS.md alone, so
-            // describing a deletion that won't happen would be misleading.
             yield return $"deletes {ws.AgentsPath} (was wl-managed; instructions.md no longer present)";
         }
 
@@ -169,12 +145,10 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
     public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
     {
-        // The shared skill lives under <sharedDir>/.claude/skills/. Expose
-        // it via --plugin-dir so Copilot loads it for this single
+        // Expose the shared skill via --plugin-dir for this single
         // invocation only — no global state mutation. Trigger by
-        // description-match phrasing because Copilot reserves slash for
-        // built-in commands (/init, /skills, /clear) — `/<skill-name>`
-        // would not invoke a custom skill.
+        // description-match phrasing: Copilot reserves slash for
+        // built-ins (/init, /skills) so `/<skill-name>` wouldn't fire.
         var sharedClaudeDir = WlPaths.ClaudeDir(sharedDir);
         if (HasSkills(sharedClaudeDir))
         {
@@ -191,16 +165,12 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         string? newSessionId = null;
         var ws = spec.Workspace;
 
-        // Copilot's --resume=<uuid> is idempotent: starts a new session if
-        // the UUID doesn't exist, resumes if it does. Always emit it so wl
-        // can track session IDs the same way it does for Claude.
-        //
-        // Copilot 1.0.43+ refuses --name alongside --resume (even though
-        // --resume on a non-existent UUID creates a fresh session). So
-        // for new sessions we skip --name; Copilot will display the
-        // session by UUID in /resume listings. Cosmetic only — wl
-        // tracks the session via .last-session, so the user never has
-        // to type or remember it.
+        // Copilot's --resume=<uuid> is idempotent (creates if missing,
+        // resumes if present), so we always emit it to track sessions
+        // the same way as Claude. Copilot 1.0.43+ refuses --name
+        // alongside --resume, so new sessions are unnamed; /resume
+        // shows them by UUID. wl tracks the UUID in .last-session,
+        // so the user never types it.
         if (spec.ResumeSessionId is not null)
         {
             args.Add($"--resume={spec.ResumeSessionId}");
@@ -213,9 +183,8 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
         spec.AppendAddDirArgs(args);
 
-        // Load workspace + shared skills as local plugins. Manifests are
-        // written by PrepareLaunch; here we just emit the flag for each
-        // dir that has skills.
+        // Manifests are written by PrepareLaunch; emit --plugin-dir for
+        // each dir that has skills.
         foreach (var (claudeDir, _) in GetManagedClaudeDirs(ws))
         {
             if (HasSkills(claudeDir))
@@ -224,9 +193,6 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
                 args.Add(claudeDir);
             }
         }
-
-        // instructions.md is mirrored to AGENTS.md in PrepareLaunch and
-        // discovered by Copilot via COPILOT_CUSTOM_INSTRUCTIONS_DIRS.
 
         if (spec.Yolo)
         {

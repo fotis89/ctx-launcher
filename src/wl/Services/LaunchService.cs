@@ -11,12 +11,10 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
     private Func<string, string?> Lookup => paths.Get;
 
     /// <summary>
-    /// Validate the tool resolution chain (override → workspace.json →
-    /// .config.json → default) and return the resolved adapter. Prints a
-    /// labeled error to stderr and returns false if the chain lands on
-    /// an unregistered tool. Callers should invoke this once at the top
-    /// of their flow and bail on false; downstream service methods
-    /// trust valid input and use <see cref="ToolAdapterRegistry.Resolve"/>.
+    /// Resolve the tool chain (override → workspace.json → .config.json
+    /// → default). Prints a labeled error and returns false if the
+    /// resolved tool isn't registered. Call once at the top of a flow;
+    /// downstream methods trust valid input.
     /// </summary>
     public bool TryResolveAdapter(Workspace ws, string? toolOverride, [NotNullWhen(true)] out IToolAdapter? adapter)
     {
@@ -96,12 +94,9 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
             if (content.Length == 0 || !content.StartsWith('{'))
                 return null;
 
-            // .last-session is a JSON map of tool name → session id so a
-            // workspace can hold a separate resume pointer per agent.
-            // Pre-0.8.0 stored a bare UUID; that legacy format is
-            // converted to JSON by SetupService.MigrateLastSessionFiles
-            // during the first `wl launch` after install, so this load
-            // path never has to handle it.
+            // Per-tool JSON map. Legacy bare-UUID files are converted
+            // by SetupService.MigrateLastSessionFiles, so this code
+            // doesn't have to handle them.
             var map = JsonSerializer.Deserialize(content, WlJsonContext.Default.DictionaryStringString);
             if (map is not null && map.TryGetValue(ToolKey(adapter), out var id) && Guid.TryParse(id, out _))
             {
@@ -111,9 +106,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
         {
-            // .last-session is a convenience pointer; if it's unreadable
-            // (locked by AV, permission issue, malformed JSON) fall back
-            // to "no session" and let the launch start fresh.
+            // Unreadable / malformed — start fresh.
             Console.Error.WriteLine($"Warning: cannot read {path} ({ex.GetType().Name}); starting a new session.");
             return null;
         }
@@ -128,8 +121,8 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
             map[ToolKey(adapter)] = sessionId;
             var json = JsonSerializer.Serialize(map, WlJsonContext.Default.DictionaryStringString);
 
-            // Atomic write: tmp + Move so a process killed mid-write
-            // can't leave .last-session half-written and unparseable.
+            // Atomic write: tmp + Move so a crash mid-write can't leave
+            // .last-session unparseable.
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, json);
             try
@@ -144,24 +137,19 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
-            // Best effort — failing here means subsequent --resume won't
-            // find a session, but the launch already happened. Surface
-            // the reason so the user can investigate (e.g. read-only
-            // workspace folder).
+            // Best effort — next --resume will start fresh.
             Console.Error.WriteLine($"Warning: cannot write {path} ({ex.GetType().Name}); next --resume will start fresh.");
         }
     }
 
-    // Canonical key for the JSON map. Always use the adapter's
-    // ExecutableName (lowercased) so user-supplied casing in
-    // workspace.json / --tool / .config.json doesn't fragment entries.
+    // Lowercase the adapter's ExecutableName so user-supplied casing
+    // in workspace.json / --tool / .config.json doesn't fragment entries.
     private static string ToolKey(IToolAdapter adapter)
         => adapter.ExecutableName.ToLowerInvariant();
 
-    // Reads the existing JSON map for merging on save. Returns an empty
-    // dict if the file is missing, empty, malformed, or in the legacy
-    // bare-UUID format — the legacy value is dropped here because save
-    // will replace it with an explicit entry for the saving tool.
+    // Returns the existing JSON map for merging on save, or empty if the
+    // file is missing/malformed/legacy. Legacy bare-UUID is dropped here
+    // because save will write an explicit entry for the saving tool.
     private static Dictionary<string, string> LoadSessionMap(string path)
     {
         if (!File.Exists(path))

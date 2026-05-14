@@ -68,10 +68,9 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
         var createFresh = WriteSkill(createDir, $"{CreateSkillName}.md");
         var updateFresh = WriteSkill(updateDir, $"{UpdateSkillName}.md");
 
-        // Migrate from earlier versions that installed wl-create-workspace
-        // into the user's global Claude skills dir. wl owns this file; once
-        // the new copy is in .shared/.claude/skills/, the legacy global
-        // install would just shadow the same skill.
+        // Remove the legacy global install of wl-create-workspace under
+        // ~/.claude/skills/. Now lives in .shared/.claude/skills/; the
+        // global copy would just shadow it.
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var legacyCreateDir = Path.Combine(home, ".claude", "skills", CreateSkillName);
         if (Directory.Exists(legacyCreateDir))
@@ -79,28 +78,20 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             try { Directory.Delete(legacyCreateDir, recursive: true); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                // Best effort — user can remove manually if needed. Surface the
-                // reason so they aren't left wondering why a stale folder
-                // remains under ~/.claude/skills/.
                 Console.Error.WriteLine($"Warning: could not delete legacy {legacyCreateDir} ({ex.GetType().Name}); remove manually if desired.");
             }
         }
 
-        // Migrate from versions that registered skill dirs in
-        // ~/.copilot/settings.json. Skills are now loaded per-launch via
-        // --plugin-dir, so any wl-managed entries left over there are dead
-        // weight (and would silently leak skills into unrelated copilot
-        // sessions). Strip entries pointing inside ~/.wl-workspaces/.
+        // Strip wl-managed entries from ~/.copilot/settings.json
+        // (skillDirectories). Skills are now loaded per-launch via
+        // --plugin-dir; stale registrations would silently leak skills
+        // into unrelated copilot sessions.
         StripStaleCopilotSkillDirs(home, paths.WorkspacesRoot);
 
-        // Migrate per-workspace .last-session files from the legacy
-        // bare-UUID format to the JSON map keyed by tool. Pre-0.8.0
-        // stored one UUID per workspace, shared across all agents —
-        // launching the same workspace in Copilot then Claude (or vice
-        // versa) silently overwrote the previous agent's resume
-        // pointer. The new format is { "copilot": "...", "claude":
-        // "..." }; this pass converts any pre-existing bare UUID once,
-        // attributing it to the workspace's resolved tool.
+        // Convert pre-0.8.0 bare-UUID .last-session files to the JSON
+        // map keyed by tool. Pre-0.8 launching the same workspace in
+        // Copilot then Claude silently overwrote the previous agent's
+        // resume pointer.
         MigrateLastSessionFiles();
 
         EnsureGitignore();
@@ -126,11 +117,9 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             return;
         }
 
-        // Ensure every required pattern from DefaultGitignore is present in
-        // the existing file. Older wl versions wrote a smaller template, so
-        // upgrading users may be missing entries (e.g. wl-create-workspace/,
-        // */AGENTS.md). Append only the missing ones — leave user edits
-        // untouched.
+        // Append any required patterns that the existing file is
+        // missing (older wl versions wrote a smaller template). Leave
+        // user edits untouched.
         var existing = File.ReadAllText(gitignorePath);
         var existingPatterns = existing
             .Split('\n')
@@ -151,34 +140,27 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
 
     public static string MergeGitignore(string existing, IEnumerable<string> missing)
     {
-        // Preserve the existing file's newline style (CRLF or LF) so a
-        // wl-managed .gitignore synced across OSes via `wl clone` doesn't
-        // churn every line on the next setup run. If the input doesn't
-        // have a newline yet (empty/single-line), fall back to the
-        // platform default.
+        // Preserve the existing newline style so a wl-managed
+        // .gitignore synced across OSes doesn't churn every line.
         var newline = DetectNewline(existing);
 
-        // Whitespace-only is treated as empty so a fresh file starts with
-        // the header on line 1 (no leading blanks).
+        // Treat whitespace-only as empty so a fresh file starts with
+        // the header on line 1.
         var hasContent = !string.IsNullOrWhiteSpace(existing);
         var trimmed = hasContent ? existing.TrimEnd() : "";
         var lines = trimmed.Length == 0
             ? new List<string>()
             : trimmed.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
 
-        // The wl-managed block is identified by its header line ("# Added
-        // by `wl setup`"). Past versions only handled the case where that
-        // block sat at the end of the file — if a user added their own
-        // lines below it, the next merge would emit a second header at
-        // EOF and split wl's patterns across two blocks. Now we locate
-        // the header anywhere and insert into the existing block.
+        // The wl-managed block is identified by its header. We locate
+        // it anywhere in the file (not just at EOF) and insert into the
+        // existing block so user lines below don't fragment our block
+        // across two headers on the next merge.
         var headerIndex = lines.FindIndex(l => l.Trim() == AddedByHeader);
         if (headerIndex < 0)
         {
             // No managed block yet — append a fresh one. Only emit the
-            // visual separator (blank line) when there's existing
-            // content; otherwise an empty file would start with blank
-            // lines before the header.
+            // visual blank separator when there's existing content.
             var sb = new System.Text.StringBuilder();
             if (trimmed.Length > 0)
             {
@@ -194,9 +176,7 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             return sb.ToString();
         }
 
-        // Walk forward from the header over non-blank lines; the next
-        // blank (or EOF) marks the end of the managed block. Insert the
-        // missing patterns right before that boundary.
+        // End of the managed block is the next blank line (or EOF).
         var insertAt = headerIndex + 1;
         while (insertAt < lines.Count && !string.IsNullOrWhiteSpace(lines[insertAt]))
         {
@@ -261,32 +241,20 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             }
             catch
             {
-                // Don't leave a half-written .tmp behind if either the
-                // write or the atomic move fails. Best effort — re-throw
-                // so the outer catch surfaces a warning to the user.
                 try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* swallowed */ }
                 throw;
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
         {
-            // Best effort — never let migration break setup. Surface the
-            // reason so users running into a locked or corrupted Copilot
-            // settings file aren't left guessing.
             Console.Error.WriteLine($"Warning: could not migrate {settingsPath} ({ex.GetType().Name}); skill loading still works via --plugin-dir.");
         }
     }
 
     // One-time migration of per-workspace .last-session files from
-    // the legacy bare-UUID format (one session id per workspace,
-    // shared across all agents) to the JSON map keyed by tool name.
-    // Idempotent: files already in JSON form are left alone, files
-    // that don't parse as a UUID are skipped (LaunchService.Load
-    // will treat them as no-session and start fresh).
-    //
-    // Public + static so it's unit-testable without standing up the
-    // whole DI graph. The instance wrapper below pipes in the
-    // workspaces root and the global default tool from ConfigService.
+    // the legacy bare-UUID format to the JSON map keyed by tool name.
+    // Idempotent: JSON files and non-UUID content are left alone.
+    // Public + static for unit-testability without standing up DI.
     public void MigrateLastSessionFiles()
     {
         MigrateLastSessionFiles(paths.WorkspacesRoot, config.DefaultTool);
@@ -310,8 +278,7 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
 
         foreach (var workspaceDir in workspaceDirs)
         {
-            // Skip the .shared/ sibling and other wl-internal dirs —
-            // none of them have .last-session, but be defensive.
+            // Skip .shared/ and other wl-internal dirs.
             if (Path.GetFileName(workspaceDir).StartsWith('.'))
                 continue;
 
@@ -323,16 +290,12 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             {
                 var content = File.ReadAllText(lastSessionPath).Trim();
 
-                // Already migrated (JSON), empty, or non-UUID corrupt — nothing to do.
                 if (content.Length == 0 || content.StartsWith('{') || !Guid.TryParse(content, out _))
                     continue;
 
-                // Attribute the bare UUID to the workspace's resolved
-                // tool: workspace.json's `tool` field first, then the
-                // global defaultTool, then "claude" (pre-0.8 wl was
-                // Claude-only, so single-tool users get a correct
-                // migration; cross-tool users had already lost data
-                // under the legacy code).
+                // Attribute the bare UUID to the workspace's tool:
+                // workspace.json's `tool` → defaultTool → "claude"
+                // (pre-0.8 wl was Claude-only).
                 var wsTool = ReadWorkspaceTool(Path.Combine(workspaceDir, WlPaths.WorkspaceConfigFileName));
                 var toolKey = (wsTool ?? defaultTool ?? "claude").ToLowerInvariant();
                 var map = new Dictionary<string, string> { [toolKey] = content };
@@ -352,8 +315,6 @@ public class SetupService(VersionService versionService, WlPaths paths, ConfigSe
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
             {
-                // Best effort — leave the file as-is and warn. The user
-                // will start a fresh session on next launch.
                 Console.Error.WriteLine($"Warning: could not migrate {lastSessionPath} ({ex.GetType().Name}); next --resume will start fresh.");
             }
         }
