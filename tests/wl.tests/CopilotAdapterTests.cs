@@ -37,7 +37,7 @@ public class CopilotAdapterTests : IDisposable
             Name = "test",
             PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
             AdditionalDirs = [],
-            FolderPath = folderPath ?? Path.GetTempPath(),
+            FolderPath = folderPath ?? Path.Combine(Path.GetTempPath(), "wl-test-ws"),
         };
 
         return new AdapterLaunchSpec(
@@ -50,31 +50,43 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
-    public void NewSession_EmitsResumeUuid_NoName()
+    public void NewSession_EmitsNameWithFolderPrefix_NoResume()
     {
-        var spec = MakeSpec();
+        var spec = MakeSpec(folderPath: Path.Combine(Path.GetTempPath(), "sei"));
         var result = _adapter.BuildArgs(spec);
 
         Assert.NotNull(result.NewSessionId);
-        Assert.True(Guid.TryParse(result.NewSessionId, out _));
+        // Copilot 1.0.49+ rejects --resume=<unknown-id>; we use --name
+        // for new sessions and store the friendly name in .last-session
+        // for resume by name later.
+        Assert.StartsWith("sei-", result.NewSessionId);
+        Assert.Equal(4 + 8, result.NewSessionId!.Length); // "sei-" + 8 hex
+        Assert.Contains(result.Args, a => a == $"--name={result.NewSessionId}");
+        Assert.DoesNotContain(result.Args, a => a.StartsWith("--resume"));
+    }
 
-        Assert.Contains(result.Args, a => a == $"--resume={result.NewSessionId}");
-        // Copilot 1.0.43+ refuses --name alongside --resume, even on a fresh
-        // UUID. We skip --name to keep the launch working; the session is
-        // tracked by UUID via .last-session.
-        Assert.DoesNotContain("--name", result.Args);
+    [Fact]
+    public void NewSession_NoFolderName_FallsBackToWlPrefix()
+    {
+        // Workspaces created with FolderPath that ends in a separator
+        // (Path.GetFileName returns "") still need a valid --name.
+        var spec = MakeSpec(folderPath: Path.GetTempPath());
+        var result = _adapter.BuildArgs(spec);
+
+        Assert.NotNull(result.NewSessionId);
+        Assert.StartsWith("wl-", result.NewSessionId);
     }
 
     [Fact]
     public void ResumeSession_EmitsResumeWithExistingId_NoName()
     {
-        var sessionId = Guid.NewGuid().ToString();
+        var sessionId = "sei-a1b2c3d4";
         var spec = MakeSpec(resumeSessionId: sessionId);
         var result = _adapter.BuildArgs(spec);
 
         Assert.Null(result.NewSessionId);
         Assert.Contains(result.Args, a => a == $"--resume={sessionId}");
-        Assert.DoesNotContain("--name", result.Args);
+        Assert.DoesNotContain(result.Args, a => a.StartsWith("--name"));
     }
 
     [Fact]

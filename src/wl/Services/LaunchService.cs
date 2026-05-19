@@ -98,7 +98,7 @@ public class LaunchService(ClaudeRunner claudeRunner, PathsService paths, ToolAd
             // by SetupService.MigrateLastSessionFiles, so this code
             // doesn't have to handle them.
             var map = JsonSerializer.Deserialize(content, WlJsonContext.Default.DictionaryStringString);
-            if (map is not null && map.TryGetValue(ToolKey(adapter), out var id) && Guid.TryParse(id, out _))
+            if (map is not null && map.TryGetValue(ToolKey(adapter), out var id) && !string.IsNullOrWhiteSpace(id))
             {
                 return id;
             }

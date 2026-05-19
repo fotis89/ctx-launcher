@@ -165,20 +165,21 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         string? newSessionId = null;
         var ws = spec.Workspace;
 
-        // Copilot's --resume=<uuid> is idempotent (creates if missing,
-        // resumes if present), so we always emit it to track sessions
-        // the same way as Claude. Copilot 1.0.43+ refuses --name
-        // alongside --resume, so new sessions are unnamed; /resume
-        // shows them by UUID. wl tracks the UUID in .last-session,
-        // so the user never types it.
+        // Copilot 1.0.49+ rejects --resume=<unknown-id> ("No session, task,
+        // or name matched"), so we can't reuse the old "--resume creates if
+        // missing" trick. New sessions use --name=<folder>-<8hex>; resume
+        // uses --resume=<name> (copilot accepts either id or name there).
+        // The name doubles as the picker label, which is friendlier than a
+        // bare UUID.
         if (spec.ResumeSessionId is not null)
         {
             args.Add($"--resume={spec.ResumeSessionId}");
         }
         else
         {
-            newSessionId = Guid.NewGuid().ToString();
-            args.Add($"--resume={newSessionId}");
+            var slug = string.IsNullOrEmpty(ws.FolderName) ? "wl" : ws.FolderName;
+            newSessionId = $"{slug}-{Guid.NewGuid().ToString("N")[..8]}";
+            args.Add($"--name={newSessionId}");
         }
 
         spec.AppendAddDirArgs(args);
