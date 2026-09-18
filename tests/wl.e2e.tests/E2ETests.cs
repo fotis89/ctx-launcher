@@ -195,13 +195,15 @@ public class E2ETests
         var sessionPath = System.IO.Path.Combine(folder, ".last-session");
         var firstSession = File.ReadAllText(sessionPath);
         var args = File.ReadAllText(log);
-        Assert.Contains($"--name={firstSession}", args);
+        Assert.True(Guid.TryParseExact(firstSession, "D", out _));
+        Assert.Contains($"--session-id={firstSession}", args);
+        Assert.Contains($"--name={home.WorkspaceName}-", args);
         Assert.Contains("--yolo", args);
         Assert.Contains("-i", args);
         Assert.Contains("Review this project", args);
         Assert.Contains("--plugin-dir", args);
         Assert.Contains(System.IO.Path.Combine(folder, ".copilot"), args);
-        Assert.Equal(folder, File.ReadAllText(log + ".env").Trim());
+        Assert.Equal($"{home.Path},{folder}", File.ReadAllText(log + ".env").Trim());
         Assert.Contains("Project instructions", File.ReadAllText(System.IO.Path.Combine(folder, "AGENTS.md")));
         Assert.True(File.Exists(System.IO.Path.Combine(folder, ".copilot", "plugin.json")));
 
@@ -210,11 +212,14 @@ public class E2ETests
         Assert.Equal(0, resumed.ExitCode);
         Assert.Contains($"--resume={firstSession}", File.ReadAllText(log));
         Assert.DoesNotContain("--name=", File.ReadAllText(log));
+        Assert.DoesNotContain("--session-id=", File.ReadAllText(log));
         Assert.Equal(firstSession, File.ReadAllText(sessionPath));
 
         File.Delete(log);
         Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", "--new").ExitCode);
         Assert.NotEqual(firstSession, File.ReadAllText(sessionPath));
+        Assert.True(Guid.TryParseExact(File.ReadAllText(sessionPath), "D", out _));
+        Assert.Contains($"--session-id={File.ReadAllText(sessionPath)}", File.ReadAllText(log));
         Assert.Contains("--name=", File.ReadAllText(log));
         Assert.DoesNotContain("--resume=", File.ReadAllText(log));
     }
@@ -236,6 +241,23 @@ public class E2ETests
         Assert.Contains("exited with code 42", result.Stderr);
         Assert.Equal("previous-session", File.ReadAllText(pointer));
         Assert.Equal("previous-workspace", File.ReadAllText(System.IO.Path.Combine(root, ".last")));
+    }
+
+    [SkippableFact]
+    public void PreviouslySavedSessionName_StillResumesWithoutMigration()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        var pointer = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName, ".last-session");
+        File.WriteAllText(pointer, "previous-session-name");
+        var bin = System.IO.Path.Combine(home.Path, "fake-bin");
+        var log = System.IO.Path.Combine(home.Path, "copilot.log");
+        FakeCopilot.Install(bin, log);
+        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--resume").ExitCode);
+        Assert.Contains("--resume=previous-session-name", File.ReadAllText(log));
+        Assert.DoesNotContain("--session-id=", File.ReadAllText(log));
+        Assert.Equal("previous-session-name", File.ReadAllText(pointer));
     }
 
     [SkippableFact]

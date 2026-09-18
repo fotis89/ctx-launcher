@@ -11,14 +11,13 @@ Switch between projects without rebuilding context, and resume your previous ses
 Your repository's shared instructions stay the team's. `wl` keeps your personal
 context outside the repository in `~/.wl-workspaces/<name>`.
 
-**Copilot-only breaking change:** the next release requires workspace schema 2.
+**Copilot-only breaking change:** v0.9.0 requires workspace schema 2.
 Existing users must follow the [manual upgrade guide](#upgrading-existing-workspaces).
-The published 0.8.x release still supports both runtimes; this README describes
-the Copilot-only source tree.
+The older 0.8.x releases support both runtimes; v0.9.0 supports only Copilot.
 
 ## Install
 
-Requires Node.js and GitHub Copilot CLI on your `PATH`:
+Requires Node.js and GitHub Copilot CLI 1.0.86 or newer on your `PATH`:
 
 ```powershell
 npm install -g @ctx-launcher/wl
@@ -124,17 +123,22 @@ Machine-local `defaultTool` settings are rejected rather than silently ignored.
 ### Instructions and skills
 
 Edit `instructions.md`, not the generated `AGENTS.md`. Each launch mirrors the
-instructions and sets `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` to the workspace folder.
+instructions and appends the workspace folder to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`,
+preserving inherited instruction directories and removing duplicate entries.
 Repository instructions remain separate from your personal workspace context.
 
 Workspace and shared `.copilot` folders with skills are exposed using explicit
 `--plugin-dir` arguments and generated `plugin.json` manifests. No global Copilot
-settings are modified. Skills use `SKILL.md` with `name`, `description`, and
-`allowed-tools` frontmatter; use a `wl-` prefix for workspace skills.
+settings are modified. Generated workspace plugin names include a stable hash
+and stay within Copilot's 64-character limit.
+Skills require `name` and `description` frontmatter; use a `wl-` prefix for workspace skills.
+`allowed-tools` is optional permission pre-approval, not required metadata.
+The bundled skills do not pre-approve tools. Only add narrow approvals after
+reviewing and trusting a skill and its scripts.
 
 The bundled **wl-create-workspace** and **wl-update-workspace** skills propose
 changes before writing files. Ask Copilot to use them by name or describe the
-task; wl does not depend on custom slash-command invocation.
+task, or use a prompt such as `Use the /wl-update-workspace skill`.
 
 ### Saved prompts
 
@@ -152,8 +156,11 @@ Use `wl launch my-project -p review`, or pass literal text with
 
 ### Sessions
 
-Fresh sessions receive a unique name; `.last-session` stores that Copilot
-reference as plain text after a successful exit. Resume passes it to Copilot.
+Fresh sessions receive an explicit UUID via `--session-id` and a readable name.
+After a successful exit, `.last-session` stores the UUID as plain text; resume
+uses that ID so renaming the session in Copilot does not break it. Existing
+plain-text session names still work, but remain sensitive to renaming until
+you start a fresh session or manually replace the name with its Copilot UUID.
 Session history is local to Copilot on that machine; synchronizing workspace
 definitions does not synchronize conversations. Closing the terminal before
 Copilot exits successfully can leave the previous pointer unchanged.

@@ -25,7 +25,9 @@ public class LaunchServiceTests : IDisposable
         var (args, _, id) = _service.BuildLaunchArgs(_ws);
         Assert.Single(args, a => a == "--add-dir");
         Assert.Contains(_root, args);
-        Assert.Contains($"--name={id}", args);
+        Assert.True(Guid.TryParse(id, out _));
+        Assert.Contains($"--session-id={id}", args);
+        Assert.Contains(args, a => a.StartsWith("--name="));
     }
 
     [Fact]
@@ -59,6 +61,7 @@ public class LaunchServiceTests : IDisposable
         Assert.Null(id);
         Assert.Contains("--resume=test-12345678", args);
         Assert.DoesNotContain(args, a => a.StartsWith("--name"));
+        Assert.DoesNotContain(args, a => a.StartsWith("--session-id"));
     }
 
     [Fact]
@@ -81,12 +84,14 @@ public class LaunchServiceTests : IDisposable
         Assert.Contains($"\"{_ws.FolderPath}\"", command);
     }
 
-    [Fact]
-    public void LastSession_RoundTripsPlainCopilotReference()
+    [Theory]
+    [InlineData("test-12345678")]
+    [InlineData("0cb916db-26aa-40f2-86b5-1ba81b225fd2")]
+    public void LastSession_RoundTripsPlainCopilotReference(string reference)
     {
-        LaunchService.SaveLastSession(_ws, "test-12345678");
-        Assert.Equal("test-12345678", File.ReadAllText(_ws.LastSessionPath));
-        Assert.Equal("test-12345678", LaunchService.LoadLastSession(_ws));
+        LaunchService.SaveLastSession(_ws, reference);
+        Assert.Equal(reference, File.ReadAllText(_ws.LastSessionPath));
+        Assert.Equal(reference, LaunchService.LoadLastSession(_ws));
         Assert.Empty(Directory.GetFiles(_root, "*.tmp"));
     }
 

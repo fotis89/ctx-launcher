@@ -27,7 +27,8 @@ This is a breaking release; recommend v0.9.0 with prominent upgrade notes.
   files in those `.copilot` folders; do not rely on implicit skill discovery.
 - Keep `instructions.md` as the editable source and its generated `AGENTS.md`
   mirror, using the existing custom-instructions environment variable.
-- Keep `.last-session` but store one plain Copilot session reference. Reject old
+- Keep `.last-session` but store the new session's explicit Copilot UUID as plain
+  text, retaining name-based resume for existing plain-text pointers. Reject old
   per-tool JSON maps when resuming; never interpret Claude IDs as Copilot sessions.
 
 ## User flows and errors
@@ -35,7 +36,7 @@ This is a breaking release; recommend v0.9.0 with prominent upgrade notes.
 - `wl create` invokes Copilot with the create-workspace skill; `--basic` writes a
   version-2 workspace without invoking an AI. Neither command accepts `--tool`.
 - `wl launch` always runs Copilot. Preserve `--new`, `--resume`, `--yolo`, prompts,
-  additional directories, named fresh sessions, and resume-by-reference behavior.
+  additional directories, named fresh sessions with explicit UUIDs, and resume-by-reference behavior.
 - `wl which` remains non-mutating and describes the same launch preparation.
   `wl setup` installs only the new shared skills and checks only Copilot.
 - Validate legacy configuration before launch preparation or automatic setup can
@@ -79,5 +80,7 @@ update workspace-repository ignore rules for the new generated manifest paths.
 One runtime removes unused abstraction and unmaintainable Claude behavior. The
 explicit schema boundary costs users a manual upgrade, but prevents old Claude
 workspaces from unexpectedly launching Copilot or losing skills silently.
-Retaining the existing Copilot integration limits scope: this is not a redesign of
-instruction loading, plugin discovery, or session naming. No blocking questions remain.
+Preserve inherited custom-instruction directories, generate bounded plugin names
+with stable hashes, and use UUIDs so session renames do not break resume.
+Skill `allowed-tools` metadata is optional permission pre-approval, not a required
+field. Named-skill prompts may include `/skill-name`. No blocking questions remain.

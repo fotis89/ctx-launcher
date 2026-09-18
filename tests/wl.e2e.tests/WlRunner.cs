@@ -28,6 +28,7 @@ public static class WlRunner
         psi.Environment["HOME"] = tempHome;
         psi.Environment["USERPROFILE"] = tempHome;
         psi.Environment["WL_WORKSPACES_ROOT"] = Path.Combine(tempHome, ".wl-workspaces");
+        psi.Environment["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"] = tempHome;
         psi.WorkingDirectory = tempHome;
 
         // Do not let an installed Copilot executable win over the test shim.

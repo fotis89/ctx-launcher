@@ -63,6 +63,11 @@ public class SetupServiceTests
                 Assert.Contains(".copilot/skills", expected);
                 Assert.Contains("wl-", expected);
                 Assert.Contains("allowed-tools", expected);
+                var frontmatter = expected.Split("---")[1];
+                Assert.DoesNotContain("allowed-tools:", frontmatter);
+                Assert.Contains("optional permission pre-approval", expected);
+                Assert.Contains("Use the /wl-review skill", expected);
+                Assert.DoesNotContain("slash is reserved", expected);
             }
             Assert.False(Directory.Exists(Path.Combine(root, ".shared", ".claude")));
             Assert.Contains(".shared/.copilot/skills/wl-create-workspace/", File.ReadAllText(paths.GitignoreFile));

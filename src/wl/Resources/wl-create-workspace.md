@@ -1,7 +1,6 @@
 ---
 name: wl-create-workspace
 description: Create an AI workspace from the current session context for the wl launcher tool. Use this when the user wants to save their current project setup, reuse this context later, create a workspace, capture this session, or says anything about wl/workspace/launch configuration. Also trigger when the user has been working in a multi-repo or multi-folder setup and wants to persist it.
-allowed-tools: Bash Write Read Glob Grep
 ---
 
 Analyze the current session and propose a workspace for the `wl` AI context launcher. Be opinionated — propose your best guess, then let the user confirm or adjust. Do not ask open-ended questions.
@@ -117,7 +116,7 @@ Does this look right? Any changes before I create it?
 
 **Copilot notes for the proposal:**
 - `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it). Skills are exposed at launch via `--plugin-dir` pointing at the workspace's `.copilot/` and `.shared/.copilot/` directories, with generated `plugin.json` manifests. Treat `instructions.md` and `.copilot/skills/*` as the sources of truth; do not edit generated files.
-- Skills in Copilot workspaces are triggered by description match (the `description` field in `SKILL.md` frontmatter), not by `/<skill-name>` slash commands — slash is reserved for Copilot's built-in commands like `/init`, `/skills`, `/clear`.
+- Copilot can select skills by description, or the user can request one explicitly in a prompt such as `Use the /wl-review skill to review these changes`. This does not require a standalone slash command.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 
@@ -167,7 +166,8 @@ After confirmation:
    - Look for: test commands run, build steps, deployment, code review patterns, log analysis
    - Each skill should be a concrete action, not a description. Include the actual commands, paths, and steps.
    - Example triggers (only if they clear the threshold): `wl-run-tests` (how to test this project), `wl-deploy` (deployment steps), `wl-review` (what to check in code review)
-   - Every skill needs `name`, `description`, and `allowed-tools` in frontmatter
+   - Every skill needs `name` and `description` in frontmatter.
+   - `allowed-tools` is optional permission pre-approval, not required metadata. Omit it by default; add narrowly scoped approvals only when the user explicitly requests them after reviewing the skill and its scripts. Do not automatically pre-approve shell access.
    - **Always use the `wl-` prefix** for workspace skill names to distinguish them from repo-level skills
 
 4. Verify with `wl which <slug>`.
@@ -178,7 +178,6 @@ After confirmation:
 ---
 name: wl-<skill-name>
 description: <one line — what this skill does and when to use it>
-allowed-tools: <tools this skill needs>
 ---
 
 <concrete instructions for Copilot when this skill is invoked>

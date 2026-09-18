@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 using wl.Helpers;
 using wl.Models;
 
@@ -7,6 +10,8 @@ public class CopilotService(WlPaths paths)
 {
     public const string SharedPluginName = "wl-shared";
     public const string WorkspacePluginPrefix = "wl-";
+    private const int MaxPluginNameLength = 64;
+    private const int PluginNameHashLength = 16;
 
     public const string AgentsMdMarker = "<!-- managed by wl: this file is auto-generated from instructions.md on each launch — edits will be overwritten -->";
 
@@ -59,14 +64,16 @@ public class CopilotService(WlPaths paths)
 
     private IEnumerable<(string CopilotDir, string PluginName)> GetManagedCopilotDirs(Workspace ws)
     {
-        // Plugin names must be kebab-case per Copilot's plugin.json spec.
-        // Slugify the folder name (disk identity, guaranteed unique), then
-        // ws.Name, then a literal "workspace" so exotic folder names that
-        // slugify to empty (e.g. "~~~") still produce a valid plugin name.
+        // Hash the disk identity so slugification and truncation cannot
+        // collapse different workspace names into the same plugin name.
+        var identity = string.IsNullOrEmpty(ws.FolderName) ? ws.Name : ws.FolderName;
         var slug = PathHelper.Slugify(ws.FolderName);
         if (string.IsNullOrEmpty(slug)) slug = PathHelper.Slugify(ws.Name);
         if (string.IsNullOrEmpty(slug)) slug = "workspace";
-        yield return (ws.CopilotDirPath, $"{WorkspacePluginPrefix}{slug}");
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..PluginNameHashLength];
+        var maxSlugLength = MaxPluginNameLength - WorkspacePluginPrefix.Length - PluginNameHashLength - 1;
+        if (slug.Length > maxSlugLength) slug = slug[..maxSlugLength].TrimEnd('-');
+        yield return (ws.CopilotDirPath, $"{WorkspacePluginPrefix}{slug}-{hash}");
         yield return (paths.SharedCopilotDir, SharedPluginName);
     }
 
@@ -109,12 +116,18 @@ public class CopilotService(WlPaths paths)
     }
 
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
+        => GetEnvironment(ws, Environment.GetEnvironmentVariable("COPILOT_CUSTOM_INSTRUCTIONS_DIRS"));
+
+    public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws, string? inheritedInstructionDirs)
     {
-        // Tell Copilot to also search the workspace folder for AGENTS.md
-        // (default search is cwd + git root only).
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var directories = (inheritedInstructionDirs ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Append(ws.FolderPath)
+            .Distinct(comparer);
         return new Dictionary<string, string>
         {
-            ["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"] = ws.FolderPath,
+            ["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"] = string.Join(",", directories),
         };
     }
 
@@ -141,10 +154,8 @@ public class CopilotService(WlPaths paths)
 
     public int InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, CopilotRunner runner)
     {
-        // Expose the shared skill via --plugin-dir for this single
-        // invocation only — no global state mutation. Trigger by
-        // description-match phrasing: Copilot reserves slash for
-        // built-ins (/init, /skills) so `/<skill-name>` wouldn't fire.
+        // Load the shared skill for this invocation without registering
+        // global plugins. A named-skill prompt keeps the request explicit.
         var sharedCopilotDir = WlPaths.CopilotDir(sharedDir);
         if (HasSkills(sharedCopilotDir))
         {
@@ -161,12 +172,6 @@ public class CopilotService(WlPaths paths)
         string? newSessionId = null;
         var ws = spec.Workspace;
 
-        // Copilot 1.0.49+ rejects --resume=<unknown-id> ("No session, task,
-        // or name matched"), so we can't reuse the old "--resume creates if
-        // missing" trick. New sessions use --name=<folder>-<8hex>; resume
-        // uses --resume=<name> (copilot accepts either id or name there).
-        // The name doubles as the picker label, which is friendlier than a
-        // bare UUID.
         if (spec.ResumeSessionId is not null)
         {
             args.Add($"--resume={spec.ResumeSessionId}");
@@ -174,8 +179,12 @@ public class CopilotService(WlPaths paths)
         else
         {
             var slug = string.IsNullOrEmpty(ws.FolderName) ? "wl" : ws.FolderName;
-            newSessionId = $"{slug}-{Guid.NewGuid().ToString("N")[..8]}";
-            args.Add($"--name={newSessionId}");
+            var id = Guid.NewGuid();
+            newSessionId = id.ToString();
+            // Keep a readable picker label, but persist the immutable ID
+            // so /rename cannot invalidate the saved resume pointer.
+            args.Add($"--name={slug}-{id.ToString("N")[..8]}");
+            args.Add($"--session-id={newSessionId}");
         }
 
         spec.AppendAddDirArgs(args);

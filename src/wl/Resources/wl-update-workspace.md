@@ -1,7 +1,6 @@
 ---
 name: wl-update-workspace
 description: Detect drift between workspace config and actual session usage, then propose reviewable updates. Use when the user wants to refresh instructions, add new skills, fix outdated paths, or sync the workspace with how the project has evolved. Also trigger on "update workspace", "refresh workspace", or "sync workspace".
-allowed-tools: Bash Write Read Glob Grep
 ---
 
 Detect when the active workspace no longer matches real usage and propose safe, explicit updates. This is drift detection — observe, compare, propose, confirm, apply. Never silently mutate workspace state.
@@ -60,9 +59,10 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Skills with outdated commands or paths
 - Settings (`yolo`, `resume`) that no longer match how the workspace is used
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
-- Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
+- Skills missing required frontmatter fields (`name`, `description`) — propose adding the missing fields.
+- `allowed-tools` is optional permission pre-approval. Its absence is not drift. Do not add or broaden approvals automatically; propose changes only for explicit user review, especially shell access.
 - Copilot is unavailable: verify `copilot --version` and suggest installing it or fixing PATH. Do not suggest another runtime.
-- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `AGENTS.md` and `.copilot/plugin.json` are generated; don't propose editing them. Skills trigger by description match rather than slash commands.
+- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `AGENTS.md` and `.copilot/plugin.json` are generated; don't propose editing them. Copilot can select skills by description or use an explicit prompt such as `Use the /wl-review skill to review these changes`.
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
   - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.

@@ -50,19 +50,17 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void NewSession_EmitsNameWithFolderPrefix_NoResume()
+    public void NewSession_EmitsUuidAndReadableName_NoResume()
     {
         var spec = MakeSpec(folderPath: Path.Combine(Path.GetTempPath(), "sei"));
         var result = _adapter.BuildArgs(spec);
 
         Assert.NotNull(result.NewSessionId);
-        // Copilot 1.0.49+ rejects --resume=<unknown-id>; we use --name
-        // for new sessions and store the friendly name in .last-session
-        // for resume by name later.
-        Assert.StartsWith("sei-", result.NewSessionId);
-        Assert.Equal(4 + 8, result.NewSessionId!.Length); // "sei-" + 8 hex
-        Assert.Contains(result.Args, a => a == $"--name={result.NewSessionId}");
+        Assert.True(Guid.TryParseExact(result.NewSessionId, "D", out var id));
+        Assert.Contains($"--session-id={id}", result.Args);
+        Assert.Contains($"--name=sei-{id.ToString("N")[..8]}", result.Args);
         Assert.DoesNotContain(result.Args, a => a.StartsWith("--resume"));
+        Assert.NotEqual(result.NewSessionId, _adapter.BuildArgs(spec).NewSessionId);
     }
 
     [Fact]
@@ -74,19 +72,22 @@ public class CopilotServiceTests : IDisposable
         var result = _adapter.BuildArgs(spec);
 
         Assert.NotNull(result.NewSessionId);
-        Assert.StartsWith("wl-", result.NewSessionId);
+        Assert.True(Guid.TryParse(result.NewSessionId, out _));
+        Assert.Contains(result.Args, a => a.StartsWith("--name=wl-"));
     }
 
-    [Fact]
-    public void ResumeSession_EmitsResumeWithExistingId_NoName()
+    [Theory]
+    [InlineData("sei-a1b2c3d4")]
+    [InlineData("0cb916db-26aa-40f2-86b5-1ba81b225fd2")]
+    public void ResumeSession_EmitsExistingReference_NoNewNameOrId(string sessionId)
     {
-        var sessionId = "sei-a1b2c3d4";
         var spec = MakeSpec(resumeSessionId: sessionId);
         var result = _adapter.BuildArgs(spec);
 
         Assert.Null(result.NewSessionId);
         Assert.Contains(result.Args, a => a == $"--resume={sessionId}");
         Assert.DoesNotContain(result.Args, a => a.StartsWith("--name"));
+        Assert.DoesNotContain(result.Args, a => a.StartsWith("--session-id"));
     }
 
     [Fact]
@@ -223,10 +224,31 @@ public class CopilotServiceTests : IDisposable
             FolderPath = "/path/to/workspace-folder",
         };
 
-        var env = _adapter.GetEnvironment(ws);
+        var env = _adapter.GetEnvironment(ws, inheritedInstructionDirs: null);
 
         Assert.True(env.ContainsKey("COPILOT_CUSTOM_INSTRUCTIONS_DIRS"));
         Assert.Equal("/path/to/workspace-folder", env["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
+    }
+
+    [Theory]
+    [InlineData("", "/workspace")]
+    [InlineData("  , , ", "/workspace")]
+    [InlineData("/personal", "/personal,/workspace")]
+    [InlineData("/personal,/team", "/personal,/team,/workspace")]
+    [InlineData(" /personal, /team ,/personal ", "/personal,/team,/workspace")]
+    [InlineData("/personal,/workspace", "/personal,/workspace")]
+    public void GetEnvironment_PreservesInheritedDirectoriesWithoutDuplicates(string inherited, string expected)
+    {
+        var ws = new Workspace { FolderPath = "/workspace" };
+        Assert.Equal(expected, _adapter.GetEnvironment(ws, inherited)["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
+    }
+
+    [Fact]
+    public void GetEnvironment_UsesPlatformPathComparison()
+    {
+        var ws = new Workspace { FolderPath = "/workspace" };
+        var expected = OperatingSystem.IsWindows() ? "/WORKSPACE" : "/WORKSPACE,/workspace";
+        Assert.Equal(expected, _adapter.GetEnvironment(ws, "/WORKSPACE")["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
     }
 
     [Fact]
@@ -503,7 +525,7 @@ public class CopilotServiceTests : IDisposable
             var manifestPath = Path.Combine(tempDir, ".copilot", "plugin.json");
             Assert.True(File.Exists(manifestPath), "plugin.json should be written when skills exist");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
-            Assert.Equal($"wl-{Path.GetFileName(tempDir)}", json["name"]!.GetValue<string>());
+            Assert.Matches($"^wl-{Path.GetFileName(tempDir)}-[0-9a-f]{{16}}$", json["name"]!.GetValue<string>());
         }
         finally
         {
@@ -605,7 +627,7 @@ public class CopilotServiceTests : IDisposable
             var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
             var name = json["name"]!.GetValue<string>();
-            Assert.Equal("wl-my-workspace", name);
+            Assert.Matches("^wl-my-workspace-[0-9a-f]{16}$", name);
         }
         finally
         {
@@ -637,7 +659,7 @@ public class CopilotServiceTests : IDisposable
 
             var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
-            Assert.Equal("wl-homelab", json["name"]!.GetValue<string>());
+            Assert.Matches("^wl-homelab-[0-9a-f]{16}$", json["name"]!.GetValue<string>());
         }
         finally
         {
@@ -669,11 +691,61 @@ public class CopilotServiceTests : IDisposable
 
             var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
-            Assert.Equal("wl-workspace", json["name"]!.GetValue<string>());
+            Assert.Matches("^wl-workspace-[0-9a-f]{16}$", json["name"]!.GetValue<string>());
         }
         finally
         {
             Directory.Delete(tempRoot, true);
         }
     }
+
+    private string ReadPluginName(string folderName)
+    {
+        var ws = new Workspace { Name = "test", FolderPath = Path.Combine(_root, folderName) };
+        var skill = Directory.CreateDirectory(Path.Combine(ws.SkillsPath, "example")).FullName;
+        File.WriteAllText(Path.Combine(skill, "SKILL.md"), "---\nname: example\ndescription: Example\n---\nExample");
+        _adapter.PrepareLaunch(ws);
+        using var manifest = System.Text.Json.JsonDocument.Parse(File.ReadAllText(WlPaths.PluginManifest(ws.FolderPath)));
+        return manifest.RootElement.GetProperty("name").GetString()!;
+    }
+
+    [Theory]
+    [InlineData(44)]
+    [InlineData(45)]
+    [InlineData(61)]
+    [InlineData(62)]
+    [InlineData(100)]
+    public void WorkspacePluginName_RespectsDocumentedLengthLimit(int folderLength)
+    {
+        var folder = new string('a', folderLength);
+        var name = ReadPluginName(folder);
+        Assert.Equal(64, name.Length);
+        Assert.Matches("^wl-[a-z0-9]+(?:-[a-z0-9]+)*$", name);
+        Assert.Equal(name, ReadPluginName(folder));
+    }
+
+    [Fact]
+    public void WorkspacePluginName_TruncationDoesNotLeaveDoubleHyphens()
+    {
+        var name = ReadPluginName(new string('a', 43) + "-long-suffix");
+        Assert.InRange(name.Length, 1, 64);
+        Assert.DoesNotContain("--", name);
+    }
+
+    [Theory]
+    [InlineData("my workspace", "my-workspace")]
+    [InlineData("~~~", "___")]
+    public void WorkspacePluginName_SlugCollisionsRemainDistinct(string first, string second)
+        => Assert.NotEqual(ReadPluginName(first), ReadPluginName(second));
+
+    [Fact]
+    public void WorkspacePluginName_TruncatedNamesRemainDistinct()
+    {
+        var prefix = new string('a', 100);
+        Assert.NotEqual(ReadPluginName(prefix + "b"), ReadPluginName(prefix + "c"));
+    }
+
+    [Fact]
+    public void WorkspacePluginName_DoesNotCollideWithSharedPlugin()
+        => Assert.NotEqual(CopilotService.SharedPluginName, ReadPluginName("shared"));
 }
