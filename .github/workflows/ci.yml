@@ -62,8 +62,8 @@ jobs:
 
       - name: E2E tests (AOT binary)
         env:
-          WL_BINARY_PATH: src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
-        run: dotnet test tests/wl.e2e.tests/wl.e2e.tests.csproj --verbosity quiet
+          WL_BINARY_PATH: ${{ github.workspace }}/src/wl/bin/Release/net10.0/${{ matrix.rid }}/publish/${{ matrix.exe }}
+        run: dotnet test tests/wl.e2e.tests/wl.e2e.tests.csproj --verbosity quiet --logger "console;verbosity=normal"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
