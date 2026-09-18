@@ -17,10 +17,16 @@ Figure out which workspace to update without asking the user:
 Read all workspace files:
 - `workspace.json` — repos, dirs, settings
 - `instructions.md` — current instructions
-- `.claude/skills/` — all existing skills
+- `.copilot/skills/` — all existing skills
 - Any other workspace files
 
 Run `wl which <name>` to see resolved config and path warnings.
+
+Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces`.
+wl supports only GitHub Copilot CLI and requires `schemaVersion: 2`. Old schema
+versions, `tool`, `defaultTool`, `.claude/skills`, and per-tool `.last-session`
+JSON maps require manual upgrade. Explain the README upgrade steps and stop on
+these errors; do not automatically migrate, delete, or overwrite legacy files.
 
 ## Step 2: Detect drift
 
@@ -28,7 +34,7 @@ Compare workspace config against the repo's current state. Don't rely only on co
 
 ### How to investigate
 
-- **Read the repo's `CLAUDE.md`** and diff it mentally against `instructions.md`. Flag any content in instructions.md that duplicates what CLAUDE.md already covers — Claude Code loads CLAUDE.md automatically, so workspace instructions should only cover cross-repo context, workspace-specific setup, and multi-repo decisions.
+- **Read the repo's `AGENTS.md`** and diff it mentally against `instructions.md`. Flag any content in instructions.md that duplicates what AGENTS.md already covers — Copilot CLI loads AGENTS.md automatically, so workspace instructions should only cover cross-repo context, workspace-specific setup, and multi-repo decisions.
 - **Check `git log --oneline -20`** in the primary repo for recent changes that might invalidate instructions (renamed files, new build steps, moved directories).
 - **Scan the file tree** (`ls` key directories) for new folders, removed files, or structural changes that instructions.md doesn't reflect.
 - **Read each skill's SKILL.md** and verify the commands, paths, and steps it references still exist.
@@ -55,8 +61,8 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Settings (`yolo`, `resume`) that no longer match how the workspace is used
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
 - Skills missing required frontmatter fields (`name`, `description`, `allowed-tools`) — propose adding the missing fields
-- `tool` field references a CLI that isn't on PATH (e.g., `tool: copilot` but `copilot --version` fails). Verify with the appropriate `<tool> --version` check; flag and suggest either installing the tool or switching the workspace to one that is available.
-- For `tool: copilot` workspaces: `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md`, and `.claude/skills/*` directories are loaded for each launch via per-invocation `--plugin-dir` arguments rather than by editing `~/.copilot/settings.json`. `AGENTS.md` is regenerated on every launch — don't flag it as a Copilot incompatibility or as stale (wl refreshes on next launch). Skills are triggered by description match, not by `/<skill-name>` (slash is reserved for Copilot's built-in commands).
+- Copilot is unavailable: verify `copilot --version` and suggest installing it or fixing PATH. Do not suggest another runtime.
+- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `AGENTS.md` and `.copilot/plugin.json` are generated; don't propose editing them. Skills trigger by description match rather than slash commands.
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
   - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.

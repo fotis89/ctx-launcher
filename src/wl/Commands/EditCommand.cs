@@ -5,15 +5,16 @@ namespace wl.Commands;
 
 public class EditCommand(WorkspaceService workspaces)
 {
-    public void Execute(string name)
+    public int Execute(string name)
     {
-        var ws = workspaces.LoadWorkspace(name);
-        if (ws is null)
+        var folder = workspaces.GetWorkspaceFolder(name);
+        if (!Directory.Exists(folder))
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
-            return;
+            return 1;
         }
 
-        ShellHelper.OpenFolder(ws.FolderPath);
+        ShellHelper.OpenFolder(folder);
+        return 0;
     }
 }

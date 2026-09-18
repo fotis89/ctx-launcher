@@ -4,458 +4,113 @@ using wl.Services;
 
 namespace wl.tests;
 
-[Collection("StderrCapture")]
-public class LaunchServiceTests
+public class LaunchServiceTests : IDisposable
 {
-    private readonly LaunchService _service = MakeService();
+    private readonly string _root = Directory.CreateTempSubdirectory("wl-launch-").FullName;
+    private readonly LaunchService _service;
+    private readonly Workspace _ws;
 
-    private static LaunchService MakeService()
+    public LaunchServiceTests()
     {
-        var registry = new ToolAdapterRegistry();
-        registry.Register(new ClaudeAdapter());
-        return new LaunchService(
-            new ClaudeRunner(),
-            new PathsService(Path.Combine(Path.GetTempPath(), $"wl-paths-test-{Guid.NewGuid():N}.json")),
-            registry,
-            new ConfigService(Path.Combine(Path.GetTempPath(), $"wl-config-test-{Guid.NewGuid():N}.json")));
+        var paths = new WlPaths(_root);
+        _service = new LaunchService(new CopilotRunner(), new PathsService(paths.PathsConfigFile), new CopilotService(paths));
+        _ws = new Workspace { Name = "test", PrimaryRepo = _root, FolderPath = _root };
     }
 
-    private static Workspace MakeWorkspace(
-        string? folderPath = null,
-        string? primaryRepo = null,
-        List<string>? additionalDirs = null)
-    {
-        var folder = folderPath ?? Path.GetTempPath();
-        return new Workspace
-        {
-            Name = "test",
-            PrimaryRepo = primaryRepo ?? Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-            AdditionalDirs = additionalDirs ?? [],
-
-            FolderPath = folder,
-        };
-    }
+    public void Dispose() => Directory.Delete(_root, true);
 
     [Fact]
     public void BuildLaunchArgs_NoAdditionalDirs_OnlyWorkspaceFolder()
     {
-        var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildLaunchArgs(ws);
-
+        var (args, _, id) = _service.BuildLaunchArgs(_ws);
         Assert.Single(args, a => a == "--add-dir");
-        Assert.Contains(args, a => a.Contains(ws.FolderPath));
+        Assert.Contains(_root, args);
+        Assert.Contains($"--name={id}", args);
     }
 
     [Fact]
-    public void BuildLaunchArgs_WithAdditionalDirs_AllIncluded()
+    public void BuildLaunchArgs_ResolvesVariablesAndSkipsMissingDirectoriesAndFiles()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(additionalDirs: [tempDir]);
-            var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-            Assert.Equal(2, args.Count(a => a == "--add-dir"));
-            // additionalDirs entries go through ResolvePath → native separators on Windows,
-            // forward slashes on Linux/macOS.
-            var expectedDir = OperatingSystem.IsWindows() ? tempDir : tempDir.Replace('\\', '/');
-            Assert.Contains(args, a => a.Contains(expectedDir));
-            Assert.Contains(args, a => a.Contains(ws.FolderPath));
-        }
-        finally
-        {
-            Directory.Delete(tempDir);
-        }
+        var paths = new WlPaths(_root);
+        var vars = new PathsService(paths.PathsConfigFile);
+        vars.Set("ROOT", _root);
+        var file = Path.Combine(_root, "not-a-directory");
+        File.WriteAllText(file, "");
+        _ws.AdditionalDirs = ["$ROOT", Path.Combine(_root, "missing"), file];
+        var service = new LaunchService(new CopilotRunner(), vars, new CopilotService(paths));
+        var (args, skipped, _) = service.BuildLaunchArgs(_ws);
+        Assert.Equal(2, args.Count(a => a == "--add-dir"));
+        Assert.Equal(_ws.AdditionalDirs.Skip(1), skipped);
     }
 
     [Fact]
-    public void BuildLaunchArgs_MissingAdditionalDir_Skipped()
+    public void BuildLaunchArgs_PromptAndYolo()
     {
-        var ws = MakeWorkspace(additionalDirs: [@"C:\this\does\not\exist\at\all"]);
-        var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-        Assert.Single(args, a => a == "--add-dir");
-        Assert.Contains(args, a => a.Contains(ws.FolderPath));
+        var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing", yolo: true);
+        Assert.Contains("--yolo", args);
+        Assert.Equal("-i", args[^2]);
+        Assert.Equal("do the thing", args[^1]);
     }
 
     [Fact]
-    public void BuildLaunchArgs_WithPrompt_AppendsAsLastArg()
+    public void BuildLaunchArgs_Resume_DoesNotCreateName()
     {
-        var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildLaunchArgs(ws, "do the thing");
-
-        Assert.Equal("do the thing", args.Last());
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_WithoutPrompt_NoTrailingPromptArg()
-    {
-        var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-        // Last arg should be a path (the workspace folder), not a prompt string
-        Assert.Contains(ws.FolderPath, args.Last());
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_WithInstructions_AppendsSystemPromptFile()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "test context");
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-            Assert.Contains(args, a => a.Contains("--append-system-prompt-file"));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_MissingInstructions_NoSystemPromptFile()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-            Assert.DoesNotContain(args, a => a.Contains("--append-system-prompt-file"));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_PathWithSpaces_RawUnquoted()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl test dir " + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-            var folderArg = args.First(a => a.Contains(tempDir));
-            Assert.DoesNotContain("\"", folderArg);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildCommandString_PathWithSpaces_Quoted()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl test dir " + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var cmd = _service.BuildCommandString(ws);
-
-            Assert.Contains($"\"{tempDir}\"", cmd);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildCommandString_StartsWithClaude()
-    {
-        var ws = MakeWorkspace();
-        var cmd = _service.BuildCommandString(ws);
-        Assert.StartsWith("claude ", cmd);
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_Default_IncludesSessionIdAndName()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var (args, _, _) = _service.BuildLaunchArgs(ws);
-
-            Assert.Contains("--session-id", args);
-            Assert.Contains("--name", args);
-
-            var nameIdx = args.IndexOf("--name");
-            Assert.Equal(ws.Name, args[nameIdx + 1]);
-
-            var sidIdx = args.IndexOf("--session-id");
-            Assert.True(Guid.TryParse(args[sidIdx + 1], out _));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_Resume_IncludesResumeWithSessionId()
-    {
-        var ws = MakeWorkspace();
-        var sessionId = Guid.NewGuid().ToString();
-        var (args, _, _) = _service.BuildLaunchArgs(ws, resumeSessionId: sessionId);
-
-        Assert.Contains("--resume", args);
-        Assert.DoesNotContain("--session-id", args);
-        Assert.DoesNotContain("--name", args);
-
-        var resumeIdx = args.IndexOf("--resume");
-        Assert.Equal(sessionId, args[resumeIdx + 1]);
-    }
-
-    [Fact]
-    public void SaveAndLoadLastSession_RoundTrip()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var sessionId = Guid.NewGuid().ToString();
-            var adapter = new ClaudeAdapter();
-
-            LaunchService.SaveLastSession(ws, adapter, sessionId);
-            var loaded = LaunchService.LoadLastSession(ws, adapter);
-
-            Assert.Equal(sessionId, loaded);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_WithSharedDir_IncludesAddDir()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace();
-            var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: tempDir);
-
-            Assert.Equal(2, args.Count(a => a == "--add-dir"));
-            Assert.Contains(args, a => a == tempDir);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void BuildLaunchArgs_NullSharedDir_NotIncluded()
-    {
-        var ws = MakeWorkspace();
-        var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: null);
-
-        Assert.Single(args, a => a == "--add-dir");
+        var (args, _, id) = _service.BuildLaunchArgs(_ws, resumeSessionId: "test-12345678");
+        Assert.Null(id);
+        Assert.Contains("--resume=test-12345678", args);
+        Assert.DoesNotContain(args, a => a.StartsWith("--name"));
     }
 
     [Fact]
     public void BuildLaunchArgs_SharedDir_BeforeWorkspaceFolder()
     {
-        var sharedDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(sharedDir);
-        try
-        {
-            var ws = MakeWorkspace();
-            var (args, _, _) = _service.BuildLaunchArgs(ws, sharedDirPath: sharedDir);
-
-            var sharedIdx = args.IndexOf(sharedDir);
-            var wsIdx = args.IndexOf(ws.FolderPath);
-            Assert.True(sharedIdx < wsIdx, "Shared dir should appear before workspace folder");
-        }
-        finally
-        {
-            Directory.Delete(sharedDir, true);
-        }
+        var shared = Path.Combine(_root, ".shared");
+        var (args, _, _) = _service.BuildLaunchArgs(_ws, sharedDirPath: shared);
+        Assert.True(args.IndexOf(shared) < args.IndexOf(_root));
     }
 
     [Fact]
-    public void BuildCommandString_WithSharedDir_IncludesPath()
+    public void BuildCommandString_QuotesPathsWithoutQuotingActualArguments()
     {
-        var sharedDir = Path.Combine(Path.GetTempPath(), "wl-test-shared-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(sharedDir);
-        try
-        {
-            var ws = MakeWorkspace();
-            var cmd = _service.BuildCommandString(ws, sharedDirPath: sharedDir);
-
-            Assert.Contains(sharedDir, cmd);
-        }
-        finally
-        {
-            Directory.Delete(sharedDir, true);
-        }
+        _ws.FolderPath = Path.Combine(_root, "with spaces");
+        var (args, _, _) = _service.BuildLaunchArgs(_ws);
+        Assert.Contains(_ws.FolderPath, args);
+        Assert.DoesNotContain($"\"{_ws.FolderPath}\"", args);
+        var command = _service.BuildCommandString(_ws);
+        Assert.StartsWith("copilot ", command);
+        Assert.Contains($"\"{_ws.FolderPath}\"", command);
     }
 
     [Fact]
-    public void LoadLastSession_NoFile_ReturnsNull()
+    public void LastSession_RoundTripsPlainCopilotReference()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        LaunchService.SaveLastSession(_ws, "test-12345678");
+        Assert.Equal("test-12345678", File.ReadAllText(_ws.LastSessionPath));
+        Assert.Equal("test-12345678", LaunchService.LoadLastSession(_ws));
+        Assert.Empty(Directory.GetFiles(_root, "*.tmp"));
     }
 
     [Fact]
-    public void LoadLastSession_CorruptFile_ReturnsNull()
+    public void LastSession_Missing_ReturnsNull() => Assert.Null(LaunchService.LoadLastSession(_ws));
+
+    [Theory]
+    [InlineData("{\"copilot\":\"test-12345678\",\"claude\":\"old-id\"}")]
+    [InlineData("{broken")]
+    [InlineData("[]")]
+    [InlineData("")]
+    [InlineData("one\ntwo")]
+    public void LastSession_InvalidOrLegacy_IsRejectedWithoutMutation(string content)
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, ".last-session"), "not-a-guid");
-            var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        File.WriteAllText(_ws.LastSessionPath, content);
+        Assert.Throws<InvalidDataException>(() => LaunchService.LoadLastSession(_ws));
+        Assert.Equal(content, File.ReadAllText(_ws.LastSessionPath));
     }
 
     [Fact]
-    public void LoadLastSession_LockedFile_ReturnsNullAndWarns()
+    public void LastSession_Locked_ThrowsInsteadOfStartingFresh()
     {
-        // .last-session is a convenience pointer; failing to read it
-        // (locked, permission denied) should warn and start a fresh
-        // session rather than crash the launch flow.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        var sessionPath = Path.Combine(tempDir, ".last-session");
-        File.WriteAllText(sessionPath, Guid.NewGuid().ToString());
-
-        var stderr = new StringWriter();
-        var prev = Console.Error;
-        using var locker = new FileStream(sessionPath, FileMode.Open, FileAccess.Read, FileShare.None);
-        try
-        {
-            Console.SetError(stderr);
-            var ws = MakeWorkspace(folderPath: tempDir);
-            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
-        }
-        finally
-        {
-            Console.SetError(prev);
-            locker.Dispose();
-            Directory.Delete(tempDir, true);
-        }
-
-        Assert.Contains("cannot read", stderr.ToString());
-    }
-
-    // LaunchService.{Load,Save}LastSession only uses adapter.ExecutableName
-    // as the JSON map key, so any WlPaths root is fine here.
-    private static CopilotAdapter MakeCopilotAdapter()
-        => new(new WlPaths(Path.Combine(Path.GetTempPath(), $"wl-test-copilot-{Guid.NewGuid():N}")));
-
-    [Fact]
-    public void LastSession_PerTool_IsolatedAcrossAgents()
-    {
-        // Regression test for the bug: launching the same workspace in
-        // Copilot then Claude must not overwrite Copilot's resume pointer
-        // (the two agents have separate session stores, so a Claude UUID
-        // is unresolvable in Copilot and vice versa).
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var copilot = MakeCopilotAdapter();
-            var claude = new ClaudeAdapter();
-
-            var copilotId = Guid.NewGuid().ToString();
-            var claudeId = Guid.NewGuid().ToString();
-
-            LaunchService.SaveLastSession(ws, copilot, copilotId);
-            LaunchService.SaveLastSession(ws, claude, claudeId);
-
-            Assert.Equal(copilotId, LaunchService.LoadLastSession(ws, copilot));
-            Assert.Equal(claudeId, LaunchService.LoadLastSession(ws, claude));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void LastSession_SecondSave_PreservesOtherToolEntry()
-    {
-        // After both tools have a session saved, overwriting one must
-        // preserve the other.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var ws = MakeWorkspace(folderPath: tempDir);
-            var copilot = MakeCopilotAdapter();
-            var claude = new ClaudeAdapter();
-
-            var copilotInitial = Guid.NewGuid().ToString();
-            var copilotUpdated = Guid.NewGuid().ToString();
-            var claudeId = Guid.NewGuid().ToString();
-
-            LaunchService.SaveLastSession(ws, copilot, copilotInitial);
-            LaunchService.SaveLastSession(ws, claude, claudeId);
-            LaunchService.SaveLastSession(ws, copilot, copilotUpdated);
-
-            Assert.Equal(copilotUpdated, LaunchService.LoadLastSession(ws, copilot));
-            Assert.Equal(claudeId, LaunchService.LoadLastSession(ws, claude));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void LoadLastSession_LegacyBareUuid_ReturnsNull()
-    {
-        // Pre-0.8.0 .last-session files contained a bare UUID. Load
-        // no longer handles that format — SetupService migrates them
-        // to JSON on first launch after install. Until the migration
-        // runs, the file looks like "no session" to Load.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, ".last-session"), Guid.NewGuid().ToString());
-            var ws = MakeWorkspace(folderPath: tempDir);
-
-            Assert.Null(LaunchService.LoadLastSession(ws, new ClaudeAdapter()));
-            Assert.Null(LaunchService.LoadLastSession(ws, MakeCopilotAdapter()));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
+        File.WriteAllText(_ws.LastSessionPath, "test-12345678");
+        using var locker = new FileStream(_ws.LastSessionPath, FileMode.Open, FileAccess.Read, FileShare.None);
+        Assert.Throws<IOException>(() => LaunchService.LoadLastSession(_ws));
     }
 }

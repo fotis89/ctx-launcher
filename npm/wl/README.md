@@ -1,6 +1,6 @@
 # @ctx-launcher/wl
 
-Workspace manager for Claude Code and GitHub Copilot CLI sessions — assembles multi-repo context, saved instructions, and skills into a single `claude` or `copilot` launch.
+Workspace manager for GitHub Copilot CLI sessions — assembles multi-repo context, saved instructions, and skills into a single `copilot` launch.
 
 ## Install
 
@@ -20,8 +20,12 @@ npm will only download the binary matching your platform. For other platforms, [
 
 ```bash
 wl setup                 # install workspace skills
-wl create my-project     # create a workspace (auto-detects Claude or Copilot, or pass --tool)
-wl launch my-project     # start a session in the configured tool
+wl create my-project     # ask Copilot to propose a workspace
+wl launch my-project     # start a Copilot session
 ```
 
-See the [full documentation](https://github.com/fotis89/ctx-launcher) for more.
+Requires GitHub Copilot CLI on PATH. Copilot-only workspaces use explicit
+`schemaVersion: 2` and `.copilot/skills`. The `tool` field and `--tool` flag are
+removed; existing workspaces require a manual upgrade.
+
+See the [full documentation and upgrade guide](https://github.com/fotis89/ctx-launcher#upgrading-existing-workspaces).

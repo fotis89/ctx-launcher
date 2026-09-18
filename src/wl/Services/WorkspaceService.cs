@@ -5,6 +5,8 @@ using wl.Models;
 
 namespace wl.Services;
 
+public record WorkspaceEntry(string FolderName, Workspace? Workspace, string? Error);
+
 public class WorkspaceService(WlPaths paths)
 {
     public const string SharedDirName = WlPaths.SharedDirName;
@@ -16,7 +18,7 @@ public class WorkspaceService(WlPaths paths)
     public string? GetSharedDirIfExists()
         => Directory.Exists(paths.SharedDir) ? paths.SharedDir : null;
 
-    public string GetSharedClaudeDirPath() => paths.SharedClaudeDir;
+    public string GetSharedCopilotDirPath() => paths.SharedCopilotDir;
 
     public string GetSharedSkillsPath() => paths.SharedSkillsDir;
 
@@ -37,8 +39,22 @@ public class WorkspaceService(WlPaths paths)
 
     public List<Workspace> ListWorkspaces()
     {
-        var root = paths.WorkspacesRoot;
         var workspaces = new List<Workspace>();
+        foreach (var entry in ListEntries())
+        {
+            if (entry.Workspace is not null)
+                workspaces.Add(entry.Workspace);
+            else
+                Console.Error.WriteLine($"Warning: {entry.Error}");
+        }
+        return workspaces.OrderBy(w => w.Name).ToList();
+    }
+
+    public List<WorkspaceEntry> ListEntries()
+    {
+        var root = paths.WorkspacesRoot;
+        var workspaces = new List<WorkspaceEntry>();
+        if (!Directory.Exists(root)) return workspaces;
 
         // EnumerateDirectories streams so a permission-denied entry can
         // be skipped without aborting `wl list` entirely.
@@ -77,14 +93,41 @@ public class WorkspaceService(WlPaths paths)
                 continue;
             }
 
-            var ws = LoadWorkspaceFromPath(dir, jsonPath);
-            if (ws is not null)
+            try
             {
-                workspaces.Add(ws);
+                workspaces.Add(new WorkspaceEntry(Path.GetFileName(dir), LoadWorkspaceFromPath(dir, jsonPath), null));
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Security.SecurityException or JsonException)
+            {
+                workspaces.Add(new WorkspaceEntry(Path.GetFileName(dir), null, ex.Message));
             }
         }
 
-        return workspaces.OrderBy(w => w.Name).ToList();
+        return workspaces.OrderBy(w => w.FolderName).ToList();
+    }
+
+    public string GetWorkspaceFolder(string name) => paths.WorkspaceFolder(name);
+
+    public void ValidateEnvironment(Workspace? workspace = null)
+    {
+        if (File.Exists(paths.ToolConfigFile))
+        {
+            using var config = JsonDocument.Parse(File.ReadAllText(paths.ToolConfigFile));
+            if (config.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException($"{paths.ToolConfigFile}: expected a JSON object.");
+            if (config.RootElement.TryGetProperty("defaultTool", out _))
+                throw new InvalidDataException($"{paths.ToolConfigFile}: remove 'defaultTool'; wl now supports only Copilot.");
+        }
+
+        ValidateLegacySkills(paths.SharedDir);
+        if (workspace is not null) ValidateLegacySkills(workspace.FolderPath);
+    }
+
+    private static void ValidateLegacySkills(string folder)
+    {
+        var legacy = Path.Combine(folder, ".claude", "skills");
+        if (Directory.Exists(legacy))
+            throw new InvalidDataException($"{legacy}: legacy skill directory. Move skills to {WlPaths.SkillsDir(folder)} and remove the old skills directory before continuing.");
     }
 
     public void SaveWorkspace(Workspace ws, string slug)
@@ -160,32 +203,33 @@ public class WorkspaceService(WlPaths paths)
         }
     }
 
-    private static Workspace? LoadWorkspaceFromPath(string folderPath, string jsonPath)
+    private static Workspace LoadWorkspaceFromPath(string folderPath, string jsonPath)
     {
         try
         {
             var json = File.ReadAllText(jsonPath);
-            var ws = JsonSerializer.Deserialize(json, WlJsonContext.Default.Workspace);
-            if (ws is null)
-            {
-                Console.Error.WriteLine($"Warning: {jsonPath} deserialized to null; ignoring workspace.");
-                return null;
-            }
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("schemaVersion", out var schema) ||
+                schema.ValueKind != JsonValueKind.Number ||
+                !schema.TryGetInt32(out var version) || version != Workspace.CurrentSchemaVersion)
+                throw new InvalidDataException($"{jsonPath}: requires explicit schemaVersion: 2. Update this workspace manually; see the README upgrade guide.");
+            if (root.TryGetProperty("tool", out _))
+                throw new InvalidDataException($"{jsonPath}: remove 'tool'; wl now supports only Copilot.");
+
+            var ws = JsonSerializer.Deserialize(json, WlJsonContext.Default.Workspace)
+                ?? throw new InvalidDataException($"{jsonPath}: expected a workspace object.");
+            if (string.IsNullOrWhiteSpace(ws.Name) || string.IsNullOrWhiteSpace(ws.PrimaryRepo) ||
+                ws.AdditionalDirs is null || ws.AdditionalDirs.Any(string.IsNullOrWhiteSpace))
+                throw new InvalidDataException($"{jsonPath}: name and primaryRepo must be non-empty strings; additionalDirs must be an array of non-empty paths.");
 
             ws.FolderPath = folderPath;
             return ws;
         }
         catch (JsonException ex)
         {
-            Console.Error.WriteLine($"Warning: {jsonPath} is not valid JSON ({ex.Message}); ignoring workspace.");
-            return null;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            // Locked / permission denied — ignore this workspace rather
-            // than fail every wl command that enumerates workspaces.
-            Console.Error.WriteLine($"Warning: cannot read {jsonPath} ({ex.GetType().Name}); ignoring workspace.");
-            return null;
+            throw new InvalidDataException($"{jsonPath}: invalid workspace JSON ({ex.Message}).", ex);
         }
     }
 }

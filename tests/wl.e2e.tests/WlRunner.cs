@@ -27,18 +27,20 @@ public static class WlRunner
 
         psi.Environment["HOME"] = tempHome;
         psi.Environment["USERPROFILE"] = tempHome;
+        psi.Environment["WL_WORKSPACES_ROOT"] = Path.Combine(tempHome, ".wl-workspaces");
+        psi.WorkingDirectory = tempHome;
 
-        if (!string.IsNullOrEmpty(extraPathDir))
-        {
-            var sep = OperatingSystem.IsWindows() ? ';' : ':';
-            var existing = Environment.GetEnvironmentVariable("PATH") ?? "";
-            psi.Environment["PATH"] = $"{extraPathDir}{sep}{existing}";
-        }
+        // Do not let an installed Copilot executable win over the test shim.
+        psi.Environment["PATH"] = extraPathDir ?? "";
 
         using var p = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned null");
-        var stdout = p.StandardOutput.ReadToEnd();
-        var stderr = p.StandardError.ReadToEnd();
-        p.WaitForExit();
-        return new WlResult(p.ExitCode, stdout, stderr);
+        var stdout = p.StandardOutput.ReadToEndAsync();
+        var stderr = p.StandardError.ReadToEndAsync();
+        if (!p.WaitForExit(30_000))
+        {
+            p.Kill(entireProcessTree: true);
+            throw new TimeoutException("wl did not exit within 30 seconds.");
+        }
+        return new WlResult(p.ExitCode, stdout.GetAwaiter().GetResult(), stderr.GetAwaiter().GetResult());
     }
 }

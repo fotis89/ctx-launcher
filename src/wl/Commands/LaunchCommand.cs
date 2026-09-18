@@ -5,10 +5,8 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup, PathsService paths)
 {
-    public void Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false, string? toolOverride = null)
+    public int Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
     {
-        setup.EnsureInstalled();
-
         if (name is null)
         {
             name = workspaces.GetLastUsed();
@@ -16,7 +14,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             {
                 Console.Error.WriteLine("No workspace specified and no last-used workspace found.");
                 Console.Error.WriteLine("Run: wl launch <name>");
-                return;
+                return 1;
             }
         }
 
@@ -25,19 +23,16 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
             Console.Error.WriteLine("Run 'wl list' to see available workspaces.");
-            return;
+            return 1;
         }
 
-        if (!launcher.TryResolveAdapter(ws, toolOverride, out var adapter))
-        {
-            return;
-        }
+        workspaces.ValidateEnvironment(ws);
 
-        var (repoExists, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
+        var repoExists = Directory.Exists(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get));
         if (!repoExists)
         {
             Console.Error.WriteLine($"Error: primary repo not found: {ws.PrimaryRepo}");
-            return;
+            return 1;
         }
 
         string? resolvedPrompt = null;
@@ -46,12 +41,10 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             resolvedPrompt = prompts.ResolvePrompt(ws, promptArg);
         }
 
-        var sharedDirResolved = workspaces.GetSharedDirIfExists();
-
         if (forceNew && resume)
         {
             Console.Error.WriteLine("Cannot use --new and --resume together.");
-            return;
+            return 1;
         }
 
         var skipPermissions = yolo || ws.Yolo;
@@ -60,21 +53,23 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         string? resumeSessionId = null;
         if (shouldResume)
         {
-            resumeSessionId = LaunchService.LoadLastSession(ws, adapter);
+            resumeSessionId = LaunchService.LoadLastSession(ws);
             if (resumeSessionId is null)
             {
                 if (resume)
                 {
                     Console.Error.WriteLine("No previous session found for this workspace.");
                     Console.Error.WriteLine("Run without --resume to start a new session.");
-                    return;
+                    return 1;
                 }
 
                 shouldResume = false;
             }
         }
 
-        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, toolOverride);
+        setup.EnsureInstalled();
+        var sharedDirResolved = workspaces.GetSharedDirIfExists();
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved);
 
         foreach (var dir in skippedDirs)
         {
@@ -100,7 +95,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         if (skillNames.Count > 0)
         {
-            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames.Select(s => FormatSkillName(s, adapter))));
+            ConsoleLabel.WriteLine("Skills:", string.Join(", ", skillNames));
         }
 
         if (ws.AdditionalDirs.Count > 0)
@@ -135,21 +130,16 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         Console.WriteLine();
 
-        // Persist last-used / last-session only after the AI CLI started.
-        // A failed launch (e.g. claude not on PATH) shouldn't leave a
-        // fake last-used pointer or session ID on disk.
-        if (launcher.Launch(ws, args, toolOverride))
+        // Only replace pointers after Copilot exits successfully.
+        var exitCode = launcher.Launch(ws, args);
+        if (exitCode == 0)
         {
             workspaces.SetLastUsed(name);
             if (newSessionId is not null)
             {
-                LaunchService.SaveLastSession(ws, adapter, newSessionId);
+                LaunchService.SaveLastSession(ws, newSessionId);
             }
         }
+        return exitCode;
     }
-
-    // Claude renders skills as `/<skill-name>`; Copilot reserves slash
-    // for built-ins, so its skills are rendered bare.
-    private static string FormatSkillName(string skill, IToolAdapter adapter)
-        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }

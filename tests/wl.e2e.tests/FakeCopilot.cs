@@ -1,26 +1,28 @@
 namespace wl.e2e.tests;
 
-public static class FakeClaude
+public static class FakeCopilot
 {
-    public static void Install(string binDir, string logPath)
+    public static void Install(string binDir, string logPath, int exitCode = 0)
     {
         Directory.CreateDirectory(binDir);
 
         if (OperatingSystem.IsWindows())
         {
-            var p = Path.Combine(binDir, "claude.cmd");
+            var p = Path.Combine(binDir, "copilot.cmd");
             File.WriteAllText(p,
                 "@echo off" + Environment.NewLine +
                 $"echo %* >> \"{logPath}\"" + Environment.NewLine +
-                "exit /b 0" + Environment.NewLine);
+                $"echo %COPILOT_CUSTOM_INSTRUCTIONS_DIRS% >> \"{logPath}.env\"" + Environment.NewLine +
+                $"exit /b {exitCode}" + Environment.NewLine);
         }
         else
         {
-            var p = Path.Combine(binDir, "claude");
+            var p = Path.Combine(binDir, "copilot");
             File.WriteAllText(p,
                 "#!/bin/sh" + Environment.NewLine +
                 $"echo \"$@\" >> \"{logPath}\"" + Environment.NewLine +
-                "exit 0" + Environment.NewLine);
+                $"echo \"$COPILOT_CUSTOM_INSTRUCTIONS_DIRS\" >> \"{logPath}.env\"" + Environment.NewLine +
+                $"exit {exitCode}" + Environment.NewLine);
             File.SetUnixFileMode(p,
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                 UnixFileMode.GroupRead | UnixFileMode.GroupExecute |

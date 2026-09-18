@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Completions;
+using System.Text.Json;
 
 using wl.Commands;
 using wl.Helpers;
@@ -8,20 +9,31 @@ using wl.Services;
 var paths = new WlPaths();
 var workspaceService = new WorkspaceService(paths);
 var promptService = new PromptService();
-var claudeRunner = new ClaudeRunner();
+var runner = new CopilotRunner();
 var pathsService = new PathsService(paths.PathsConfigFile);
-var configService = new ConfigService(paths.ToolConfigFile);
-var toolAdapters = new ToolAdapterRegistry();
-toolAdapters.Register(new ClaudeAdapter());
-toolAdapters.Register(new CopilotAdapter(paths));
-var launchService = new LaunchService(claudeRunner, pathsService, toolAdapters, configService);
+var copilot = new CopilotService(paths);
+var launchService = new LaunchService(runner, pathsService, copilot);
 var versionService = new VersionService(paths);
-var setupService = new SetupService(versionService, paths, configService);
+var setupService = new SetupService(versionService, paths);
+
+static int Run(Func<int> action)
+{
+    try
+    {
+        return action();
+    }
+    catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or
+        System.Security.SecurityException or JsonException or ArgumentException)
+    {
+        Console.Error.WriteLine($"Error: {ex.Message}");
+        return 1;
+    }
+}
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
-    workspaceService.ListWorkspaces().Select(ws => new CompletionItem(ws.FolderName));
+    workspaceService.ListEntries().Select(ws => new CompletionItem(ws.FolderName));
 
-var root = new RootCommand("wl — AI workspace launcher");
+var root = new RootCommand("wl — GitHub Copilot workspace launcher");
 
 // launch
 var launchNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
@@ -35,7 +47,7 @@ promptOpt.CompletionSources.Add(ctx =>
         return [];
     }
 
-    var ws = workspaceService.LoadWorkspace(wsName);
+    var ws = workspaceService.ListEntries().FirstOrDefault(w => w.FolderName == wsName)?.Workspace;
     if (ws is null)
     {
         return [];
@@ -43,12 +55,10 @@ promptOpt.CompletionSources.Add(ctx =>
 
     return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
 });
-var yoloOpt = new Option<bool>("--yolo") { Description = "Skip permission prompts" };
+var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Copilot permission prompts" };
 var resumeOpt = new Option<bool>("--resume", "-r") { Description = "Resume the previous session for this workspace" };
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session (overrides resume: true)" };
-var launchToolOpt = new Option<string?>("--tool") { Description = $"Override the tool for this launch ({string.Join(" | ", toolAdapters.Names)})" };
-launchToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt, launchToolOpt };
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, resumeOpt, newOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
@@ -56,27 +66,23 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    var toolOverride = parseResult.GetValue(launchToolOpt);
-    new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew, toolOverride);
+    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew));
 });
 
 // create
-var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Claude/Copilot will propose one)" };
+var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Copilot will propose one)" };
 var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking an AI CLI" };
-var createToolOpt = new Option<string?>("--tool") { Description = $"Which AI CLI to invoke ({string.Join(" | ", toolAdapters.Names)}); default: auto-detect" };
-createToolOpt.AcceptOnlyFromAmong(toolAdapters.Names);
-var createCmd = new Command("create", "Create a new workspace (via Claude/Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt, createToolOpt };
+var createCmd = new Command("create", "Create a new workspace (via Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt };
 createCmd.SetAction(parseResult =>
 {
-    new CreateCommand(workspaceService, claudeRunner, setupService, toolAdapters, configService).Execute(
+    return Run(() => new CreateCommand(workspaceService, runner, setupService, copilot).Execute(
         parseResult.GetValue(createNameArg),
-        parseResult.GetValue(basicOpt),
-        parseResult.GetValue(createToolOpt));
+        parseResult.GetValue(basicOpt)));
 });
 
 // list
 var listCmd = new Command("list", "List all workspaces");
-listCmd.SetAction(_ => new ListCommand(workspaceService).Execute());
+listCmd.SetAction(_ => Run(() => { new ListCommand(workspaceService).Execute(); return 0; }));
 
 // edit
 var editNameArg = new Argument<string>("name") { Description = "Workspace name" };
@@ -84,7 +90,7 @@ editNameArg.CompletionSources.Add(WorkspaceCompletions);
 var editCmd = new Command("edit", "Open workspace folder in file explorer") { editNameArg };
 editCmd.SetAction(parseResult =>
 {
-    new EditCommand(workspaceService).Execute(parseResult.GetValue(editNameArg)!);
+    return Run(() => new EditCommand(workspaceService).Execute(parseResult.GetValue(editNameArg)!));
 });
 
 // which
@@ -93,12 +99,12 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    new WhichCommand(workspaceService, promptService, launchService, pathsService, configService).Execute(parseResult.GetValue(whichNameArg)!);
+    return Run(() => new WhichCommand(workspaceService, promptService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!));
 });
 
 // setup
-var setupCmd = new Command("setup", "Install Claude skills and show tab completion setup");
-setupCmd.SetAction(_ => new SetupCommand(setupService, claudeRunner).Execute());
+var setupCmd = new Command("setup", "Install Copilot skills and show tab completion setup");
+setupCmd.SetAction(_ => Run(() => new SetupCommand(setupService, runner).Execute()));
 
 // paths (group)
 var pathsCmd = new Command("paths", "Manage path variables used in workspace.json");
@@ -106,16 +112,16 @@ var pathsCmd = new Command("paths", "Manage path variables used in workspace.jso
 var pathsSetNameArg = new Argument<string>("name") { Description = "Variable name (e.g. REPOS_ROOT)" };
 var pathsSetValueArg = new Argument<string>("value") { Description = "Value to assign" };
 var pathsSetCmd = new Command("set", "Set a path variable") { pathsSetNameArg, pathsSetValueArg };
-pathsSetCmd.SetAction(parseResult =>
+pathsSetCmd.SetAction(parseResult => Run(() =>
     new PathsCommand(workspaceService, pathsService).Set(
         parseResult.GetValue(pathsSetNameArg)!,
-        parseResult.GetValue(pathsSetValueArg)!) ? 0 : 1);
+        parseResult.GetValue(pathsSetValueArg)!) ? 0 : 1));
 
 var pathsListCmd = new Command("list", "List defined and referenced path variables");
-pathsListCmd.SetAction(_ => new PathsCommand(workspaceService, pathsService).List());
+pathsListCmd.SetAction(_ => Run(() => { new PathsCommand(workspaceService, pathsService).List(); return 0; }));
 
 var pathsInitCmd = new Command("init", "Prompt for any path variables referenced but not defined");
-pathsInitCmd.SetAction(_ => new PathsCommand(workspaceService, pathsService).Init());
+pathsInitCmd.SetAction(_ => Run(() => { new PathsCommand(workspaceService, pathsService).Init(); return 0; }));
 
 pathsCmd.Subcommands.Add(pathsSetCmd);
 pathsCmd.Subcommands.Add(pathsListCmd);
@@ -126,8 +132,8 @@ var cloneUrlArg = new Argument<string>("git-url") { Description = "Git URL to cl
 var cloneCmd = new Command("clone", "Clone a workspaces repo into ~/.wl-workspaces and run setup + paths init") { cloneUrlArg };
 cloneCmd.SetAction(parseResult =>
 {
-    new CloneCommand(workspaceService, pathsService, setupService).Execute(
-        parseResult.GetValue(cloneUrlArg)!);
+    return Run(() => new CloneCommand(workspaceService, pathsService, setupService).Execute(
+        parseResult.GetValue(cloneUrlArg)!));
 });
 
 root.Add(launchCmd);

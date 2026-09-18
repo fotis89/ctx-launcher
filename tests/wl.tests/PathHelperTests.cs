@@ -152,10 +152,10 @@ public class PathHelperTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var filePath = Path.Combine(tempDir, "claude.cmd");
+            var filePath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(filePath, "@echo off");
 
-            var result = PathHelper.FindOnPath("claude.cmd", tempDir);
+            var result = PathHelper.FindOnPath("copilot.cmd", tempDir);
 
             Assert.Equal(filePath, result);
         }
@@ -172,10 +172,10 @@ public class PathHelperTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var filePath = Path.Combine(tempDir, "claude.cmd");
+            var filePath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(filePath, "@echo off");
 
-            var result = PathHelper.FindOnPath("claude.cmd", $"\"{tempDir}\"");
+            var result = PathHelper.FindOnPath("copilot.cmd", $"\"{tempDir}\"");
 
             Assert.Equal(filePath, result);
         }
@@ -192,7 +192,7 @@ public class PathHelperTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var result = PathHelper.FindOnPath("claude.cmd", tempDir);
+            var result = PathHelper.FindOnPath("copilot.cmd", tempDir);
 
             Assert.Null(result);
         }
@@ -209,12 +209,12 @@ public class PathHelperTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var comPath = Path.Combine(tempDir, "claude.com");
-            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            var comPath = Path.Combine(tempDir, "copilot.com");
+            var cmdPath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(comPath, "");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = PathHelper.FindCommandOnPath("claude", tempDir, ".CMD;.COM");
+            var result = PathHelper.FindCommandOnPath("copilot", tempDir, ".CMD;.COM");
 
             if (OperatingSystem.IsWindows())
             {
@@ -239,10 +239,10 @@ public class PathHelperTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            var cmdPath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = PathHelper.FindCommandOnPath("claude", tempDir, "CMD");
+            var result = PathHelper.FindCommandOnPath("copilot", tempDir, "CMD");
 
             if (OperatingSystem.IsWindows())
             {

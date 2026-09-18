@@ -7,8 +7,8 @@ namespace wl.Services;
 public class VersionService(WlPaths paths)
 {
     public string GetCurrentVersion()
-        => Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
-            ?? throw new InvalidOperationException("Assembly version not set");
+        => Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? throw new InvalidOperationException("Informational version not set");
 
     public string? GetInstalledVersion()
         => File.Exists(paths.VersionFile) ? File.ReadAllText(paths.VersionFile).Trim() : null;

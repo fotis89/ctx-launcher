@@ -1,7 +1,7 @@
 {
   "name": "@ctx-launcher/wl",
   "version": "0.8.0",
-  "description": "Workspace manager for Claude Code and GitHub Copilot CLI sessions",
+  "description": "Workspace manager for GitHub Copilot CLI sessions",
   "bin": {
     "wl": "./bin/wl.js"
   },
@@ -15,7 +15,7 @@
     "type": "git",
     "url": "git+https://github.com/fotis89/ctx-launcher.git"
   },
-  "keywords": ["claude", "claude-code", "cli", "workspace", "ai"],
+  "keywords": ["copilot", "github-copilot", "cli", "workspace", "ai"],
   "license": "MIT",
   "homepage": "https://github.com/fotis89/ctx-launcher#readme",
   "bugs": {

@@ -89,16 +89,10 @@ public class WorkspaceServiceTests : IDisposable
     }
 
     [Fact]
-    public void ListWorkspaces_EnumerationFailure_ReturnsEmptyAndWarns()
+    public void ListWorkspaces_MissingRoot_ReturnsEmptyWithoutCreatingIt()
     {
-        // Use an instance pointing at a non-existent root so
-        // EnumerateDirectories throws DirectoryNotFoundException
-        // (a subclass of IOException). ListWorkspaces should warn and
-        // return [] instead of crashing the calling command.
         var bogus = Path.Combine(Path.GetTempPath(), "wl-ws-not-there-" + Guid.NewGuid().ToString("N")[..8]);
         var paths = new WlPaths(bogus);
-        // touch the root once so subsequent code thinks it exists, then
-        // delete to force the enumeration failure.
         Directory.CreateDirectory(paths.WorkspacesRoot);
         Directory.Delete(paths.WorkspacesRoot);
         var service = new WorkspaceService(paths);
@@ -116,6 +110,52 @@ public class WorkspaceServiceTests : IDisposable
             Console.SetError(prev);
         }
 
-        Assert.Contains("cannot enumerate", stderr.ToString());
+        Assert.Equal("", stderr.ToString());
+        Assert.False(Directory.Exists(bogus));
     }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{broken")]
+    [InlineData("{\"schemaVersion\":2,\"name\":42,\"primaryRepo\":\"repo\"}")]
+    [InlineData("{\"schemaVersion\":1}")]
+    [InlineData("{\"schemaVersion\":3}")]
+    [InlineData("{\"schemaVersion\":null}")]
+    [InlineData("{\"schemaVersion\":2,\"tool\":\"copilot\"}")]
+    [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":null}")]
+    [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":[null]}")]
+    [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":null}")]
+    public void InvalidWorkspace_IsRejectedAndStillListed(string json)
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "invalid")).FullName;
+        var config = Path.Combine(folder, "workspace.json");
+        File.WriteAllText(config, json);
+        Assert.Throws<InvalidDataException>(() => _service.LoadWorkspace("invalid"));
+        var entry = Assert.Single(_service.ListEntries());
+        Assert.Equal("invalid", entry.FolderName);
+        Assert.NotNull(entry.Error);
+        Assert.Null(entry.Workspace);
+        Assert.Equal(json, File.ReadAllText(config));
+    }
+
+    [Theory]
+    [InlineData("claude")]
+    [InlineData("copilot")]
+    public void LegacyDefaultTool_IsRejectedWithoutMutation(string tool)
+    {
+        var config = Path.Combine(_root, ".config.json");
+        var json = $"{{\"defaultTool\":\"{tool}\"}}";
+        File.WriteAllText(config, json);
+        Assert.Throws<InvalidDataException>(() => _service.ValidateEnvironment());
+        Assert.Equal(json, File.ReadAllText(config));
+        Assert.False(Directory.Exists(Path.Combine(_root, ".shared")));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("../escape")]
+    [InlineData("..\\escape")]
+    [InlineData(".shared")]
+    public void InvalidWorkspaceName_IsRejected(string name)
+        => Assert.Throws<ArgumentException>(() => _service.GetWorkspaceFolder(name));
 }

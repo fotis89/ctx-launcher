@@ -6,7 +6,7 @@ namespace wl.Commands;
 
 public class CloneCommand(WorkspaceService workspaces, PathsService paths, SetupService setup)
 {
-    public void Execute(string gitUrl)
+    public int Execute(string gitUrl)
     {
         var destination = workspaces.GetWorkspacesRoot();
 
@@ -14,7 +14,7 @@ public class CloneCommand(WorkspaceService workspaces, PathsService paths, Setup
         {
             Console.Error.WriteLine($"Workspaces directory is not empty: {destination}");
             Console.Error.WriteLine("Remove contents before cloning, or clone manually and run 'wl setup'.");
-            return;
+            return 1;
         }
 
         Console.WriteLine();
@@ -37,17 +37,18 @@ public class CloneCommand(WorkspaceService workspaces, PathsService paths, Setup
             {
                 Console.Error.WriteLine();
                 Console.Error.WriteLine($"  git clone failed (exit {(process?.ExitCode ?? -1)}).");
-                return;
+                return 1;
             }
         }
         catch (System.ComponentModel.Win32Exception)
         {
             Console.Error.WriteLine();
             Console.Error.WriteLine("  Error: 'git' not found. Install Git and ensure it's on your PATH.");
-            return;
+            return 1;
         }
 
         setup.RunSetup();
         new PathsCommand(workspaces, paths).Init();
+        return 0;
     }
 }

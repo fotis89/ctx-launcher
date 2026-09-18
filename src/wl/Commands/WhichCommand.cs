@@ -3,43 +3,28 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, ConfigService config)
+public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, CopilotService copilot)
 {
-    public void Execute(string name)
+    public int Execute(string name)
     {
         var ws = workspaces.LoadWorkspace(name);
         if (ws is null)
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
-            return;
+            return 1;
         }
 
-        if (!launcher.TryResolveAdapter(ws, toolOverride: null, out var adapter))
-        {
-            return;
-        }
+        workspaces.ValidateEnvironment(ws);
 
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
-        var (resolvedTool, toolSource) = config.ResolveToolWithSource(ws);
-        if (toolSource != ToolSource.Default)
-        {
-            var sourceLabel = toolSource switch
-            {
-                ToolSource.Workspace => "from workspace.json",
-                ToolSource.Config => "from .config.json",
-                _ => null,
-            };
-            ConsoleLabel.WriteLine("Tool:", sourceLabel is null ? resolvedTool : $"{resolvedTool} ({sourceLabel})");
-        }
-
-        var (repoOk, _) = PathHelper.ValidatePath(ws.PrimaryRepo, paths.Get);
+        var repoOk = Directory.Exists(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get));
         ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({PathStatus(ws.PrimaryRepo, repoOk)})");
 
         foreach (var dir in ws.AdditionalDirs)
         {
-            var (ok, _) = PathHelper.ValidatePath(dir, paths.Get);
+            var ok = Directory.Exists(PathHelper.ResolvePath(dir, paths.Get));
             ConsoleLabel.WriteLine("Dir:", $"{dir} ({PathStatus(dir, ok)})");
         }
 
@@ -55,11 +40,11 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             Console.WriteLine();
             if (sharedSkills.Count > 0)
             {
-                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills.Select(s => FormatSkillName(s, adapter))));
+                ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills));
             }
             if (skills.Count > 0)
             {
-                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills.Select(s => FormatSkillName(s, adapter))));
+                ConsoleLabel.WriteLine("Skills:", string.Join(", ", skills));
             }
         }
 
@@ -83,7 +68,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
-        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws, adapter) : null;
+        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
 
         if (ws.Yolo || ws.Resume)
         {
@@ -99,8 +84,8 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
-        var prep = adapter.DescribeLaunchPrep(ws).ToList();
-        var env = adapter.GetEnvironment(ws);
+        var prep = copilot.DescribeLaunchPrep(ws).ToList();
+        var env = copilot.GetEnvironment(ws);
         if (prep.Count > 0)
         {
             Console.WriteLine();
@@ -124,6 +109,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine("  Command:");
         Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
         Console.WriteLine();
+        return repoOk ? 0 : 1;
     }
 
     private string PathStatus(string rawPath, bool exists)
@@ -143,6 +129,4 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         return "NOT FOUND";
     }
 
-    private static string FormatSkillName(string skill, IToolAdapter adapter)
-        => adapter.SkillsAreSlashInvokable ? "/" + skill : skill;
 }

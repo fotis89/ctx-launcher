@@ -8,7 +8,9 @@ Analyze the current session and propose a workspace for the `wl` AI context laun
 
 ## Step 0: Pre-check
 
-Run `wl which <slug>` first. If the workspace already exists, tell the user and suggest `/wl-update-workspace` instead. Only proceed with creation if no workspace exists for this project.
+Run `wl list` and `wl which <slug>` first. If the workspace exists, including an incompatible workspace, suggest using the wl-update-workspace skill instead. Do not overwrite an old workspace because `wl which` reports a schema error. Only proceed with creation if no workspace exists for this project.
+
+wl supports only GitHub Copilot CLI and requires `schemaVersion: 2`. Do not emit `tool`, `defaultTool`, or `--tool`. Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces` for workspace storage. This also applies to the update skill.
 
 ## Step 1: Gather context
 
@@ -16,7 +18,7 @@ First, assess session warmth. If the skill was invoked as the first/early turn o
 
 ### Cold session: ask before proposing
 
-In the cold case, silent analysis will produce a shallow proposal. Use `AskUserQuestion` to gather the minimum needed to propose well. Ask 3–5 questions, covering:
+In the cold case, silent analysis will produce a shallow proposal. Use the available question tool to gather the minimum needed to propose well. Ask 3–5 questions, covering:
 
 - Single repo or multi-repo — and if multi, the other paths
 - Typical commands the user runs here (build, test, lint, deploy)
@@ -33,16 +35,16 @@ Keep questions concrete and offer sensible defaults. Do not ask open-ended "tell
 - **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
 - **Conventions**: coding style, architecture patterns, testing approach observed in the session
 - **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. Candidates for skills.
-- **Existing docs**: check for `CLAUDE.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in instructions.md.
-- **Tool**: which AI CLI to launch — `claude` (default) or `copilot`. Detect availability by trying `claude --version` and `copilot --version`. Default to whichever the user appears to be running this skill *in* (you're inside Claude Code now, so default `claude` unless context says otherwise — e.g., the user explicitly mentioned migrating to Copilot). If only one CLI is on PATH, default to that one.
+- **Existing docs**: check for `AGENTS.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in instructions.md.
+- **Runtime**: verify `copilot --version`. There is no tool selection or fallback runtime.
 
 ## Step 2: Propose
 
 ### Pre-proposal checklist
 
-Before writing the proposal, walk through these filters. They prevent the two most common failure modes of this skill: duplicating CLAUDE.md and inventing thin wrapper skills.
+Before writing the proposal, walk through these filters. They prevent the two most common failure modes of this skill: duplicating AGENTS.md and inventing thin wrapper skills.
 
-**1. Duplication-diff for instructions.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (CLAUDE.md, `.claude/rules/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what CLAUDE.md *doesn't* — cross-repo relationships, additional-dir setup, environment quirks — not to restate it.
+**1. Duplication-diff for instructions.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (AGENTS.md, `.github/instructions/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what AGENTS.md *doesn't* — cross-repo relationships, additional-dir setup, environment quirks — not to restate it.
 
 **2. Make paths portable.** Walk every path you plan to put in `workspace.json` (both `primaryRepo` and each entry in `additionalDirs`) and apply in order:
 
@@ -54,37 +56,36 @@ Before writing the proposal, walk through these filters. They prevent the two mo
 
 **3. Skill value threshold.** Only propose a skill if at least one of these holds:
   - It takes **3+ steps** to execute
-  - It encodes **non-obvious knowledge** not captured in CLAUDE.md or existing repo-level skills
+  - It encodes **non-obvious knowledge** not captured in AGENTS.md or existing repo-level skills
   - It's a **multi-command workflow** (not a single command with flags)
 
 One-line command wrappers do not meet this bar. Writing `rush update` or `az repos pr create …` as a skill adds noise without value. When nothing clears the bar, omit the "Skills to create" section entirely — "none" is the right answer and should be shown as such.
 
 **4. Decide the shape of the workspace.** Based on what's left after the three filters above:
 
-- **Minimal workspace** — the repo has a thorough CLAUDE.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty `instructions.md` that points to CLAUDE.md, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
+- **Minimal workspace** — the repo has a thorough AGENTS.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty `instructions.md` that points to AGENTS.md, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
 - **Full workspace** — additional dirs, cross-repo concerns, or genuine workspace-level context to capture. Use the full proposal template below.
 
 ### Proposal templates
 
 Present a proposal with enough detail for the user to judge. Pick the template that matches the shape you decided on. The inline hints next to `Yolo` and `Resume` are there on purpose — first-time users need them to judge the defaults.
 
-**Minimal template** (the common case when CLAUDE.md is comprehensive and there are no additional dirs):
+**Minimal template** (the common case when AGENTS.md is comprehensive and there are no additional dirs):
 
 ```
 Proposed workspace: <slug>  (minimal — launcher config only)
 
   Name:         <display name>
-  Tool:         claude / copilot   (only show when non-default — i.e. omit when claude)
   Primary repo: <path>
   Additional:   none
   Yolo:         yes/no    (skip permission prompts — the CLI runs tools without asking before each action)
   Resume:       yes/no    (restore your prior conversation on each launch, so you pick up where you left off)
 
-  instructions.md: one-liner pointing to CLAUDE.md and .claude/rules/*
+  instructions.md: one-liner pointing to AGENTS.md and .github/instructions/*
   Skills to create: none
 
 Reasoning: <one sentence on why nothing else is warranted — e.g.,
-"single repo with a thorough CLAUDE.md; repo-level skills already
+"single repo with a thorough AGENTS.md; repo-level skills already
 cover workflows">
 
 Good to create it?
@@ -97,26 +98,25 @@ Good to create it?
 Proposed workspace: <slug>
 
   Name:         <display name>
-  Tool:         claude / copilot   (only show when non-default — i.e. omit when claude)
   Primary repo: <path>
   Additional:   <path1>, <path2>
   Yolo:         yes/no    (skip permission prompts — the CLI runs tools without asking before each action)
   Resume:       yes/no    (restore your prior conversation on each launch, so you pick up where you left off)
 
   Instructions will cover:
-    - <bullet — and the section of CLAUDE.md/.claude/rules that does NOT cover it>
+    - <bullet — and the section of AGENTS.md/.github/instructions that does NOT cover it>
     - <bullet — likewise>
 
   Skills to create:
-    - /wl-<skill> — <what it does, and why it clears the value threshold>
+    - wl-<skill> — <what it does, and why it clears the value threshold>
     (or omit this section entirely if nothing cleared the threshold)
 
 Does this look right? Any changes before I create it?
 (Flags explained above. Change either by telling me "yolo off" or "fresh conversation each launch".)
 ```
 
-**Tool-specific notes for the proposal:**
-- For `tool: copilot` workspaces, `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it). Copilot skills are exposed at launch via `--plugin-dir` pointing at the workspace's `.claude/` (and `.shared/.claude/`) directory; wl writes an auto-generated `plugin.json` manifest there (gitignored) so Copilot loads the directory as a local plugin. Treat `instructions.md` and `.claude/skills/*` as the source of truth — `AGENTS.md` and the `plugin.json` files are regenerated by wl on each launch.
+**Copilot notes for the proposal:**
+- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it). Skills are exposed at launch via `--plugin-dir` pointing at the workspace's `.copilot/` and `.shared/.copilot/` directories, with generated `plugin.json` manifests. Treat `instructions.md` and `.copilot/skills/*` as the sources of truth; do not edit generated files.
 - Skills in Copilot workspaces are triggered by description match (the `description` field in `SKILL.md` frontmatter), not by `/<skill-name>` slash commands — slash is reserved for Copilot's built-in commands like `/init`, `/skills`, `/clear`.
 
 **HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
@@ -127,7 +127,7 @@ Pick a slug that identifies the project, not the task. Use lowercase with hyphen
 
 ### Yolo and Resume defaults
 
-- **Yolo**: set to `true` if the user's current session already has permissions bypass enabled (dangerously-skip-permissions). Otherwise `false`.
+- **Yolo**: set to `true` if the user's current session already has permissions bypass enabled (`--yolo`). Otherwise `false`.
 - **Resume**: set to `true` if the project involves ongoing work where picking up where you left off is valuable (most projects). Set to `false` for one-off or ephemeral workspaces.
 
 ## Step 3: Create the workspace
@@ -139,8 +139,8 @@ After confirmation:
 1. Create `~/.wl-workspaces/<slug>/workspace.json`:
    ```json
    {
+     "schemaVersion": 2,
      "name": "<display name>",
-     "tool": "copilot",
      "primaryRepo": "<repo path>",
      "additionalDirs": ["<dir1>", "<dir2>"],
      "yolo": true,
@@ -148,7 +148,7 @@ After confirmation:
    }
    ```
 
-   Omit the `tool` field entirely for Claude workspaces (it defaults to `claude`). Only emit it for non-default tools like `copilot`.
+   Never emit a `tool` field. wl launches only Copilot.
 
    If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist) *and the variable does not already appear in `wl paths list`*, run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
 
@@ -159,11 +159,11 @@ After confirmation:
    - **Debugging**: where logs are, how to trace errors, common failure modes
    - **Workflow**: how to build, test, deploy — the commands and the order
 
-   **Do not duplicate content from repo-level `CLAUDE.md` files.** Claude Code loads those automatically when working in a repo. Before writing instructions.md, read each repo's CLAUDE.md and mentally diff your draft against it. If a fact is already in CLAUDE.md, leave it out. Workspace instructions should only contain what CLAUDE.md doesn't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos.
+   **Do not duplicate content from repo-level `AGENTS.md` files.** Copilot CLI loads those automatically when working in a repo. Before writing instructions.md, read each repo's AGENTS.md and mentally diff your draft against it. If a fact is already in AGENTS.md, leave it out. Workspace instructions should only contain what AGENTS.md doesn't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos.
 
    Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
 
-3. Create skills in `~/.wl-workspaces/<slug>/.claude/skills/<name>/SKILL.md` — but **only for skills that passed the value threshold in Step 2** (3+ steps, non-obvious knowledge, or multi-command workflow). If the approved proposal said "Skills to create: none" (or omitted the section), create no skills — this is an expected and common outcome.
+3. Create skills in `~/.wl-workspaces/<slug>/.copilot/skills/<name>/SKILL.md` — but **only for skills that passed the value threshold in Step 2** (3+ steps, non-obvious knowledge, or multi-command workflow). If the approved proposal said "Skills to create: none" (or omitted the section), create no skills — this is an expected and common outcome.
    - Look for: test commands run, build steps, deployment, code review patterns, log analysis
    - Each skill should be a concrete action, not a description. Include the actual commands, paths, and steps.
    - Example triggers (only if they clear the threshold): `wl-run-tests` (how to test this project), `wl-deploy` (deployment steps), `wl-review` (what to check in code review)
@@ -181,7 +181,7 @@ description: <one line — what this skill does and when to use it>
 allowed-tools: <tools this skill needs>
 ---
 
-<concrete instructions for Claude when this skill is invoked>
+<concrete instructions for Copilot when this skill is invoked>
 ```
 
 ## Output

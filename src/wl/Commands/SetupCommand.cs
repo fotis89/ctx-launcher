@@ -2,19 +2,22 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
+public class SetupCommand(SetupService setup, CopilotRunner runner)
 {
-    public void Execute()
+    public int Execute()
     {
         Console.WriteLine();
 
         var result = setup.RunSetup();
-        Console.WriteLine(result.CreateWorkspaceFresh ? "  Skill /wl-create-workspace installed" : "  Skill /wl-create-workspace updated");
-        Console.WriteLine(result.UpdateWorkspaceFresh ? "  Skill /wl-update-workspace installed" : "  Skill /wl-update-workspace updated");
+        Console.WriteLine(result.CreateWorkspaceFresh ? "  Skill wl-create-workspace installed" : "  Skill wl-create-workspace updated");
+        Console.WriteLine(result.UpdateWorkspaceFresh ? "  Skill wl-update-workspace installed" : "  Skill wl-update-workspace updated");
 
         Console.WriteLine();
-        ReportTool("Claude Code", "claude", "https://code.claude.com");
-        ReportTool("GitHub Copilot CLI", "copilot", "https://docs.github.com/copilot/how-tos/copilot-cli");
+        var available = runner.TryGetVersion(out var version);
+        if (available)
+            Console.WriteLine($"  GitHub Copilot CLI: {version}");
+        else
+            Console.Error.WriteLine("Error: Copilot is not available. Install GitHub Copilot CLI and ensure `copilot` is on your PATH.");
 
         Console.WriteLine();
         Console.WriteLine("  Tab completion (optional):");
@@ -40,17 +43,6 @@ public class SetupCommand(SetupService setup, ClaudeRunner claudeRunner)
             Console.WriteLine("    complete -F _wl wl");
         }
         Console.WriteLine();
-    }
-
-    private void ReportTool(string label, string command, string installUrl)
-    {
-        if (claudeRunner.TryGetVersion(command, out var version))
-        {
-            Console.WriteLine($"  {label}: {version}");
-        }
-        else
-        {
-            Console.WriteLine($"  {label}: NOT FOUND — install from {installUrl} and ensure `{command}` is on your PATH (optional if you use the other tool)");
-        }
+        return available ? 0 : 1;
     }
 }

@@ -5,18 +5,18 @@ using wl.Services;
 namespace wl.tests;
 
 [Collection("StderrCapture")]
-public class CopilotAdapterTests : IDisposable
+public class CopilotServiceTests : IDisposable
 {
-    // Per-test-class temp root so the adapter's SharedClaudeDir resolves
+    // Per-test-class temp root so the adapter's SharedCopilotDir resolves
     // somewhere empty (and predictable), instead of touching the
     // developer's real ~/.wl-workspaces/.shared.
     private readonly string _root = Path.Combine(Path.GetTempPath(), "wl-test-root-" + Guid.NewGuid().ToString("N")[..8]);
-    private readonly CopilotAdapter _adapter;
+    private readonly CopilotService _adapter;
 
-    public CopilotAdapterTests()
+    public CopilotServiceTests()
     {
         Directory.CreateDirectory(_root);
-        _adapter = new CopilotAdapter(new WlPaths(_root));
+        _adapter = new CopilotService(new WlPaths(_root));
     }
 
     public void Dispose()
@@ -24,7 +24,7 @@ public class CopilotAdapterTests : IDisposable
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
     }
 
-    private static AdapterLaunchSpec MakeSpec(
+    private static LaunchSpec MakeSpec(
         string? prompt = null,
         bool yolo = false,
         string? resumeSessionId = null,
@@ -40,7 +40,7 @@ public class CopilotAdapterTests : IDisposable
             FolderPath = folderPath ?? Path.Combine(Path.GetTempPath(), "wl-test-ws"),
         };
 
-        return new AdapterLaunchSpec(
+        return new LaunchSpec(
             Workspace: ws,
             ResolvedAdditionalDirs: additionalDirs ?? [],
             ResolvedSharedDir: sharedDir,
@@ -181,7 +181,7 @@ public class CopilotAdapterTests : IDisposable
             Assert.True(File.Exists(agentsPath));
             var contents = File.ReadAllText(agentsPath);
             Assert.Contains("workspace context goes here", contents);
-            Assert.StartsWith(CopilotAdapter.AgentsMdMarker, contents);
+            Assert.StartsWith(CopilotService.AgentsMdMarker, contents);
         }
         finally
         {
@@ -268,7 +268,7 @@ public class CopilotAdapterTests : IDisposable
         Directory.CreateDirectory(tempDir);
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), CopilotAdapter.AgentsMdMarker + "\n\nold context");
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), CopilotService.AgentsMdMarker + "\n\nold context");
 
             var ws = new Workspace
             {
@@ -330,7 +330,7 @@ public class CopilotAdapterTests : IDisposable
         try
         {
             var agentsPath = Path.Combine(tempDir, "AGENTS.md");
-            File.WriteAllText(agentsPath, CopilotAdapter.AgentsMdMarker + "\n\nold context");
+            File.WriteAllText(agentsPath, CopilotService.AgentsMdMarker + "\n\nold context");
 
             var ws = new Workspace
             {
@@ -480,14 +480,14 @@ public class CopilotAdapterTests : IDisposable
     }
 
     [Fact]
-    public void PrepareLaunch_WithSkills_WritesPluginManifestInWorkspaceClaudeDir()
+    public void PrepareLaunch_WithSkills_WritesPluginManifestInWorkspaceCopilotDir()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
-            // Layout: <ws>/.claude/skills/my-skill/SKILL.md
-            var skillDir = Path.Combine(tempDir, ".claude", "skills", "my-skill");
+            // Layout: <ws>/.copilot/skills/my-skill/SKILL.md
+            var skillDir = Path.Combine(tempDir, ".copilot", "skills", "my-skill");
             Directory.CreateDirectory(skillDir);
             File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: my-skill\n---\nbody");
 
@@ -500,7 +500,7 @@ public class CopilotAdapterTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            var manifestPath = Path.Combine(tempDir, ".claude", "plugin.json");
+            var manifestPath = Path.Combine(tempDir, ".copilot", "plugin.json");
             Assert.True(File.Exists(manifestPath), "plugin.json should be written when skills exist");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifestPath))!.AsObject();
             Assert.Equal($"wl-{Path.GetFileName(tempDir)}", json["name"]!.GetValue<string>());
@@ -527,7 +527,7 @@ public class CopilotAdapterTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            Assert.False(File.Exists(Path.Combine(tempDir, ".claude", "plugin.json")));
+            Assert.False(File.Exists(Path.Combine(tempDir, ".copilot", "plugin.json")));
         }
         finally
         {
@@ -540,7 +540,7 @@ public class CopilotAdapterTests : IDisposable
     {
         var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         var wsFolder = Path.Combine(tempRoot, "myws");
-        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "ws-skill");
+        var skillDir = Path.Combine(wsFolder, ".copilot", "skills", "ws-skill");
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: ws-skill\n---\nbody");
         try
@@ -553,7 +553,7 @@ public class CopilotAdapterTests : IDisposable
                 .ToList();
             Assert.NotEmpty(pluginDirIdxs);
             var values = pluginDirIdxs.Select(i => result.Args[i + 1]).ToList();
-            Assert.Contains(Path.Combine(wsFolder, ".claude"), values);
+            Assert.Contains(Path.Combine(wsFolder, ".copilot"), values);
         }
         finally
         {
@@ -588,7 +588,7 @@ public class CopilotAdapterTests : IDisposable
         // per Copilot's plugin.json spec.
         var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         var wsFolder = Path.Combine(tempRoot, "My Workspace");
-        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        var skillDir = Path.Combine(wsFolder, ".copilot", "skills", "x");
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
         try
@@ -602,7 +602,7 @@ public class CopilotAdapterTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
             var name = json["name"]!.GetValue<string>();
             Assert.Equal("wl-my-workspace", name);
@@ -621,7 +621,7 @@ public class CopilotAdapterTests : IDisposable
         // ("wl-"). Fall back to ws.Name first.
         var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         var wsFolder = Path.Combine(tempRoot, "~~~");
-        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        var skillDir = Path.Combine(wsFolder, ".copilot", "skills", "x");
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
         try
@@ -635,7 +635,7 @@ public class CopilotAdapterTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
             Assert.Equal("wl-homelab", json["name"]!.GetValue<string>());
         }
@@ -653,7 +653,7 @@ public class CopilotAdapterTests : IDisposable
         // identifier. Use the literal "workspace".
         var tempRoot = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         var wsFolder = Path.Combine(tempRoot, "~~~");
-        var skillDir = Path.Combine(wsFolder, ".claude", "skills", "x");
+        var skillDir = Path.Combine(wsFolder, ".copilot", "skills", "x");
         Directory.CreateDirectory(skillDir);
         File.WriteAllText(Path.Combine(skillDir, "SKILL.md"), "---\nname: x\n---\nbody");
         try
@@ -667,7 +667,7 @@ public class CopilotAdapterTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            var manifest = Path.Combine(wsFolder, ".claude", "plugin.json");
+            var manifest = Path.Combine(wsFolder, ".copilot", "plugin.json");
             var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(manifest))!.AsObject();
             Assert.Equal("wl-workspace", json["name"]!.GetValue<string>());
         }
@@ -677,4 +677,3 @@ public class CopilotAdapterTests : IDisposable
         }
     }
 }
-

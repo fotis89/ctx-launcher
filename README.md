@@ -1,360 +1,231 @@
-# ctx-launcher (wl) - Named AI workspaces you can relaunch
+# ctx-launcher (wl) - Named Copilot workspaces you can relaunch
 
 [![npm](https://img.shields.io/npm/v/@ctx-launcher/wl)](https://npmjs.com/package/@ctx-launcher/wl)
 [![CI](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/fotis89/ctx-launcher/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/fotis89/ctx-launcher)](LICENSE)
 
-> Companion to [Claude Code](https://code.claude.com) and [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli). Prebuilt for Windows x64, Linux x64, and macOS arm64.
+`wl` saves your project setup (repos, folders, instructions, skills) under a name,
+then opens it in [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli).
+Switch between projects without rebuilding context, and resume your previous session.
 
-Switching between AI coding projects is slow. Every switch means re-attaching folders, re-explaining context, and often starting a fresh session — even if you were in the middle of something yesterday.
+Your repository's shared instructions stay the team's. `wl` keeps your personal
+context outside the repository in `~/.wl-workspaces/<name>`.
 
-`wl` saves each project setup (repos, folders, instructions, skills) under a name you pick, then launches it through your AI CLI. Switch between them with one command; resume the previous session when you want.
-
-Your repo's shared context (`CLAUDE.md`, `AGENTS.md`) stays the team's. `wl` adds your personal layer on top — not committed, not shared.
-
-A workspace is a local folder outside your repos, storing the launch config, optional instructions, optional prompts, optional skills, and a pointer to the last session.
-
-This is what using `wl` looks like:
-
-## Example
-
-From your project folder:
-
-```bash
-cd ~/repos/ctx-launcher
-wl create wl-dev
-```
-
-Open the workspace from any directory:
-
-```bash
-wl launch wl-dev
-```
-
-Come back later and continue the same session:
-
-```bash
-wl launch wl-dev --resume
-```
-
-![demo](docs/demo.gif)
-
-## What you can do with it
-
-- Launch a saved workspace by name, from any directory
-- Switch between projects without re-explaining context or re-attaching folders
-- See which workspace is active at a glance — Claude Code shows the name in its statusline and terminal tab; Copilot tracks the session by UUID + name internally
-- Come back to a task and pick up where you left off
-- Work across multiple repos or folders in one session
-- Give the AI notes, instructions, and skills that travel with the workspace, not the repo
-- Let the AI create the workspace for you — no JSON to write by hand
-
-**Why not just a bash alias?** An alias can attach folders and instructions to `claude` or `copilot`. What it can't do: track which session belongs to which project (`wl` saves a per-workspace session pointer), carry workspace-local skills the AI auto-invokes, or preview the exact launched command before running. Those are `wl`'s real differentiators.
+**Copilot-only breaking change:** the next release requires workspace schema 2.
+Existing users must follow the [manual upgrade guide](#upgrading-existing-workspaces).
+The published 0.8.x release still supports both runtimes; this README describes
+the Copilot-only source tree.
 
 ## Install
 
-### Prebuilt (Windows / Linux / macOS)
+Requires Node.js and GitHub Copilot CLI on your `PATH`:
 
-Requires [Node.js](https://nodejs.org/) and at least one of [Claude Code](https://code.claude.com/docs/en/quickstart#step-1-install-claude-code) or [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/copilot-cli) on your `PATH`.
-
-```bash
+```powershell
 npm install -g @ctx-launcher/wl
+copilot --version
 ```
 
-Prebuilt platforms: `win32-x64`, `linux-x64`, `darwin-arm64`. npm only downloads the matching binary for your OS. For other platforms (Intel Mac, ARM Linux, etc.), [build from source](#build-from-source).
-
-The first `wl launch` or `wl create` installs the Claude skills `wl` depends on (auto-refreshed on upgrade). Run `wl setup` if you also want tab completion or want to verify `claude` is reachable.
-
-### Upgrading from v0.6.0 or older
-
-v0.7.0 moved from the unscoped `ctx-launcher` package to the scoped `@ctx-launcher/wl`. The old package is orphaned at v0.6.0 on npm and won't get further updates. Switch with:
-
-```bash
-npm uninstall -g ctx-launcher
-npm install -g @ctx-launcher/wl
-```
-
-Your workspaces at `~/.wl-workspaces/` are unaffected — no migration needed.
+Prebuilt binaries are available for Windows x64, Linux x64, and macOS arm64.
+npm downloads only your platform's binary. Other platforms can
+[build from source](#build-from-source).
 
 ## Quick start
 
-1. In the folder you want as Claude's primary working directory:
-   ```bash
-   cd ~/repos/ctx-launcher
-   wl create wl-dev
-   ```
-   Opens Claude, which suggests a workspace for you to approve. *(Or run `wl create wl-dev --basic` to skip Claude and write a minimal `workspace.json` directly.)*
+```powershell
+cd D:\repos\my-project
+wl create my-project
+wl launch my-project
+wl launch my-project --resume
+```
 
-2. Launch the workspace:
-   ```bash
-   wl launch wl-dev
-   ```
-   Opens Claude with the workspace's primary repo, attached folders, and instructions. Works from any directory.
+`wl create` asks Copilot to propose a workspace and waits for your approval.
+For a minimal configuration without invoking Copilot:
 
-3. Come back later and continue the same session:
-   ```bash
-   wl launch wl-dev --resume
-   ```
-   Same as step 2, but continues the previous session instead of starting fresh.
+```powershell
+wl create my-project --basic
+```
+
+The first create or launch installs the bundled workspace skills. `wl setup`
+refreshes them explicitly, checks Copilot availability, and prints tab-completion
+instructions. There is no tool selection or fallback runtime.
 
 ## Commands
 
-| Command | What it does |
+| Command | Purpose |
 | --- | --- |
-| `wl create [name]` | Creates a workspace from the current repo (asks Claude or Copilot to fill it in — auto-detects which CLI is on PATH) |
-| `wl create <name> --basic` | Creates a minimal `workspace.json` without invoking an AI CLI |
-| `wl create <name> --tool copilot` | Forces the create flow through Copilot (override auto-detect) |
-| `wl launch [name]` | Launches a workspace; omit `name` to use the last one launched |
-| `wl launch <name> --resume` | Resumes the previous session for that workspace |
-| `wl launch <name> --new` | Starts a fresh session even if the workspace defaults to resume |
-| `wl launch <name> --yolo` | Skips the AI's permission prompts |
-| `wl launch <name> -p <name-or-text>` | Starts with a saved prompt, or with raw prompt text |
-| `wl launch <name> --tool claude\|copilot` | Override the workspace's tool for this launch only |
-| `wl list` | Lists all workspaces |
-| `wl which <name>` | Shows the exact command `wl` will run, and checks paths exist |
-| `wl edit <name>` | Opens the workspace folder in your system file explorer |
-| `wl paths set <name> <value>` | Set a path variable (e.g. `REPOS_ROOT`) used by `$VAR` references in `workspace.json` |
-| `wl paths list` | Show defined and referenced path variables |
-| `wl paths init` | Prompt for any path variables referenced in workspaces but not defined |
-| `wl clone <git-url>` | Clone a workspaces repo into `~/.wl-workspaces` and run `wl setup` + `wl paths init` |
-| `wl setup` | (Optional) prints a tab-completion snippet and reports which AI CLIs are on your PATH |
+| `wl create [name]` | Ask Copilot to propose and create a workspace |
+| `wl create <name> --basic` | Write a minimal schema-2 workspace without invoking Copilot |
+| `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
+| `wl launch <name> --resume` | Resume the saved Copilot session; fail if none exists |
+| `wl launch <name> --new` | Start fresh, overriding the workspace's resume default |
+| `wl launch <name> --yolo` | Skip Copilot permission prompts |
+| `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
+| `wl list` | List workspaces, including incompatible ones with diagnostics |
+| `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
+| `wl edit <name>` | Open the workspace folder, including legacy workspaces needing repair |
+| `wl paths set <name> <value>` | Define a machine-local path variable |
+| `wl paths list` | Show defined and referenced variables |
+| `wl paths init` | Prompt for undefined variables |
+| `wl clone <git-url>` | Clone workspace definitions, run setup, then initialize path variables |
+| `wl setup` | Install bundled Copilot skills and show completion setup |
 
-## What's a workspace?
+`--new` and `--resume` cannot be combined. Invalid configuration and failed
+Copilot processes produce nonzero exit codes. A failed Copilot process does not
+replace the saved session or last-workspace pointer.
 
-A workspace is a folder at `~/.wl-workspaces/<name>/`, separate from your repos. It holds a primary repo, any additional folders to attach, and optional project-specific instructions.
+## Workspace layout
 
 ```text
-~/.wl-workspaces/wl-dev/
-|-- workspace.json
-|-- instructions.md        (optional)
-|-- prompts/               (optional)
-|   `-- review.md
-`-- .claude/               (optional)
-    `-- skills/
-        `-- wl-review/
-            `-- SKILL.md
+~/.wl-workspaces/
+|-- .paths.json                  (machine-local variables)
+|-- .shared/
+|   `-- .copilot/
+|       |-- plugin.json          (generated)
+|       `-- skills/
+`-- my-project/
+    |-- workspace.json
+    |-- instructions.md         (optional, editable source)
+    |-- AGENTS.md                (generated from instructions.md)
+    |-- .last-session            (machine-local Copilot session reference)
+    |-- prompts/
+    |   `-- review.md
+    `-- .copilot/
+        |-- plugin.json          (generated)
+        `-- skills/
+            `-- wl-review/
+                `-- SKILL.md
 ```
 
-### `workspace.json`
+Set `WL_WORKSPACES_ROOT` to use another workspace root. All workspace storage,
+shared skills, variables, and session pointers use that root. This is also how
+the E2E suite isolates its files from your real profile.
 
-The only required file. It defines the workspace name, the repo the AI CLI starts in, any additional folders to attach, and launch defaults.
+### workspace.json
 
 ```json
 {
-  "name": "wl dev",
-  "primaryRepo": "~/repos/ctx-launcher",
-  "additionalDirs": [
-    "~/docs/wl-notes"
-  ],
-  "yolo": true,
+  "schemaVersion": 2,
+  "name": "My project",
+  "primaryRepo": "$REPOS_ROOT/my-project",
+  "additionalDirs": ["~/notes"],
+  "yolo": false,
   "resume": true
 }
 ```
 
-- `primaryRepo` - working directory when the session starts
-- `additionalDirs` - extra repos or folders attached with `--add-dir`
-- `yolo` - default `wl launch` to skip permission prompts
-- `resume` - default `wl launch` to resuming the last session
-- `tool` *(optional)* - which AI CLI to launch: `"claude"` (default) or `"copilot"`. Omit for Claude.
+`schemaVersion` must explicitly be `2`. `name` and `primaryRepo` must be non-empty.
+`additionalDirs` defaults to an empty array; its entries must be non-empty paths.
+The primary repository must be a directory. Missing additional directories are
+reported and skipped. `yolo` and `resume` default to false.
 
-#### Copilot workspaces
+The `tool` field and `--tool` option no longer exist, including `tool: copilot`.
+Machine-local `defaultTool` settings are rejected rather than silently ignored.
 
-Setting `"tool": "copilot"` launches GitHub Copilot CLI instead of Claude Code. Most workspace concepts translate cleanly (additional dirs, yolo, resume by session UUID, name), with the differences below:
+### Instructions and skills
 
-- **`instructions.md` is mirrored to `AGENTS.md`.** Copilot has no `--append-system-prompt-file` equivalent, but it auto-discovers `AGENTS.md` and related custom-instruction files. On every Copilot launch, `wl` writes the workspace's `instructions.md` to `<workspace-folder>/AGENTS.md`. `COPILOT_CUSTOM_INSTRUCTIONS_DIRS=<workspace-folder>` is set so Copilot searches there (default search is cwd + git root only). Edit `instructions.md` as the source of truth — `AGENTS.md` is auto-generated and overwritten.
-- **`.claude/skills/*` is bridged via Copilot's `--plugin-dir`.** Copilot reads `SKILL.md` files using the same format as Claude. On each Copilot launch, `wl` writes a tiny `plugin.json` manifest (auto-generated, gitignored) into the workspace's `.claude/` and the shared `.shared/.claude/` and passes both via `--plugin-dir <path>` so Copilot loads them as local plugins. Per-invocation only — no mutation of `~/.copilot/settings.json`, no leakage into unrelated Copilot sessions. `.claude/skills/` remains the single source of truth.
+Edit `instructions.md`, not the generated `AGENTS.md`. Each launch mirrors the
+instructions and sets `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` to the workspace folder.
+Repository instructions remain separate from your personal workspace context.
 
-#### Default tool (machine-local)
+Workspace and shared `.copilot` folders with skills are exposed using explicit
+`--plugin-dir` arguments and generated `plugin.json` manifests. No global Copilot
+settings are modified. Skills use `SKILL.md` with `name`, `description`, and
+`allowed-tools` frontmatter; use a `wl-` prefix for workspace skills.
 
-If most or all of your workspaces target the same tool on a given machine, set it once instead of stamping `tool` into every workspace:
+The bundled **wl-create-workspace** and **wl-update-workspace** skills propose
+changes before writing files. Ask Copilot to use them by name or describe the
+task; wl does not depend on custom slash-command invocation.
 
-```json
-// ~/.wl-workspaces/.config.json
-{ "defaultTool": "copilot" }
-```
+### Saved prompts
 
-The file is gitignored (machine-local — install state may differ per PC). Resolution precedence (highest to lowest):
+Save a prompt under `prompts/review.md`:
 
-1. `--tool` flag on `wl launch` or `wl create` — always wins, per-invocation only
-2. Workspace's explicit `tool` field in `workspace.json` — wins when `--tool` is omitted
-3. `.config.json` `defaultTool` — wins when both above are unset
-4. `claude` — final fallback
-
-`wl create` without `--tool` uses the same precedence (steps 3–4 only, since there's no workspace yet) to decide which CLI to spawn for the create flow.
-
-### `instructions.md`
-
-If present, `wl launch` passes this file to Claude with `--append-system-prompt-file`. Use it for notes that don't belong in a repo's `CLAUDE.md`: multi-repo relationships, cross-repo workflows, project-specific context.
-
-(For Copilot workspaces, `instructions.md` is auto-mirrored to `AGENTS.md` so Copilot picks it up — see the Copilot section above.)
-
-### `prompts/*.md`
-
-Reusable launch prompts kept with the workspace.
-
-```md
+```markdown
 ---
 label: Review changes
 ---
-Review the latest changes, summarize the risk, and call out anything that needs manual testing.
+Review the changes and identify anything needing manual verification.
 ```
 
-Launch with the saved prompt:
+Use `wl launch my-project -p review`, or pass literal text with
+`wl launch my-project -p "investigate the failing test"`.
 
-```bash
-wl launch wl-dev -p review
-```
+### Sessions
 
-Or pass raw text directly:
+Fresh sessions receive a unique name; `.last-session` stores that Copilot
+reference as plain text after a successful exit. Resume passes it to Copilot.
+Session history is local to Copilot on that machine; synchronizing workspace
+definitions does not synchronize conversations. Closing the terminal before
+Copilot exits successfully can leave the previous pointer unchanged.
 
-```bash
-wl launch wl-dev -p "investigate the failing test and explain the root cause"
-```
+## Upgrading existing workspaces
 
-### `.claude/skills/`
+There is **no automatic migration**. Back up your workspace root before editing.
 
-Skills (`SKILL.md` definitions) that travel with the workspace instead of with the repo's git history. `wl launch` attaches them to the session automatically — Claude reads them via auto-discovery; for Copilot, `wl` exposes the directory through `--plugin-dir` with an auto-generated `plugin.json`.
+1. In each `workspace.json`, set `"schemaVersion": 2` and remove `tool`.
+2. Remove `defaultTool` from the root `.config.json`, or delete that file if it
+   contains nothing else. `wl` no longer reads runtime defaults.
+3. Move workspace and shared skills from `.claude/skills` to `.copilot/skills`.
+   Remove the now-empty legacy `skills` directory. Do not overwrite colliding
+   skill names without reviewing them. wl rejects remaining legacy skill folders.
+4. For `.last-session`, copy only the old JSON map's `copilot` value into the file
+   as plain text, or delete the pointer to start fresh. Claude conversations
+   cannot be resumed in Copilot. Do not copy the old `claude` entry or an
+   unidentified legacy UUID.
+5. Run `wl setup`, then `wl which <name>` to confirm the configuration.
 
-## What's behind a launch
+Old generated `.claude/plugin.json` files can be removed manually. Update your
+workspace repository's ignore rules for the new generated manifest paths;
+`wl setup` appends the required patterns without deleting old user content.
+If you previously registered skill directories in global Copilot settings,
+review/remove those legacy registrations yourself; wl does not edit them.
 
-Run `wl which <name>` any time to see exactly what `wl launch` will do:
-
-```
-$ wl which wl-dev
-
-  Workspace:    wl-dev
-  Repo:         ~/repos/ctx-launcher (ok)
-  Dir:          ~/docs/wl-notes (ok)
-  Shared:       ~/.wl-workspaces/.shared (ok)
-
-  wl skills:    /wl-update-workspace
-  Skills:       /wl-review
-
-  Instructions: instructions.md (38 lines)
-  Prompts:      review
-
-  Permissions:  yolo
-  Resume:       auto
-
-  Command:
-    claude `
-      --resume <session-id> `
-      --add-dir ~/docs/wl-notes `
-      --add-dir ~/.wl-workspaces/.shared `
-      --add-dir ~/.wl-workspaces/wl-dev `
-      --append-system-prompt-file ~/.wl-workspaces/wl-dev/instructions.md `
-      --dangerously-skip-permissions
-```
-
-No magic — `wl launch` prepares the workspace as needed, then launches the configured AI CLI with the composed arguments. `wl which` previews path resolution, skill discovery, any launch prep, and the resulting command before you run it.
-
-## Skills shipped with wl
-
-`wl` ships two skills, installed automatically on first use:
-
-- **`/wl-create-workspace`** — used by `wl create`. Inspects the current repo and session, proposes a name, the folders to attach, and a draft `instructions.md`, and waits for your approval before writing files.
-- **`/wl-update-workspace`** — run from inside a launched session when the workspace no longer matches the project or how you work. It diffs the workspace against the current state, proposes updates, and waits for your approval.
-
-Both skills auto-refresh after `wl` upgrades. Run `wl setup` to force a re-install. They work in both Claude Code and Copilot CLI sessions; in Copilot they trigger by description match (slash is reserved for Copilot's built-in commands).
+Users still on the old unscoped npm package should uninstall `ctx-launcher` and
+install `@ctx-launcher/wl`. The workspace root stays the same.
 
 ## Syncing across PCs
 
-`~/.wl-workspaces/` is portable across machines — with one caveat. The paths your workspaces reference (repos, docs folders) usually differ per PC: `D:\repos` on Windows, `~/dev` on macOS, `/home/you/src` on Linux. `wl` solves this with `$VAR` references resolved from a machine-local file.
+Use `$VAR` or `${VAR}` references for machine-specific roots, and `~/` for
+home-relative paths. Define variables per machine:
 
-### Step 1 — Use `$VAR` paths in `workspace.json`
-
-```json
-{
-  "primaryRepo": "$REPOS_ROOT/ctx-launcher",
-  "additionalDirs": ["$DOCS_ROOT/wl-notes"]
-}
+```powershell
+wl paths set REPOS_ROOT D:\repos
+wl paths set DOCS_ROOT ~\Documents
+wl paths list
 ```
 
-`~/`-rooted paths don't need a variable — they already port cleanly.
+Values live in `.paths.json`. Keep workspace definitions and user-authored skills
+in a private git repository, then use `wl clone <git-url>` on another machine.
+Legacy clones must be upgraded manually before setup/launch will work.
 
-### Step 2 — Define the variables per PC
-
-```bash
-wl paths set REPOS_ROOT D:/repos        # on your Windows PC
-wl paths set DOCS_ROOT ~/OneDrive/docs
-```
-
-Values live in `~/.wl-workspaces/.paths.json` (machine-local, not synced).
-
-### Step 3 — Commit `~/.wl-workspaces/` to git
-
-`wl setup` drops a default `.gitignore` that excludes machine-local state and auto-generated artifacts:
-
-- **Machine-local state** — `.last-session`, `.last`, `.version`, `.paths.json`, `.config.json` (paths and tool defaults differ per PC; install state varies).
-- **wl-installed skills** — `.shared/.claude/skills/wl-create-workspace/` and `.shared/.claude/skills/wl-update-workspace/` (re-installed on each PC by `wl setup`).
-- **Copilot launch artifacts** — `*/AGENTS.md` (mirror of `instructions.md`, regenerated each launch) and `*/.claude/plugin.json` + `.shared/.claude/plugin.json` (auto-generated plugin manifests).
-
-User-authored skills elsewhere under `.shared/.claude/skills/` stay tracked so you can share them across all your workspaces.
-
-```bash
-cd ~/.wl-workspaces
-git init
-git add .
-git commit -m "initial workspaces"
-git remote add origin <your-private-repo-url>
-git push -u origin master
-```
-
-### Step 4 — On a new PC
-
-```bash
-wl clone git@github.com:you/wl-workspaces.git
-```
-
-`wl clone` does three things: `git clone` into `~/.wl-workspaces`, run `wl setup` (installs skills, writes `.gitignore`), then `wl paths init` — which scans all workspaces for `$VAR` references and prompts for each one missing from `.paths.json`. Set the values for this PC, done. Any `wl launch <name>` after that works.
-
-### Tips
-
-- `wl paths list` shows defined + referenced variables and flags anything undefined.
-- `wl which <name>` surfaces unset variables inline: `Repo: $REPOS_ROOT/... (unset: $REPOS_ROOT — run 'wl paths init')`.
-- Cross-workspace skills (available in every launched session, regardless of workspace) can live in `.shared/.claude/skills/` and sync via the same repo.
-- Session history and resume state are machine-local. Claude stores transcripts in `~/.claude/projects/` on each PC, and `wl` gitignores `.last-session` — resuming only works on the machine where the session was started.
-
-## Useful details
-
-- `wl which <name>` is the fastest way to confirm path resolution, spot missing attached folders, and inspect the exact `claude ...` command `wl` will run.
-- `wl edit <name>` opens the workspace folder so you can tweak `instructions.md`, prompts, or workspace-local skills by hand.
+Setup ignores machine-local `.last-session`, `.last`, `.version`, `.paths.json`,
+and legacy `.config.json`, plus generated `*/AGENTS.md`,
+`*/.copilot/plugin.json`, `.shared/.copilot/plugin.json`, and the two bundled
+skill directories under `.shared/.copilot/skills`. Other shared skills stay tracked.
 
 ## Build from source
 
-Requires [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Requires .NET 10 SDK:
 
-```bash
-git clone https://github.com/fotis89/ctx-launcher.git
-cd ctx-launcher
+```powershell
 dotnet build wl.slnx --verbosity quiet
-dotnet test wl.slnx --verbosity quiet
+dotnet test tests\wl.tests\wl.tests.csproj --verbosity quiet
 ```
 
-### Publish a native binary
+Native AOT publishing also requires MSVC C++ build tools on Windows, or the native
+toolchain on Linux/macOS:
 
-The npm package ships prebuilt binaries for `win-x64`, `linux-x64`, and `osx-arm64`. If your platform isn't covered (Intel Mac, ARM Linux, etc.) or you just want to build it yourself:
-
-**Windows** - requires MSVC build tools ([Visual Studio](https://visualstudio.microsoft.com/) C++ workload or standalone [Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)):
-
-```bash
-dotnet publish src/wl -c Release -r win-x64
+```powershell
+dotnet publish src\wl\wl.csproj -c Release -r win-x64
+$env:WL_BINARY_PATH = (Resolve-Path src\wl\bin\Release\net10.0\win-x64\publish\wl.exe).Path
+dotnet test tests\wl.e2e.tests\wl.e2e.tests.csproj --verbosity quiet
 ```
 
-**Linux/macOS** - requires `clang` or `gcc`:
+Use `linux-x64` or `osx-arm64` and native path separators on the other supported
+platforms. CI runs unit tests and E2E tests against the native binary on all three.
+No real Copilot account is needed for the automated shim-based E2E suite.
 
-```bash
-dotnet publish src/wl -c Release -r linux-x64
-dotnet publish src/wl -c Release -r osx-arm64
-dotnet publish src/wl -c Release -r osx-x64    # Intel Mac (not shipped via npm)
-```
+## Contributing and license
 
-Copy the published binary to a directory on your `PATH`.
-
-## Contributing
-
-Issues and PRs welcome at [github.com/fotis89/ctx-launcher/issues](https://github.com/fotis89/ctx-launcher/issues). Run `dotnet test` before submitting.
-
-## License
-
-[MIT](LICENSE)
+Issues and PRs welcome at [fotis89/ctx-launcher](https://github.com/fotis89/ctx-launcher).
+Licensed under [MIT](LICENSE).

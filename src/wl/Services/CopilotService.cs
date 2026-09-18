@@ -3,12 +3,8 @@ using wl.Models;
 
 namespace wl.Services;
 
-public class CopilotAdapter(WlPaths paths) : IToolAdapter
+public class CopilotService(WlPaths paths)
 {
-    public string ExecutableName => "copilot";
-    public string DisplayName => "copilot";
-    public bool SkillsAreSlashInvokable => false;
-
     public const string SharedPluginName = "wl-shared";
     public const string WorkspacePluginPrefix = "wl-";
 
@@ -44,24 +40,24 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
             Console.Error.WriteLine($"Warning: could not refresh {agentsPath} ({ex.GetType().Name}); launching without updated workspace instructions.");
         }
 
-        // Each .claude/ dir is exposed as a local plugin via --plugin-dir;
+        // Each .copilot/ dir is exposed as a local plugin via --plugin-dir;
         // ensure a plugin.json manifest exists. Per-dir try so one failure
         // doesn't block the others.
-        foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
+        foreach (var (copilotDir, name) in GetManagedCopilotDirs(ws))
         {
-            if (!HasSkills(claudeDir)) continue;
+            if (!HasSkills(copilotDir)) continue;
             try
             {
-                EnsurePluginManifest(claudeDir, name);
+                EnsurePluginManifest(copilotDir, name);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
             {
-                Console.Error.WriteLine($"Warning: could not write {Path.Combine(claudeDir, WlPaths.PluginManifestFileName)} ({ex.GetType().Name}); skills in this directory may not load.");
+                Console.Error.WriteLine($"Warning: could not write {Path.Combine(copilotDir, WlPaths.PluginManifestFileName)} ({ex.GetType().Name}); skills in this directory may not load.");
             }
         }
     }
 
-    private IEnumerable<(string ClaudeDir, string PluginName)> GetManagedClaudeDirs(Workspace ws)
+    private IEnumerable<(string CopilotDir, string PluginName)> GetManagedCopilotDirs(Workspace ws)
     {
         // Plugin names must be kebab-case per Copilot's plugin.json spec.
         // Slugify the folder name (disk identity, guaranteed unique), then
@@ -70,13 +66,13 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         var slug = PathHelper.Slugify(ws.FolderName);
         if (string.IsNullOrEmpty(slug)) slug = PathHelper.Slugify(ws.Name);
         if (string.IsNullOrEmpty(slug)) slug = "workspace";
-        yield return (ws.ClaudeDirPath, $"{WorkspacePluginPrefix}{slug}");
-        yield return (paths.SharedClaudeDir, SharedPluginName);
+        yield return (ws.CopilotDirPath, $"{WorkspacePluginPrefix}{slug}");
+        yield return (paths.SharedCopilotDir, SharedPluginName);
     }
 
-    private static bool HasSkills(string claudeDir)
+    private static bool HasSkills(string copilotDir)
     {
-        var skillsDir = Path.Combine(claudeDir, WlPaths.SkillsDirName);
+        var skillsDir = Path.Combine(copilotDir, WlPaths.SkillsDirName);
         if (!Directory.Exists(skillsDir))
         {
             return false;
@@ -100,10 +96,10 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
         }
     }
 
-    public static void EnsurePluginManifest(string claudeDir, string pluginName)
+    public static void EnsurePluginManifest(string copilotDir, string pluginName)
     {
-        Directory.CreateDirectory(claudeDir);
-        var manifestPath = Path.Combine(claudeDir, WlPaths.PluginManifestFileName);
+        Directory.CreateDirectory(copilotDir);
+        var manifestPath = Path.Combine(copilotDir, WlPaths.PluginManifestFileName);
         var content = $$"""
             {
               "name": "{{pluginName}}"
@@ -134,32 +130,32 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
             yield return $"deletes {ws.AgentsPath} (was wl-managed; instructions.md no longer present)";
         }
 
-        foreach (var (claudeDir, name) in GetManagedClaudeDirs(ws))
+        foreach (var (copilotDir, name) in GetManagedCopilotDirs(ws))
         {
-            if (HasSkills(claudeDir))
+            if (HasSkills(copilotDir))
             {
-                yield return $"writes {Path.Combine(claudeDir, WlPaths.PluginManifestFileName)} (plugin name: {name})";
+                yield return $"writes {Path.Combine(copilotDir, WlPaths.PluginManifestFileName)} (plugin name: {name})";
             }
         }
     }
 
-    public void InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, ClaudeRunner runner)
+    public int InvokeCreateSkill(string skillName, string? workspaceName, string cwd, string sharedDir, CopilotRunner runner)
     {
         // Expose the shared skill via --plugin-dir for this single
         // invocation only — no global state mutation. Trigger by
         // description-match phrasing: Copilot reserves slash for
         // built-ins (/init, /skills) so `/<skill-name>` wouldn't fire.
-        var sharedClaudeDir = WlPaths.ClaudeDir(sharedDir);
-        if (HasSkills(sharedClaudeDir))
+        var sharedCopilotDir = WlPaths.CopilotDir(sharedDir);
+        if (HasSkills(sharedCopilotDir))
         {
-            EnsurePluginManifest(sharedClaudeDir, SharedPluginName);
+            EnsurePluginManifest(sharedCopilotDir, SharedPluginName);
         }
         var detail = workspaceName is null ? "" : $" for workspace '{workspaceName}'";
         var prompt = $"Use the {skillName} skill{detail}.";
-        runner.Run(ExecutableName, cwd, ["--plugin-dir", sharedClaudeDir, "-i", prompt]);
+        return runner.Run(cwd, ["--add-dir", sharedDir, "--plugin-dir", sharedCopilotDir, "-i", prompt]);
     }
 
-    public AdapterArgs BuildArgs(AdapterLaunchSpec spec)
+    public LaunchArgs BuildArgs(LaunchSpec spec)
     {
         var args = new List<string>();
         string? newSessionId = null;
@@ -186,12 +182,12 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
 
         // Manifests are written by PrepareLaunch; emit --plugin-dir for
         // each dir that has skills.
-        foreach (var (claudeDir, _) in GetManagedClaudeDirs(ws))
+        foreach (var (copilotDir, _) in GetManagedCopilotDirs(ws))
         {
-            if (HasSkills(claudeDir))
+            if (HasSkills(copilotDir))
             {
                 args.Add("--plugin-dir");
-                args.Add(claudeDir);
+                args.Add(copilotDir);
             }
         }
 
@@ -206,6 +202,6 @@ public class CopilotAdapter(WlPaths paths) : IToolAdapter
             args.Add(spec.Prompt);
         }
 
-        return new AdapterArgs(args, newSessionId);
+        return new LaunchArgs(args, newSessionId);
     }
 }

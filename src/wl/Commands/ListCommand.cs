@@ -6,7 +6,7 @@ public class ListCommand(WorkspaceService workspaces)
 {
     public void Execute()
     {
-        var list = workspaces.ListWorkspaces();
+        var list = workspaces.ListEntries();
         if (list.Count == 0)
         {
             Console.WriteLine("  No workspaces yet. Run: wl create <name>");
@@ -18,7 +18,7 @@ public class ListCommand(WorkspaceService workspaces)
         foreach (var ws in list)
         {
             var slug = ws.FolderName.PadRight(maxSlug);
-            Console.WriteLine($"  {slug}   {ws.Name}");
+            Console.WriteLine($"  {slug}   {ws.Workspace?.Name ?? $"[incompatible] {ws.Error}"}");
         }
         Console.WriteLine();
     }

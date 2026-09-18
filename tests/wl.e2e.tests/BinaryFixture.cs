@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace wl.e2e.tests;
 
 public static class BinaryFixture
@@ -9,9 +11,11 @@ public static class BinaryFixture
     private static string? Resolve()
     {
         var env = Environment.GetEnvironmentVariable("WL_BINARY_PATH");
-        if (!string.IsNullOrEmpty(env) && File.Exists(env))
+        if (!string.IsNullOrEmpty(env))
         {
-            return env;
+            if (!File.Exists(env))
+                throw new InvalidOperationException($"WL_BINARY_PATH does not exist: {env}");
+            return ValidateBinary(Path.GetFullPath(env));
         }
 
         var exeName = OperatingSystem.IsWindows() ? "wl.exe" : "wl";
@@ -26,12 +30,36 @@ public static class BinaryFixture
                     var candidate = Path.Combine(ridDir, "publish", exeName);
                     if (File.Exists(candidate))
                     {
-                        return candidate;
+                        return ValidateBinary(candidate);
                     }
                 }
             }
             dir = Path.GetDirectoryName(dir);
         }
         return null;
+    }
+
+    private static string ValidateBinary(string path)
+    {
+        // Never run mutating tests against an old binary that ignores the
+        // workspace-root override and writes into the real user profile.
+        var psi = new ProcessStartInfo(path)
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        psi.ArgumentList.Add("--help");
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException("Could not inspect wl binary.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        if (!process.WaitForExit(10_000))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException("wl --help timed out.");
+        }
+        if (process.ExitCode != 0 || !output.GetAwaiter().GetResult().Contains("GitHub Copilot workspace launcher", StringComparison.Ordinal))
+            throw new InvalidOperationException($"Stale or incompatible wl binary at {path}. Rebuild before running E2E tests. {error.GetAwaiter().GetResult()}");
+        return path;
     }
 }

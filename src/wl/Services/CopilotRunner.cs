@@ -4,7 +4,7 @@ using wl.Helpers;
 
 namespace wl.Services;
 
-public class ClaudeRunner
+public class CopilotRunner
 {
     public static string ResolveExecutable(string command, string? pathEnv = null, string? pathExtEnv = null)
     {
@@ -17,8 +17,9 @@ public class ClaudeRunner
             ?? command;
     }
 
-    public virtual bool Run(string command, string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
+    public virtual int Run(string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
     {
+        const string command = "copilot";
         var psi = new ProcessStartInfo
         {
             FileName = ResolveExecutable(command),
@@ -39,25 +40,34 @@ public class ClaudeRunner
 
         try
         {
-            var process = Process.Start(psi);
-            if (process is null) return false;
+            using var process = Process.Start(psi);
+            if (process is null)
+            {
+                Console.Error.WriteLine("Error: could not start Copilot.");
+                return 1;
+            }
             process.WaitForExit();
-            return true;
+            if (process.ExitCode != 0)
+                Console.Error.WriteLine($"Error: Copilot exited with code {process.ExitCode}; saved session pointers were not changed.");
+            return process.ExitCode;
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (System.ComponentModel.Win32Exception ex)
         {
-            Console.Error.WriteLine($"Error: '{command}' not found.");
+            Console.Error.WriteLine(ex.NativeErrorCode == 2
+                ? $"Error: '{command}' not found."
+                : $"Error: could not start '{command}': {ex.Message}");
             Console.Error.WriteLine();
             Console.Error.WriteLine("  Troubleshooting:");
             Console.Error.WriteLine($"  1. Open a new terminal and run: {command} --version");
             Console.Error.WriteLine("  2. If that works, restart this terminal (PATH may be stale)");
             Console.Error.WriteLine($"  3. If not, install {command} and ensure its CLI is in your PATH");
-            return false;
+            return 1;
         }
     }
 
-    public virtual bool TryGetVersion(string command, out string version)
+    public virtual bool TryGetVersion(out string version)
     {
+        const string command = "copilot";
         var psi = new ProcessStartInfo
         {
             FileName = ResolveExecutable(command),

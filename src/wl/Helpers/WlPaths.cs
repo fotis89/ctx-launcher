@@ -3,8 +3,7 @@ namespace wl.Helpers;
 /// <summary>
 /// Single source of truth for the wl folder layout. Owns the workspaces
 /// root (~/.wl-workspaces by default) so callers don't have to pass it.
-/// Pure path construction — the only IO is a single
-/// Directory.CreateDirectory on first root resolution.
+/// Pure path construction; reading paths never creates directories.
 ///
 /// Layout:
 ///   &lt;WorkspacesRoot&gt;/
@@ -15,18 +14,18 @@ namespace wl.Helpers;
 ///       AGENTS.md                 (auto-generated for Copilot)
 ///       .last-session
 ///       prompts/
-///       .claude/
+///       .copilot/
 ///         plugin.json             (auto-generated for Copilot)
 ///         skills/&lt;skill&gt;/SKILL.md
 ///     .shared/                    ← shared dir
-///       .claude/
+///       .copilot/
 ///         plugin.json
 ///         skills/&lt;skill&gt;/SKILL.md
 /// </summary>
 public class WlPaths
 {
     public const string SharedDirName = ".shared";
-    public const string ClaudeDirName = ".claude";
+    public const string CopilotDirName = ".copilot";
     public const string SkillsDirName = "skills";
     public const string PromptsDirName = "prompts";
     public const string SkillFileName = "SKILL.md";
@@ -42,29 +41,17 @@ public class WlPaths
     public const string GitignoreFileName = ".gitignore";
 
     private readonly string _rootPath;
-    private string? _resolvedRoot;
 
     public WlPaths(string? rootPath = null)
     {
-        _rootPath = rootPath ?? "~/.wl-workspaces";
+        _rootPath = rootPath ?? Environment.GetEnvironmentVariable("WL_WORKSPACES_ROOT") ?? "~/.wl-workspaces";
     }
 
-    public string WorkspacesRoot
-    {
-        get
-        {
-            // wl is a single-process CLI that exits after one command,
-            // so this lazy init doesn't need locking.
-            if (_resolvedRoot is not null) return _resolvedRoot;
-            _resolvedRoot = PathHelper.ResolveTilde(_rootPath);
-            Directory.CreateDirectory(_resolvedRoot);
-            return _resolvedRoot;
-        }
-    }
+    public string WorkspacesRoot => Path.GetFullPath(PathHelper.ResolveTilde(_rootPath));
 
     // Per-workspaces-root paths.
     public string SharedDir => Path.Combine(WorkspacesRoot, SharedDirName);
-    public string SharedClaudeDir => ClaudeDir(SharedDir);
+    public string SharedCopilotDir => CopilotDir(SharedDir);
     public string SharedSkillsDir => SkillsDir(SharedDir);
     public string PathsConfigFile => Path.Combine(WorkspacesRoot, PathsConfigFileName);
     public string ToolConfigFile => Path.Combine(WorkspacesRoot, ToolConfigFileName);
@@ -72,12 +59,19 @@ public class WlPaths
     public string LastWorkspaceFile => Path.Combine(WorkspacesRoot, LastWorkspaceFileName);
     public string GitignoreFile => Path.Combine(WorkspacesRoot, GitignoreFileName);
 
-    public string WorkspaceFolder(string name) => Path.Combine(WorkspacesRoot, name);
+    public string WorkspaceFolder(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('.') ||
+            name.IndexOfAny(['/', '\\']) >= 0 || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            Path.IsPathRooted(name))
+            throw new ArgumentException("Workspace name must be a non-empty folder name, not a path.");
+        return Path.Combine(WorkspacesRoot, name);
+    }
 
     // Per-workspace-folder paths (work for any folder, including the shared dir).
-    public static string ClaudeDir(string folderPath) => Path.Combine(folderPath, ClaudeDirName);
-    public static string SkillsDir(string folderPath) => Path.Combine(ClaudeDir(folderPath), SkillsDirName);
-    public static string PluginManifest(string folderPath) => Path.Combine(ClaudeDir(folderPath), PluginManifestFileName);
+    public static string CopilotDir(string folderPath) => Path.Combine(folderPath, CopilotDirName);
+    public static string SkillsDir(string folderPath) => Path.Combine(CopilotDir(folderPath), SkillsDirName);
+    public static string PluginManifest(string folderPath) => Path.Combine(CopilotDir(folderPath), PluginManifestFileName);
     public static string Agents(string folderPath) => Path.Combine(folderPath, AgentsFileName);
     public static string Instructions(string folderPath) => Path.Combine(folderPath, InstructionsFileName);
     public static string Prompts(string folderPath) => Path.Combine(folderPath, PromptsDirName);

@@ -2,7 +2,7 @@ using wl.Services;
 
 namespace wl.tests;
 
-public class ClaudeRunnerTests
+public class CopilotRunnerTests
 {
     [Fact]
     public void ResolveExecutable_PrefersExeOverCmd()
@@ -11,12 +11,12 @@ public class ClaudeRunnerTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var exePath = Path.Combine(tempDir, "claude.exe");
-            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            var exePath = Path.Combine(tempDir, "copilot.exe");
+            var cmdPath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(exePath, "");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".EXE;.CMD");
+            var result = CopilotRunner.ResolveExecutable("copilot", tempDir, ".EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {
@@ -24,7 +24,7 @@ public class ClaudeRunnerTests
             }
             else
             {
-                Assert.Equal("claude", result);
+                Assert.Equal("copilot", result);
             }
         }
         finally
@@ -40,10 +40,10 @@ public class ClaudeRunnerTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var cmdPath = Path.Combine(tempDir, "claude.cmd");
+            var cmdPath = Path.Combine(tempDir, "copilot.cmd");
             File.WriteAllText(cmdPath, "@echo off");
 
-            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".EXE;.CMD");
+            var result = CopilotRunner.ResolveExecutable("copilot", tempDir, ".EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {
@@ -51,7 +51,7 @@ public class ClaudeRunnerTests
             }
             else
             {
-                Assert.Equal("claude", result);
+                Assert.Equal("copilot", result);
             }
         }
         finally
@@ -61,20 +61,11 @@ public class ClaudeRunnerTests
     }
 
     [Fact]
-    public void ResolveExecutable_WhenNoMatch_FallsBackToClaude()
+    public void ResolveExecutable_WhenNoMatch_FallsBackToCopilot()
     {
-        var result = ClaudeRunner.ResolveExecutable("claude", @"C:\this\does\not\exist", ".EXE;.CMD");
+        var result = CopilotRunner.ResolveExecutable("copilot", @"C:\this\does\not\exist", ".EXE;.CMD");
 
-        Assert.Equal("claude", result);
-    }
-
-    [Fact]
-    public void TryGetVersion_DoesNotThrow()
-    {
-        var ok = new ClaudeRunner().TryGetVersion("claude", out var version);
-
-        if (ok) Assert.False(string.IsNullOrWhiteSpace(version));
-        else Assert.Equal("", version);
+        Assert.Equal("copilot", result);
     }
 
     [Fact]
@@ -84,10 +75,10 @@ public class ClaudeRunnerTests
         Directory.CreateDirectory(tempDir);
         try
         {
-            var comPath = Path.Combine(tempDir, "claude.com");
+            var comPath = Path.Combine(tempDir, "copilot.com");
             File.WriteAllText(comPath, "");
 
-            var result = ClaudeRunner.ResolveExecutable("claude", tempDir, ".COM;.EXE;.CMD");
+            var result = CopilotRunner.ResolveExecutable("copilot", tempDir, ".COM;.EXE;.CMD");
 
             if (OperatingSystem.IsWindows())
             {
@@ -95,7 +86,7 @@ public class ClaudeRunnerTests
             }
             else
             {
-                Assert.Equal("claude", result);
+                Assert.Equal("copilot", result);
             }
         }
         finally
