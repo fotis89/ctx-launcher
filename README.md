@@ -52,7 +52,8 @@ instructions.
 | --- | --- |
 | `wl create [name]` | Ask Copilot to propose and create a workspace |
 | `wl create <name> --basic` | Write a minimal schema-2 workspace without invoking Copilot |
-| `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
+| `wl launch` | Launch Copilot in the current folder with shared context |
+| `wl launch <name>` | Launch a workspace |
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
 | `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
@@ -139,8 +140,9 @@ Pass a one-off Copilot prompt after `--`, for example
 ### Sessions
 
 Fresh sessions receive an explicit UUID via `--session-id` and a readable name.
-After a successful exit, `.last-session` stores the UUID as plain text; resume
-uses that ID so renaming the session in Copilot does not break it.
+After a successful workspace launch, `.last-session` stores the UUID as plain text; resume
+uses that ID so renaming the session in Copilot does not break it. Folder-mode
+launches store sessions in `.folder-sessions.json`.
 Session history is local to Copilot on that machine; synchronizing workspace
 definitions does not synchronize conversations. Closing the terminal before
 Copilot exits successfully can leave the previous pointer unchanged.
@@ -159,7 +161,7 @@ wl paths list
 Values live in `.paths.json`. Keep workspace definitions and user-authored skills
 in a private git repository, then use `wl clone <git-url>` on another machine.
 
-Setup ignores machine-local `.last-session`, `.last`, `.version`, `.paths.json`,
+Setup ignores machine-local `.last-session`, `.folder-sessions.json`, `.version`, `.paths.json`,
 plus generated `*/.copilot/plugin.json`, `.shared/.copilot/plugin.json`, and the two bundled
 skill directories under `.shared/.copilot/skills`. Other shared skills stay tracked.
 

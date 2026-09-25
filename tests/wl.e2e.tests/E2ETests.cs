@@ -221,7 +221,7 @@ public class E2ETests
         var lastUsedPassThrough = WlRunner.Run(home.Path, bin, "launch", "--", "--model", "x");
         Assert.Equal(0, lastUsedPassThrough.ExitCode);
         Assert.Contains("--model x", File.ReadAllText(log));
-        Assert.Contains($"--resume={firstSession}", File.ReadAllText(log));
+        Assert.DoesNotContain($"--resume={firstSession}", File.ReadAllText(log));
 
         File.Delete(log);
         var workspacePassThrough = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--", "-i", "a b");
@@ -230,7 +230,7 @@ public class E2ETests
         Assert.Contains("a b", File.ReadAllText(log));
 
         File.Delete(log);
-        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", "--new").ExitCode);
+        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--new").ExitCode);
         Assert.NotEqual(firstSession, File.ReadAllText(sessionPath));
         Assert.True(Guid.TryParseExact(File.ReadAllText(sessionPath), "D", out _));
         Assert.Contains($"--session-id={File.ReadAllText(sessionPath)}", File.ReadAllText(log));
@@ -260,14 +260,12 @@ public class E2ETests
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var pointer = System.IO.Path.Combine(root, home.WorkspaceName, ".last-session");
         File.WriteAllText(pointer, "previous-session");
-        File.WriteAllText(System.IO.Path.Combine(root, ".last"), "previous-workspace");
         var bin = System.IO.Path.Combine(home.Path, "fake-bin");
         FakeCopilot.Install(bin, System.IO.Path.Combine(home.Path, "copilot.log"), exitCode: 42);
         var result = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--new");
         Assert.Equal(42, result.ExitCode);
         Assert.Contains("exited with code 42", result.Stderr);
         Assert.Equal("previous-session", File.ReadAllText(pointer));
-        Assert.Equal("previous-workspace", File.ReadAllText(System.IO.Path.Combine(root, ".last")));
     }
 
     [SkippableFact]
@@ -298,8 +296,28 @@ public class E2ETests
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("'copilot' not found", result.Stderr);
         Assert.False(File.Exists(System.IO.Path.Combine(root, home.WorkspaceName, ".last-session")));
-        Assert.False(File.Exists(System.IO.Path.Combine(root, ".last")));
         Assert.NotEqual(0, WlRunner.Run(home.Path, null, "setup").ExitCode);
+    }
+
+    [SkippableFact]
+    public void Folder_mode_remembers_sessions_per_folder()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+        var bin = System.IO.Path.Combine(home.Path, "fake-bin");
+        var log = System.IO.Path.Combine(home.Path, "copilot.log");
+        FakeCopilot.Install(bin, log);
+
+        var first = WlRunner.Run(home.Path, bin, "launch");
+        Assert.Equal(0, first.ExitCode);
+        var firstArgs = File.ReadAllText(log);
+        Assert.Contains("--session-id=", firstArgs);
+        Assert.True(File.Exists(System.IO.Path.Combine(home.Path, ".wl-workspaces", ".folder-sessions.json")));
+
+        File.Delete(log);
+        var second = WlRunner.Run(home.Path, bin, "launch");
+        Assert.Equal(0, second.ExitCode);
+        Assert.Contains("--resume=", File.ReadAllText(log));
     }
 
     [SkippableFact]

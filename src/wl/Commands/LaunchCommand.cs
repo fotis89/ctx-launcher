@@ -7,15 +7,15 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
 {
     public int Execute(string? name, bool forceNew = false, bool temporary = false, IReadOnlyList<string>? passThroughArgs = null)
     {
+        if (forceNew && temporary)
+        {
+            Console.Error.WriteLine("Cannot use --new and --temp together.");
+            return 1;
+        }
+
         if (name is null)
         {
-            name = workspaces.GetLastUsed();
-            if (name is null)
-            {
-                Console.Error.WriteLine("No workspace specified and no last-used workspace found.");
-                Console.Error.WriteLine("Run: wl launch <name>");
-                return 1;
-            }
+            return ExecuteFolderMode(forceNew, temporary, passThroughArgs);
         }
 
         var ws = workspaces.LoadWorkspace(name);
@@ -30,12 +30,6 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
         if (!repoExists)
         {
             Console.Error.WriteLine($"Error: primary repo not found: {ws.PrimaryRepo}");
-            return 1;
-        }
-
-        if (forceNew && temporary)
-        {
-            Console.Error.WriteLine("Cannot use --new and --temp together.");
             return 1;
         }
 
@@ -94,11 +88,40 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
         var exitCode = launcher.Launch(ws, args);
         if (exitCode == 0)
         {
-            workspaces.SetLastUsed(name);
             if (newSessionId is not null && !temporary)
             {
                 LaunchService.SaveLastSession(ws, newSessionId);
             }
+        }
+        return exitCode;
+    }
+
+    private int ExecuteFolderMode(bool forceNew, bool temporary, IReadOnlyList<string>? passThroughArgs)
+    {
+        var folderPath = Directory.GetCurrentDirectory();
+        var resumeSessionId = forceNew || temporary ? null : launcher.LoadFolderSession(folderPath);
+        var shouldResume = resumeSessionId is not null;
+
+        setup.EnsureInstalled();
+        var sharedDirResolved = workspaces.GetSharedDirIfExists();
+        var (args, newSessionId) = launcher.BuildFolderLaunchArgs(folderPath, resumeSessionId, sharedDirResolved, temporary, passThroughArgs);
+
+        Console.WriteLine();
+        ConsoleLabel.WriteLine("Launching:", Path.GetFileName(folderPath));
+        ConsoleLabel.WriteLine("Repo:", folderPath);
+        if (shouldResume)
+        {
+            Console.WriteLine();
+            ConsoleLabel.WriteLine("Session:", "resuming previous");
+            ConsoleLabel.WriteContinuation("If not found, run: wl launch --new");
+        }
+
+        Console.WriteLine();
+
+        var exitCode = launcher.LaunchFolder(folderPath, args);
+        if (exitCode == 0 && newSessionId is not null && !temporary)
+        {
+            launcher.SaveFolderSession(folderPath, newSessionId);
         }
         return exitCode;
     }

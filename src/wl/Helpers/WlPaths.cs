@@ -7,7 +7,7 @@ namespace wl.Helpers;
 ///
 /// Layout:
 ///   &lt;WorkspacesRoot&gt;/
-///     .version, .last, .paths.json, .gitignore
+///     .version, .folder-sessions.json, .paths.json, .gitignore
 ///     &lt;name&gt;/                   ← workspace folder
 ///       workspace.json
 ///       AGENTS.md                 (workspace instructions for Copilot)
@@ -31,7 +31,7 @@ public class WlPaths
     public const string WorkspaceConfigFileName = "workspace.json";
     public const string PathsConfigFileName = ".paths.json";
     public const string VersionFileName = ".version";
-    public const string LastWorkspaceFileName = ".last";
+    public const string FolderSessionsFileName = ".folder-sessions.json";
     public const string LastSessionFileName = ".last-session";
     public const string GitignoreFileName = ".gitignore";
 
@@ -50,7 +50,7 @@ public class WlPaths
     public string SharedSkillsDir => SkillsDir(SharedDir);
     public string PathsConfigFile => Path.Combine(WorkspacesRoot, PathsConfigFileName);
     public string VersionFile => Path.Combine(WorkspacesRoot, VersionFileName);
-    public string LastWorkspaceFile => Path.Combine(WorkspacesRoot, LastWorkspaceFileName);
+    public string FolderSessionsFile => Path.Combine(WorkspacesRoot, FolderSessionsFileName);
     public string GitignoreFile => Path.Combine(WorkspacesRoot, GitignoreFileName);
 
     public string WorkspaceFolder(string name)

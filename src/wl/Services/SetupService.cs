@@ -33,7 +33,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
         """
         # Machine-local state
         .last-session
-        .last
+        .folder-sessions.json
         .version
         .paths.json
 

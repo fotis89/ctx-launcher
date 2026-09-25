@@ -1,7 +1,10 @@
 namespace wl.Models;
 
 public record LaunchSpec(
-    Workspace Workspace,
+    Workspace? Workspace,
+    string PrimaryDirectory,
+    string SessionNameSlug,
+    IReadOnlyList<string> CopilotArgs,
     List<string> ResolvedAdditionalDirs,
     string? ResolvedSharedDir,
     string? ResumeSessionId,
@@ -21,8 +24,11 @@ public record LaunchSpec(
             args.Add("--add-dir");
             args.Add(ResolvedSharedDir);
         }
-        args.Add("--add-dir");
-        args.Add(Workspace.FolderPath);
+        if (Workspace is not null)
+        {
+            args.Add("--add-dir");
+            args.Add(Workspace.FolderPath);
+        }
     }
 }
 

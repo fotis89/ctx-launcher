@@ -63,32 +63,6 @@ public class WorkspaceServiceTests : IDisposable
     }
 
     [Fact]
-    public void GetLastUsed_LockedFile_ReturnsNullAndWarns()
-    {
-        // .last is a convenience pointer; if it's locked we should fall
-        // back to "no last-used" rather than crashing the launch flow.
-        var lastFile = Path.Combine(_root, ".last");
-        File.WriteAllText(lastFile, "demo");
-
-        var stderr = new StringWriter();
-        var prev = Console.Error;
-        using var locker = new FileStream(lastFile, FileMode.Open, FileAccess.Read, FileShare.None);
-        try
-        {
-            Console.SetError(stderr);
-            var name = _service.GetLastUsed();
-            Assert.Null(name);
-        }
-        finally
-        {
-            Console.SetError(prev);
-            locker.Dispose();
-        }
-
-        Assert.Contains("cannot read", stderr.ToString());
-    }
-
-    [Fact]
     public void ListWorkspaces_MissingRoot_ReturnsEmptyWithoutCreatingIt()
     {
         var bogus = Path.Combine(Path.GetTempPath(), "wl-ws-not-there-" + Guid.NewGuid().ToString("N")[..8]);

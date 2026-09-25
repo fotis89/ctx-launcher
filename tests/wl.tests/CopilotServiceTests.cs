@@ -44,6 +44,9 @@ public class CopilotServiceTests : IDisposable
 
         return new LaunchSpec(
             Workspace: ws,
+            PrimaryDirectory: ws.PrimaryRepo,
+            SessionNameSlug: string.IsNullOrEmpty(Path.GetFileName(ws.FolderPath)) ? "wl" : Path.GetFileName(ws.FolderPath),
+            CopilotArgs: ws.CopilotArgs,
             ResolvedAdditionalDirs: additionalDirs ?? [],
             ResolvedSharedDir: sharedDir,
             ResumeSessionId: resumeSessionId,

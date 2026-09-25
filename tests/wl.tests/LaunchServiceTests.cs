@@ -13,7 +13,7 @@ public class LaunchServiceTests : IDisposable
     public LaunchServiceTests()
     {
         var paths = new WlPaths(_root);
-        _service = new LaunchService(new CopilotRunner(), new PathsService(paths.PathsConfigFile), new CopilotService(paths));
+        _service = new LaunchService(new CopilotRunner(), new PathsService(paths.PathsConfigFile), new CopilotService(paths), paths);
         _ws = new Workspace { Name = "test", PrimaryRepo = _root, FolderPath = _root };
     }
 
@@ -39,7 +39,7 @@ public class LaunchServiceTests : IDisposable
         var file = Path.Combine(_root, "not-a-directory");
         File.WriteAllText(file, "");
         _ws.AdditionalDirs = ["$ROOT", Path.Combine(_root, "missing"), file];
-        var service = new LaunchService(new CopilotRunner(), vars, new CopilotService(paths));
+        var service = new LaunchService(new CopilotRunner(), vars, new CopilotService(paths), paths);
         var (args, skipped, _) = service.BuildLaunchArgs(_ws);
         Assert.Equal(2, args.Count(a => a == "--add-dir"));
         Assert.Equal(_ws.AdditionalDirs.Skip(1), skipped);
@@ -54,7 +54,7 @@ public class LaunchServiceTests : IDisposable
         var otherCwd = Directory.CreateDirectory(Path.Combine(_root, "other-cwd")).FullName;
         var runner = new CapturingRunner();
         var paths = new WlPaths(_root);
-        var service = new LaunchService(runner, new PathsService(paths.PathsConfigFile), new CopilotService(paths));
+        var service = new LaunchService(runner, new PathsService(paths.PathsConfigFile), new CopilotService(paths), paths);
         var ws = new Workspace
         {
             Name = "test",
@@ -108,6 +108,37 @@ public class LaunchServiceTests : IDisposable
         var shared = Path.Combine(_root, ".shared");
         var (args, _, _) = _service.BuildLaunchArgs(_ws, sharedDirPath: shared);
         Assert.True(args.IndexOf(shared) < args.IndexOf(_root));
+    }
+
+    [Fact]
+    public void BuildFolderLaunchArgs_AddsSharedDirAndPluginButNoWorkspaceAddDir()
+    {
+        var paths = new WlPaths(_root);
+        var skillDir = Directory.CreateDirectory(Path.Combine(paths.SharedSkillsDir, "shared-skill")).FullName;
+        File.WriteAllText(Path.Combine(skillDir, WlPaths.SkillFileName), "---\nname: shared-skill\ndescription: Shared\n---");
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "folder")).FullName;
+        var service = new LaunchService(new CopilotRunner(), new PathsService(paths.PathsConfigFile), new CopilotService(paths), paths);
+
+        var (args, id) = service.BuildFolderLaunchArgs(folder, sharedDirPath: paths.SharedDir);
+
+        Assert.NotNull(id);
+        Assert.Contains(paths.SharedDir, args);
+        Assert.Contains(paths.SharedCopilotDir, args);
+        Assert.DoesNotContain(folder, args);
+    }
+
+    [Fact]
+    public void FolderSessions_RoundTripAndLeaveNoTempFiles()
+    {
+        var paths = new WlPaths(_root);
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "folder")).FullName;
+        var service = new LaunchService(new CopilotRunner(), new PathsService(paths.PathsConfigFile), new CopilotService(paths), paths);
+
+        service.SaveFolderSession(folder, "session-id");
+
+        Assert.Equal("session-id", service.LoadFolderSession(folder));
+        Assert.Empty(Directory.GetFiles(_root, "*.tmp", SearchOption.AllDirectories));
+        Assert.True(File.Exists(paths.FolderSessionsFile));
     }
 
     [Fact]

@@ -13,8 +13,14 @@ public class CopilotService(WlPaths paths)
     private const int MaxPluginNameLength = 64;
     private const int PluginNameHashLength = 16;
 
-    public void PrepareLaunch(Workspace ws)
+    public void PrepareLaunch(Workspace? ws)
     {
+        if (ws is null)
+        {
+            PrepareSharedPluginManifest();
+            return;
+        }
+
         // Each .copilot/ dir is exposed as a local plugin via --plugin-dir;
         // ensure a plugin.json manifest exists. Per-dir try so one failure
         // doesn't block the others.
@@ -29,6 +35,19 @@ public class CopilotService(WlPaths paths)
             {
                 Console.Error.WriteLine($"Warning: could not write {Path.Combine(copilotDir, WlPaths.PluginManifestFileName)} ({ex.GetType().Name}); skills in this directory may not load.");
             }
+        }
+    }
+
+    private void PrepareSharedPluginManifest()
+    {
+        if (!HasSkills(paths.SharedCopilotDir)) return;
+        try
+        {
+            EnsurePluginManifest(paths.SharedCopilotDir, SharedPluginName);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Console.Error.WriteLine($"Warning: could not write {Path.Combine(paths.SharedCopilotDir, WlPaths.PluginManifestFileName)} ({ex.GetType().Name}); shared skills may not load.");
         }
     }
 
@@ -73,14 +92,20 @@ public class CopilotService(WlPaths paths)
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws)
         => GetEnvironment(ws, Environment.GetEnvironmentVariable("COPILOT_CUSTOM_INSTRUCTIONS_DIRS"));
 
+    public IReadOnlyDictionary<string, string> GetEnvironment(string folderPath)
+        => GetEnvironment(folderPath, Environment.GetEnvironmentVariable("COPILOT_CUSTOM_INSTRUCTIONS_DIRS"));
+
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws, string? inheritedInstructionDirs)
+        => GetEnvironment(ws.FolderPath, inheritedInstructionDirs);
+
+    public IReadOnlyDictionary<string, string> GetEnvironment(string folderPath, string? inheritedInstructionDirs)
     {
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var sharedDirs = File.Exists(WlPaths.Agents(paths.SharedDir)) ? [paths.SharedDir] : Array.Empty<string>();
         var directories = (inheritedInstructionDirs ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Concat(sharedDirs)
-            .Append(ws.FolderPath)
+            .Append(folderPath)
             .Distinct(comparer);
         return new Dictionary<string, string>
         {
@@ -125,7 +150,7 @@ public class CopilotService(WlPaths paths)
         }
         else
         {
-            var slug = string.IsNullOrEmpty(ws.FolderName) ? "wl" : ws.FolderName;
+            var slug = spec.SessionNameSlug;
             var id = Guid.NewGuid();
             newSessionId = id.ToString();
             var name = spec.TemporarySession
@@ -141,16 +166,24 @@ public class CopilotService(WlPaths paths)
 
         // Manifests are written by PrepareLaunch; emit --plugin-dir for
         // each dir that has skills.
-        foreach (var (copilotDir, _) in GetManagedCopilotDirs(ws))
+        if (ws is not null)
         {
-            if (HasSkills(copilotDir))
+            foreach (var (copilotDir, _) in GetManagedCopilotDirs(ws))
             {
-                args.Add("--plugin-dir");
-                args.Add(copilotDir);
+                if (HasSkills(copilotDir))
+                {
+                    args.Add("--plugin-dir");
+                    args.Add(copilotDir);
+                }
             }
         }
+        else if (HasSkills(paths.SharedCopilotDir))
+        {
+            args.Add("--plugin-dir");
+            args.Add(paths.SharedCopilotDir);
+        }
 
-        args.AddRange(ws.CopilotArgs);
+        args.AddRange(spec.CopilotArgs);
         args.AddRange(spec.PassThroughArgs ?? []);
 
         return new LaunchArgs(args, newSessionId);

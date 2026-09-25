@@ -149,38 +149,6 @@ public class WorkspaceService(WlPaths paths)
         return LoadWorkspaceFromPath(folderPath, jsonPath);
     }
 
-    public string? GetLastUsed()
-    {
-        if (!File.Exists(paths.LastWorkspaceFile))
-        {
-            return null;
-        }
-
-        try
-        {
-            var name = File.ReadAllText(paths.LastWorkspaceFile).Trim();
-            return string.IsNullOrEmpty(name) ? null : name;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            // Read failure on the last-used pointer is non-fatal.
-            Console.Error.WriteLine($"Warning: cannot read {paths.LastWorkspaceFile} ({ex.GetType().Name}); ignoring last-used pointer.");
-            return null;
-        }
-    }
-
-    public void SetLastUsed(string name)
-    {
-        try
-        {
-            File.WriteAllText(paths.LastWorkspaceFile, name);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            Console.Error.WriteLine($"Warning: cannot update {paths.LastWorkspaceFile} ({ex.GetType().Name}); next bare `wl launch` may not find this workspace.");
-        }
-    }
-
     private static Workspace LoadWorkspaceFromPath(string folderPath, string jsonPath)
     {
         try
