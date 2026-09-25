@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, CopilotService copilot)
+public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, PathsService paths, CopilotService copilot)
 {
     public int Execute(string name, IReadOnlyList<string>? passThroughArgs = null)
     {
@@ -46,24 +46,12 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
-        var savedPrompts = prompts.ListPrompts(ws);
         var hasInstructions = File.Exists(ws.AgentsPath);
-        if (hasInstructions || savedPrompts.Count > 0)
+        if (hasInstructions)
         {
             Console.WriteLine();
-            if (hasInstructions)
-            {
-                var lines = File.ReadLines(ws.AgentsPath).Count();
-                ConsoleLabel.WriteLine("Instructions:", $"AGENTS.md ({lines} lines)");
-            }
-            else
-            {
-                ConsoleLabel.WriteLine("Instructions:", "(none)");
-            }
-            if (savedPrompts.Count > 0)
-            {
-                ConsoleLabel.WriteLine("Prompts:", string.Join(", ", savedPrompts.Select(p => p.Slug)));
-            }
+            var lines = File.ReadLines(ws.AgentsPath).Count();
+            ConsoleLabel.WriteLine("Instructions:", $"AGENTS.md ({lines} lines)");
         }
 
         var lastSession = LaunchService.LoadLastSession(ws);

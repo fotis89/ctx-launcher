@@ -56,7 +56,6 @@ instructions.
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
 | `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
-| `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
 | `wl list` | List workspaces, including ones that fail to load (with the error) |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
 | `wl edit <name>` | Open the workspace folder |
@@ -83,7 +82,6 @@ replace the saved session or last-workspace pointer.
     |-- workspace.json
     |-- AGENTS.md                (workspace instructions)
     |-- .last-session            (machine-local Copilot session reference)
-    |-- prompts/
     |   `-- review.md
     `-- .copilot/
         |-- plugin.json          (generated)
@@ -135,19 +133,8 @@ The bundled **wl-create-workspace** and **wl-update-workspace** skills propose
 changes before writing files. Ask Copilot to use them by name or describe the
 task, or use a prompt such as `Use the /wl-update-workspace skill`.
 
-### Saved prompts
-
-Save a prompt under `prompts/review.md`:
-
-```markdown
----
-label: Review changes
----
-Review the changes and identify anything needing manual verification.
-```
-
-Use `wl launch my-project -p review`, or pass literal text with
-`wl launch my-project -p "investigate the failing test"`.
+Pass a one-off Copilot prompt after `--`, for example
+`wl launch my-project -- -i "investigate the failing test"`.
 
 ### Sessions
 

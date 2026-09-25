@@ -25,7 +25,6 @@ public class CopilotServiceTests : IDisposable
     }
 
     private static LaunchSpec MakeSpec(
-        string? prompt = null,
         List<string>? copilotArgs = null,
         string? resumeSessionId = null,
         List<string>? additionalDirs = null,
@@ -47,7 +46,6 @@ public class CopilotServiceTests : IDisposable
             Workspace: ws,
             ResolvedAdditionalDirs: additionalDirs ?? [],
             ResolvedSharedDir: sharedDir,
-            Prompt: prompt,
             ResumeSessionId: resumeSessionId,
             TemporarySession: temporary,
             PassThroughArgs: passThroughArgs);
@@ -120,17 +118,14 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void PromptCopilotArgsAndPassThrough_KeepExpectedOrder()
+    public void CopilotArgsAndPassThrough_KeepExpectedOrder()
     {
         var result = _adapter.BuildArgs(MakeSpec(
-            prompt: "from prompt",
             copilotArgs: ["--model", "configured"],
             passThroughArgs: ["--model", "runtime"]));
 
-        var promptIndex = result.Args.IndexOf("-i");
         var configuredIndex = result.Args.IndexOf("configured") - 1;
         var runtimeIndex = result.Args.LastIndexOf("--model");
-        Assert.True(promptIndex < configuredIndex);
         Assert.True(configuredIndex < runtimeIndex);
         Assert.Equal("runtime", result.Args[runtimeIndex + 1]);
     }
@@ -144,17 +139,7 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void Prompt_EmitsDashIWithPrompt()
-    {
-        var result = _adapter.BuildArgs(MakeSpec(prompt: "do the thing"));
-
-        Assert.Contains("-i", result.Args);
-        var idx = result.Args.IndexOf("-i");
-        Assert.Equal("do the thing", result.Args[idx + 1]);
-    }
-
-    [Fact]
-    public void NoPrompt_NoDashI()
+    public void NoPassThrough_NoDashI()
     {
         var result = _adapter.BuildArgs(MakeSpec());
 

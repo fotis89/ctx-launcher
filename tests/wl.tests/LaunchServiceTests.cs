@@ -81,15 +81,15 @@ public class LaunchServiceTests : IDisposable
     }
 
     [Fact]
-    public void BuildLaunchArgs_PromptAndCopilotArgs()
+    public void BuildLaunchArgs_CopilotArgsAndPassThrough()
     {
         _ws.CopilotArgs = ["--yolo"];
-        var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing");
+        var (args, _, _) = _service.BuildLaunchArgs(_ws, passThroughArgs: ["-i", "do the thing"]);
         Assert.Contains("--yolo", args);
-        var promptIndex = args.IndexOf("-i");
+        var passThroughIndex = args.IndexOf("-i");
         var yoloIndex = args.IndexOf("--yolo");
-        Assert.True(promptIndex < yoloIndex);
-        Assert.Equal("do the thing", args[promptIndex + 1]);
+        Assert.True(yoloIndex < passThroughIndex);
+        Assert.Equal("do the thing", args[passThroughIndex + 1]);
     }
 
     [Fact]

@@ -150,11 +150,6 @@ public class CopilotService(WlPaths paths)
             }
         }
 
-        if (!string.IsNullOrEmpty(spec.Prompt))
-        {
-            args.Add("-i");
-            args.Add(spec.Prompt);
-        }
         args.AddRange(ws.CopilotArgs);
         args.AddRange(spec.PassThroughArgs ?? []);
 

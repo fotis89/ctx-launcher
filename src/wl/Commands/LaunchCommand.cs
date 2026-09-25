@@ -3,9 +3,9 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
+public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, SetupService setup)
 {
-    public int Execute(string? name, string? promptArg, bool forceNew = false, bool temporary = false, IReadOnlyList<string>? passThroughArgs = null)
+    public int Execute(string? name, bool forceNew = false, bool temporary = false, IReadOnlyList<string>? passThroughArgs = null)
     {
         if (name is null)
         {
@@ -33,12 +33,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return 1;
         }
 
-        string? resolvedPrompt = null;
-        if (promptArg is not null)
-        {
-            resolvedPrompt = prompts.ResolvePrompt(ws, promptArg);
-        }
-
         if (forceNew && temporary)
         {
             Console.Error.WriteLine("Cannot use --new and --temp together.");
@@ -50,7 +44,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         setup.EnsureInstalled();
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
-        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, resumeSessionId, sharedDirResolved, temporary, passThroughArgs);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resumeSessionId, sharedDirResolved, temporary, passThroughArgs);
 
         foreach (var dir in skippedDirs)
         {
@@ -82,12 +76,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         if (ws.AdditionalDirs.Count > 0)
         {
             ConsoleLabel.WriteLine("Dirs:", $"{ws.AdditionalDirs.Count} additional");
-        }
-
-        if (resolvedPrompt is not null)
-        {
-            var truncated = resolvedPrompt.Length > 60 ? resolvedPrompt[..57] + "..." : resolvedPrompt;
-            ConsoleLabel.WriteLine("Prompt:", truncated);
         }
 
         if (shouldResume)

@@ -189,12 +189,10 @@ public class E2ETests
         File.WriteAllText(System.IO.Path.Combine(folder, "AGENTS.md"), "Project instructions");
         var skills = Directory.CreateDirectory(System.IO.Path.Combine(folder, ".copilot", "skills", "wl-review")).FullName;
         File.WriteAllText(System.IO.Path.Combine(skills, "SKILL.md"), "---\nname: wl-review\ndescription: Review code\n---\nReview this repo.");
-        var prompts = Directory.CreateDirectory(System.IO.Path.Combine(folder, "prompts")).FullName;
-        File.WriteAllText(System.IO.Path.Combine(prompts, "review.md"), "---\nlabel: Review\n---\nReview this project");
         var bin = System.IO.Path.Combine(home.Path, "fake-bin");
         var log = System.IO.Path.Combine(home.Path, "copilot.log");
         FakeCopilot.Install(bin, log);
-        var fresh = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "-p", "review");
+        var fresh = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--", "-i", "Review this project");
         Assert.Equal(0, fresh.ExitCode);
         var sessionPath = System.IO.Path.Combine(folder, ".last-session");
         var firstSession = File.ReadAllText(sessionPath);

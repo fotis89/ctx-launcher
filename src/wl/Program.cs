@@ -8,7 +8,6 @@ using wl.Services;
 
 var paths = new WlPaths();
 var workspaceService = new WorkspaceService(paths);
-var promptService = new PromptService();
 var runner = new CopilotRunner();
 var pathsService = new PathsService(paths.PathsConfigFile);
 var copilot = new CopilotService(paths);
@@ -60,33 +59,15 @@ var root = new RootCommand("wl — GitHub Copilot workspace launcher");
 // launch
 var launchNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
 launchNameArg.CompletionSources.Add(WorkspaceCompletions);
-var promptOpt = new Option<string?>("-p") { Description = "Saved prompt slug or raw text" };
-promptOpt.CompletionSources.Add(ctx =>
-{
-    var wsName = ctx.ParseResult.GetValue(launchNameArg);
-    if (wsName is null)
-    {
-        return [];
-    }
-
-    var ws = workspaceService.ListEntries().FirstOrDefault(w => w.FolderName == wsName)?.Workspace;
-    if (ws is null)
-    {
-        return [];
-    }
-
-    return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
-});
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session" };
 var tempOpt = new Option<bool>("--temp") { Description = "Start a throwaway session without changing the saved session" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, newOpt, tempOpt };
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, newOpt, tempOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
-    var prompt = parseResult.GetValue(promptOpt);
     var forceNew = parseResult.GetValue(newOpt);
     var temporary = parseResult.GetValue(tempOpt);
-    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, forceNew, temporary, passThroughArgs));
+    return Run(() => new LaunchCommand(workspaceService, launchService, setupService).Execute(name, forceNew, temporary, passThroughArgs));
 });
 
 // create
@@ -119,7 +100,7 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    return Run(() => new WhichCommand(workspaceService, promptService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!, passThroughArgs));
+    return Run(() => new WhichCommand(workspaceService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!, passThroughArgs));
 });
 
 // setup

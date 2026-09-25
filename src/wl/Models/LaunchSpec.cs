@@ -4,7 +4,6 @@ public record LaunchSpec(
     Workspace Workspace,
     List<string> ResolvedAdditionalDirs,
     string? ResolvedSharedDir,
-    string? Prompt,
     string? ResumeSessionId,
     bool TemporarySession = false,
     IReadOnlyList<string>? PassThroughArgs = null)
