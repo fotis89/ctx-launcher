@@ -24,8 +24,6 @@ wl create my-project     # ask Copilot to propose a workspace
 wl launch my-project     # start a Copilot session
 ```
 
-Requires GitHub Copilot CLI 1.0.86 or newer on PATH. Copilot-only workspaces use explicit
-`schemaVersion: 2` and `.copilot/skills`. The `tool` field and `--tool` flag are
-removed; existing workspaces require a manual upgrade.
+Requires GitHub Copilot CLI 1.0.86 or newer on PATH.
 
-See the [full documentation and upgrade guide](https://github.com/fotis89/ctx-launcher#upgrading-existing-workspaces).
+See the [full documentation](https://github.com/fotis89/ctx-launcher#readme).

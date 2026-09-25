@@ -97,7 +97,6 @@ one-line pointer to the new form and exit nonzero.
 - Separate `wl-create-workspace` and `wl-update-workspace` skills: merge them
   into one `wl-workspace` skill covering create and update. Automatic setup
   removes only the two old bundled skill folders it owns.
-- The README upgrade guide moves to the CHANGELOG.
 
 ## Kept unchanged
 

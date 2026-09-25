@@ -108,28 +108,6 @@ public class WorkspaceService(WlPaths paths)
 
     public string GetWorkspaceFolder(string name) => paths.WorkspaceFolder(name);
 
-    public void ValidateEnvironment(Workspace? workspace = null)
-    {
-        if (File.Exists(paths.ToolConfigFile))
-        {
-            using var config = JsonDocument.Parse(File.ReadAllText(paths.ToolConfigFile));
-            if (config.RootElement.ValueKind != JsonValueKind.Object)
-                throw new InvalidDataException($"{paths.ToolConfigFile}: expected a JSON object.");
-            if (config.RootElement.TryGetProperty("defaultTool", out _))
-                throw new InvalidDataException($"{paths.ToolConfigFile}: remove 'defaultTool'; wl now supports only Copilot.");
-        }
-
-        ValidateLegacySkills(paths.SharedDir);
-        if (workspace is not null) ValidateLegacySkills(workspace.FolderPath);
-    }
-
-    private static void ValidateLegacySkills(string folder)
-    {
-        var legacy = Path.Combine(folder, ".claude", "skills");
-        if (Directory.Exists(legacy))
-            throw new InvalidDataException($"{legacy}: legacy skill directory. Move skills to {WlPaths.SkillsDir(folder)} and remove the old skills directory before continuing.");
-    }
-
     public void SaveWorkspace(Workspace ws, string slug)
     {
         var folderPath = paths.WorkspaceFolder(slug);
@@ -214,9 +192,7 @@ public class WorkspaceService(WlPaths paths)
                 !root.TryGetProperty("schemaVersion", out var schema) ||
                 schema.ValueKind != JsonValueKind.Number ||
                 !schema.TryGetInt32(out var version) || version != Workspace.CurrentSchemaVersion)
-                throw new InvalidDataException($"{jsonPath}: requires explicit schemaVersion: 2. Update this workspace manually; see the README upgrade guide.");
-            if (root.TryGetProperty("tool", out _))
-                throw new InvalidDataException($"{jsonPath}: remove 'tool'; wl now supports only Copilot.");
+                throw new InvalidDataException($"{jsonPath}: requires \"schemaVersion\": 2.");
 
             var ws = JsonSerializer.Deserialize(json, WlJsonContext.Default.Workspace)
                 ?? throw new InvalidDataException($"{jsonPath}: expected a workspace object.");

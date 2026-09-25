@@ -26,8 +26,6 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return 1;
         }
 
-        workspaces.ValidateEnvironment(ws);
-
         var repoExists = Directory.Exists(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get));
         if (!repoExists)
         {

@@ -39,7 +39,7 @@ public class SetupServiceTests
     }
 
     [Fact]
-    public void Setup_InstallsOnlyNewLayoutAndDoesNotMigrateSessions()
+    public void Setup_InstallsSkillsAndDoesNotRewriteSessions()
     {
         var root = Directory.CreateTempSubdirectory("wl-setup-").FullName;
         try
@@ -47,7 +47,7 @@ public class SetupServiceTests
             var paths = new WlPaths(root);
             var workspace = Directory.CreateDirectory(Path.Combine(root, "old")).FullName;
             var sessionPath = Path.Combine(workspace, ".last-session");
-            const string session = "{\"claude\":\"old-id\"}";
+            const string session = "old-id";
             File.WriteAllText(sessionPath, session);
             var service = new SetupService(new VersionService(paths), paths);
             Assert.True(service.EnsureInstalled());
@@ -59,7 +59,6 @@ public class SetupServiceTests
                 using var reader = new StreamReader(resource);
                 var expected = reader.ReadToEnd();
                 Assert.Equal(expected, File.ReadAllText(WlPaths.SkillFile(paths.SharedSkillsDir, name)));
-                Assert.Contains("schemaVersion: 2", expected);
                 Assert.Contains(".copilot/skills", expected);
                 Assert.Contains("wl-", expected);
                 Assert.Contains("allowed-tools", expected);
@@ -69,26 +68,8 @@ public class SetupServiceTests
                 Assert.Contains("Use the /wl-review skill", expected);
                 Assert.DoesNotContain("slash is reserved", expected);
             }
-            Assert.False(Directory.Exists(Path.Combine(root, ".shared", ".claude")));
             Assert.Contains(".shared/.copilot/skills/wl-create-workspace/", File.ReadAllText(paths.GitignoreFile));
             Assert.Equal(session, File.ReadAllText(sessionPath));
-        }
-        finally { Directory.Delete(root, true); }
-    }
-
-    [Fact]
-    public void Setup_LegacySharedSkills_FailsBeforeAnyWrites()
-    {
-        var root = Directory.CreateTempSubdirectory("wl-setup-").FullName;
-        try
-        {
-            var paths = new WlPaths(root);
-            Directory.CreateDirectory(Path.Combine(root, ".shared", ".claude", "skills"));
-            var service = new SetupService(new VersionService(paths), paths);
-            Assert.Throws<InvalidDataException>(() => service.EnsureInstalled());
-            Assert.False(Directory.Exists(paths.SharedCopilotDir));
-            Assert.False(File.Exists(paths.VersionFile));
-            Assert.False(File.Exists(paths.GitignoreFile));
         }
         finally { Directory.Delete(root, true); }
     }
@@ -108,7 +89,7 @@ public class SetupServiceTests
             File.WriteAllText(skill, "stale content");
             Assert.True(service.EnsureInstalled());
             Assert.Equal(version.GetCurrentVersion(), File.ReadAllText(paths.VersionFile));
-            Assert.Contains("schemaVersion: 2", File.ReadAllText(skill));
+            Assert.NotEqual("stale content", File.ReadAllText(skill));
         }
         finally { Directory.Delete(root, true); }
     }

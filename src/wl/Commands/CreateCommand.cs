@@ -8,7 +8,6 @@ public class CreateCommand(WorkspaceService workspaces, CopilotRunner runner, Se
 {
     public int Execute(string? name, bool basic = false)
     {
-        workspaces.ValidateEnvironment();
         if (basic && name is null)
         {
             Console.Error.WriteLine("Name required with --basic.");

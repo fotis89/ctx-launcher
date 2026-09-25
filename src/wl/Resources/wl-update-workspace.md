@@ -22,10 +22,7 @@ Read all workspace files:
 Run `wl which <name>` to see resolved config and path warnings.
 
 Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces`.
-wl supports only GitHub Copilot CLI and requires `schemaVersion: 2`. Old schema
-versions, `tool`, `defaultTool`, `.claude/skills`, and per-tool `.last-session`
-JSON maps require manual upgrade. Explain the README upgrade steps and stop on
-these errors; do not automatically migrate, delete, or overwrite legacy files.
+`workspace.json` must contain `"schemaVersion": 2`. If `wl which` reports a load error, show it and propose the fix; don't rewrite the file without confirmation.
 
 ## Step 2: Detect drift
 

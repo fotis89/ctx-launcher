@@ -98,13 +98,16 @@ public class LaunchServiceTests : IDisposable
     [Fact]
     public void LastSession_Missing_ReturnsNull() => Assert.Null(LaunchService.LoadLastSession(_ws));
 
+    [Fact]
+    public void LastSession_Empty_ReturnsNull()
+    {
+        File.WriteAllText(_ws.LastSessionPath, "  ");
+        Assert.Null(LaunchService.LoadLastSession(_ws));
+    }
+
     [Theory]
-    [InlineData("{\"copilot\":\"test-12345678\",\"claude\":\"old-id\"}")]
-    [InlineData("{broken")]
-    [InlineData("[]")]
-    [InlineData("")]
     [InlineData("one\ntwo")]
-    public void LastSession_InvalidOrLegacy_IsRejectedWithoutMutation(string content)
+    public void LastSession_WithControlCharacters_IsRejectedWithoutMutation(string content)
     {
         File.WriteAllText(_ws.LastSessionPath, content);
         Assert.Throws<InvalidDataException>(() => LaunchService.LoadLastSession(_ws));

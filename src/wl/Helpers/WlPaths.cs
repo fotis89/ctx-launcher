@@ -7,7 +7,7 @@ namespace wl.Helpers;
 ///
 /// Layout:
 ///   &lt;WorkspacesRoot&gt;/
-///     .version, .last, .paths.json, .config.json, .gitignore
+///     .version, .last, .paths.json, .gitignore
 ///     &lt;name&gt;/                   ← workspace folder
 ///       workspace.json
 ///       instructions.md
@@ -34,7 +34,6 @@ public class WlPaths
     public const string AgentsFileName = "AGENTS.md";
     public const string WorkspaceConfigFileName = "workspace.json";
     public const string PathsConfigFileName = ".paths.json";
-    public const string ToolConfigFileName = ".config.json";
     public const string VersionFileName = ".version";
     public const string LastWorkspaceFileName = ".last";
     public const string LastSessionFileName = ".last-session";
@@ -54,7 +53,6 @@ public class WlPaths
     public string SharedCopilotDir => CopilotDir(SharedDir);
     public string SharedSkillsDir => SkillsDir(SharedDir);
     public string PathsConfigFile => Path.Combine(WorkspacesRoot, PathsConfigFileName);
-    public string ToolConfigFile => Path.Combine(WorkspacesRoot, ToolConfigFileName);
     public string VersionFile => Path.Combine(WorkspacesRoot, VersionFileName);
     public string LastWorkspaceFile => Path.Combine(WorkspacesRoot, LastWorkspaceFileName);
     public string GitignoreFile => Path.Combine(WorkspacesRoot, GitignoreFileName);

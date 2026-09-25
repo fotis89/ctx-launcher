@@ -276,65 +276,6 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void Legacy_workspace_is_listed_but_cannot_launch_or_mutate_setup()
-    {
-        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
-        using var home = new TempHome();
-        var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
-        var folder = Directory.CreateDirectory(System.IO.Path.Combine(root, home.WorkspaceName)).FullName;
-        var config = System.IO.Path.Combine(folder, "workspace.json");
-        const string legacy = "{\"name\":\"legacy\",\"tool\":\"claude\"}";
-        File.WriteAllText(config, legacy);
-        var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName);
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("schemaVersion", result.Stderr);
-        Assert.Equal(legacy, File.ReadAllText(config));
-        Assert.False(Directory.Exists(System.IO.Path.Combine(root, ".shared")));
-        var list = WlRunner.Run(home.Path, null, "list");
-        Assert.Contains(home.WorkspaceName, list.Stdout);
-        Assert.Contains("[incompatible]", list.Stdout);
-        Assert.NotEqual(0, WlRunner.Run(home.Path, null, "which", home.WorkspaceName).ExitCode);
-    }
-
-    [SkippableFact]
-    public void Legacy_defaultTool_prevents_create_without_writing_files()
-    {
-        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
-        using var home = new TempHome();
-        var root = Directory.CreateDirectory(System.IO.Path.Combine(home.Path, ".wl-workspaces")).FullName;
-        var config = System.IO.Path.Combine(root, ".config.json");
-        const string legacy = "{\"defaultTool\":\"copilot\"}";
-        File.WriteAllText(config, legacy);
-        var result = WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic");
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("defaultTool", result.Stderr);
-        Assert.Equal(legacy, File.ReadAllText(config));
-        Assert.Single(Directory.GetFileSystemEntries(root));
-    }
-
-    [SkippableFact]
-    public void Legacy_skills_and_session_maps_require_manual_upgrade()
-    {
-        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
-        using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
-        var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
-        var legacySkills = Directory.CreateDirectory(System.IO.Path.Combine(folder, ".claude", "skills")).FullName;
-        var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName);
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("Move skills", result.Stderr);
-        Assert.False(File.Exists(System.IO.Path.Combine(folder, "AGENTS.md")));
-        Directory.Delete(legacySkills);
-        var session = System.IO.Path.Combine(folder, ".last-session");
-        const string legacy = "{\"copilot\":\"old-name\",\"claude\":\"old-id\"}";
-        File.WriteAllText(session, legacy);
-        result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName, "--resume");
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("plain Copilot session reference", result.Stderr);
-        Assert.Equal(legacy, File.ReadAllText(session));
-    }
-
-    [SkippableFact]
     public void Explicit_resume_without_session_and_conflicting_flags_fail()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
@@ -357,7 +298,6 @@ public class E2ETests
         Assert.NotEqual(0, result.ExitCode);
         var help = WlRunner.Run(home.Path, null, "create", "--help");
         Assert.Contains("Copilot", help.Stdout);
-        Assert.DoesNotContain("Claude", help.Stdout);
         Assert.DoesNotContain("--tool", help.Stdout);
     }
 

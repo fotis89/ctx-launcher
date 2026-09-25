@@ -36,11 +36,10 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
     {
         if (!File.Exists(ws.LastSessionPath)) return null;
         var content = File.ReadAllText(ws.LastSessionPath).Trim();
-        if (content.Length == 0 || content.StartsWith('{') || content.StartsWith('[') ||
-            content.Any(char.IsControl))
+        if (content.Length == 0) return null;
+        if (content.Any(char.IsControl))
             throw new InvalidDataException(
-                $"{ws.LastSessionPath}: expected a plain Copilot session reference. " +
-                "Copy only the old map's 'copilot' value into this file, or remove it and start fresh. Claude sessions are not supported.");
+                $"{ws.LastSessionPath}: expected a Copilot session ID. Delete this file to start a fresh session.");
         return content;
     }
 

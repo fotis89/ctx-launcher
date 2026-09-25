@@ -11,10 +11,6 @@ Switch between projects without rebuilding context, and resume your previous ses
 Your repository's shared instructions stay the team's. `wl` keeps your personal
 context outside the repository in `~/.wl-workspaces/<name>`.
 
-**Copilot-only breaking change:** v0.9.0 requires workspace schema 2.
-Existing users must follow the [manual upgrade guide](#upgrading-existing-workspaces).
-The older 0.8.x releases support both runtimes; v0.9.0 supports only Copilot.
-
 ## Install
 
 Requires Node.js and GitHub Copilot CLI 1.0.86 or newer on your `PATH`:
@@ -47,7 +43,7 @@ wl create my-project --basic
 
 The first create or launch installs the bundled workspace skills. `wl setup`
 refreshes them explicitly, checks Copilot availability, and prints tab-completion
-instructions. There is no tool selection or fallback runtime.
+instructions.
 
 ## Commands
 
@@ -60,9 +56,9 @@ instructions. There is no tool selection or fallback runtime.
 | `wl launch <name> --new` | Start fresh, overriding the workspace's resume default |
 | `wl launch <name> --yolo` | Skip Copilot permission prompts |
 | `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
-| `wl list` | List workspaces, including incompatible ones with diagnostics |
+| `wl list` | List workspaces, including ones that fail to load (with the error) |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
-| `wl edit <name>` | Open the workspace folder, including legacy workspaces needing repair |
+| `wl edit <name>` | Open the workspace folder |
 | `wl paths set <name> <value>` | Define a machine-local path variable |
 | `wl paths list` | Show defined and referenced variables |
 | `wl paths init` | Prompt for undefined variables |
@@ -118,9 +114,6 @@ the E2E suite isolates its files from your real profile.
 The primary repository must be a directory. Missing additional directories are
 reported and skipped. `yolo` and `resume` default to false.
 
-The `tool` field and `--tool` option no longer exist, including `tool: copilot`.
-Machine-local `defaultTool` settings are rejected rather than silently ignored.
-
 ### Instructions and skills
 
 Edit `instructions.md`, not the generated `AGENTS.md`. Each launch mirrors the
@@ -159,37 +152,10 @@ Use `wl launch my-project -p review`, or pass literal text with
 
 Fresh sessions receive an explicit UUID via `--session-id` and a readable name.
 After a successful exit, `.last-session` stores the UUID as plain text; resume
-uses that ID so renaming the session in Copilot does not break it. Existing
-plain-text session names still work, but remain sensitive to renaming until
-you start a fresh session or manually replace the name with its Copilot UUID.
+uses that ID so renaming the session in Copilot does not break it.
 Session history is local to Copilot on that machine; synchronizing workspace
 definitions does not synchronize conversations. Closing the terminal before
 Copilot exits successfully can leave the previous pointer unchanged.
-
-## Upgrading existing workspaces
-
-There is **no automatic migration**. Back up your workspace root before editing.
-
-1. In each `workspace.json`, set `"schemaVersion": 2` and remove `tool`.
-2. Remove `defaultTool` from the root `.config.json`, or delete that file if it
-   contains nothing else. `wl` no longer reads runtime defaults.
-3. Move workspace and shared skills from `.claude/skills` to `.copilot/skills`.
-   Remove the now-empty legacy `skills` directory. Do not overwrite colliding
-   skill names without reviewing them. wl rejects remaining legacy skill folders.
-4. For `.last-session`, copy only the old JSON map's `copilot` value into the file
-   as plain text, or delete the pointer to start fresh. Claude conversations
-   cannot be resumed in Copilot. Do not copy the old `claude` entry or an
-   unidentified legacy UUID.
-5. Run `wl setup`, then `wl which <name>` to confirm the configuration.
-
-Old generated `.claude/plugin.json` files can be removed manually. Update your
-workspace repository's ignore rules for the new generated manifest paths;
-`wl setup` appends the required patterns without deleting old user content.
-If you previously registered skill directories in global Copilot settings,
-review/remove those legacy registrations yourself; wl does not edit them.
-
-Users still on the old unscoped npm package should uninstall `ctx-launcher` and
-install `@ctx-launcher/wl`. The workspace root stays the same.
 
 ## Syncing across PCs
 
@@ -204,10 +170,9 @@ wl paths list
 
 Values live in `.paths.json`. Keep workspace definitions and user-authored skills
 in a private git repository, then use `wl clone <git-url>` on another machine.
-Legacy clones must be upgraded manually before setup/launch will work.
 
 Setup ignores machine-local `.last-session`, `.last`, `.version`, `.paths.json`,
-and legacy `.config.json`, plus generated `*/AGENTS.md`,
+plus generated `*/AGENTS.md`,
 `*/.copilot/plugin.json`, `.shared/.copilot/plugin.json`, and the two bundled
 skill directories under `.shared/.copilot/skills`. Other shared skills stay tracked.
 

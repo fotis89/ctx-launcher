@@ -121,7 +121,6 @@ public class WorkspaceServiceTests : IDisposable
     [InlineData("{\"schemaVersion\":1}")]
     [InlineData("{\"schemaVersion\":3}")]
     [InlineData("{\"schemaVersion\":null}")]
-    [InlineData("{\"schemaVersion\":2,\"tool\":\"copilot\"}")]
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":null}")]
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":[null]}")]
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":null}")]
@@ -139,16 +138,17 @@ public class WorkspaceServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("claude")]
-    [InlineData("copilot")]
-    public void LegacyDefaultTool_IsRejectedWithoutMutation(string tool)
+    [InlineData("{}")]
+    [InlineData("{\"schemaVersion\":1}")]
+    public void InvalidWorkspaceSchemaVersion_UsesCurrentErrorMessage(string json)
     {
-        var config = Path.Combine(_root, ".config.json");
-        var json = $"{{\"defaultTool\":\"{tool}\"}}";
+        var folder = Directory.CreateDirectory(Path.Combine(_root, "invalid-schema")).FullName;
+        var config = Path.Combine(folder, "workspace.json");
         File.WriteAllText(config, json);
-        Assert.Throws<InvalidDataException>(() => _service.ValidateEnvironment());
-        Assert.Equal(json, File.ReadAllText(config));
-        Assert.False(Directory.Exists(Path.Combine(_root, ".shared")));
+
+        var ex = Assert.Throws<InvalidDataException>(() => _service.LoadWorkspace("invalid-schema"));
+
+        Assert.Equal($"{config}: requires \"schemaVersion\": 2.", ex.Message);
     }
 
     [Theory]

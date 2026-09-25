@@ -36,7 +36,6 @@ public class SetupService(VersionService versionService, WlPaths paths)
         .last
         .version
         .paths.json
-        .config.json
 
         # wl-managed skills
         .shared/.copilot/skills/wl-create-workspace/
@@ -52,7 +51,6 @@ public class SetupService(VersionService versionService, WlPaths paths)
 
     public SetupResult RunSetup()
     {
-        new WorkspaceService(paths).ValidateEnvironment();
         var previous = versionService.GetInstalledVersion();
         var current = versionService.GetCurrentVersion();
         var createFresh = WriteSkill(WlPaths.Skill(paths.SharedSkillsDir, CreateSkillName), $"{CreateSkillName}.md");
@@ -112,7 +110,6 @@ public class SetupService(VersionService versionService, WlPaths paths)
 
     public bool EnsureInstalled()
     {
-        new WorkspaceService(paths).ValidateEnvironment();
         var skillsPresent =
             File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, CreateSkillName)) &&
             File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, UpdateSkillName));

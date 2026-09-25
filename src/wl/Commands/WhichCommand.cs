@@ -14,8 +14,6 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             return 1;
         }
 
-        workspaces.ValidateEnvironment(ws);
-
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 

@@ -7,9 +7,9 @@ Analyze the current session and propose a workspace for the `wl` AI context laun
 
 ## Step 0: Pre-check
 
-Run `wl list` and `wl which <slug>` first. If the workspace exists, including an incompatible workspace, suggest using the wl-update-workspace skill instead. Do not overwrite an old workspace because `wl which` reports a schema error. Only proceed with creation if no workspace exists for this project.
+Run `wl list` and `wl which <slug>` first. If the workspace exists, suggest using the wl-update-workspace skill instead. Do not overwrite an existing workspace because `wl which` reports a load error. Only proceed with creation if no workspace exists for this project.
 
-wl supports only GitHub Copilot CLI and requires `schemaVersion: 2`. Do not emit `tool`, `defaultTool`, or `--tool`. Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces` for workspace storage. This also applies to the update skill.
+Always write `"schemaVersion": 2` in `workspace.json`. Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces` for workspace storage. This also applies to the update skill.
 
 ## Step 1: Gather context
 
@@ -35,7 +35,7 @@ Keep questions concrete and offer sensible defaults. Do not ask open-ended "tell
 - **Conventions**: coding style, architecture patterns, testing approach observed in the session
 - **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. Candidates for skills.
 - **Existing docs**: check for `AGENTS.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in instructions.md.
-- **Runtime**: verify `copilot --version`. There is no tool selection or fallback runtime.
+- **Runtime**: verify `copilot --version`.
 
 ## Step 2: Propose
 
@@ -146,8 +146,6 @@ After confirmation:
      "resume": true
    }
    ```
-
-   Never emit a `tool` field. wl launches only Copilot.
 
    If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist) *and the variable does not already appear in `wl paths list`*, run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
 
