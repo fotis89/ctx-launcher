@@ -17,12 +17,12 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         Console.WriteLine();
         ConsoleLabel.WriteLine("Workspace:", ws.Name);
 
-        var repoOk = Directory.Exists(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get));
+        var repoOk = Directory.Exists(launcher.ResolveWorkspacePath(ws, ws.PrimaryRepo));
         ConsoleLabel.WriteLine("Repo:", $"{ws.PrimaryRepo} ({PathStatus(ws.PrimaryRepo, repoOk)})");
 
         foreach (var dir in ws.AdditionalDirs)
         {
-            var ok = Directory.Exists(PathHelper.ResolvePath(dir, paths.Get));
+            var ok = Directory.Exists(launcher.ResolveWorkspacePath(ws, dir));
             ConsoleLabel.WriteLine("Dir:", $"{dir} ({PathStatus(dir, ok)})");
         }
 

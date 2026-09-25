@@ -46,6 +46,41 @@ public class LaunchServiceTests : IDisposable
     }
 
     [Fact]
+    public void RelativePrimaryRepoAndAdditionalDirsResolveFromWorkspaceFolder()
+    {
+        var workspaceFolder = Directory.CreateDirectory(Path.Combine(_root, "workspace")).FullName;
+        var repo = Directory.CreateDirectory(Path.Combine(workspaceFolder, "repo")).FullName;
+        var additional = Directory.CreateDirectory(Path.Combine(workspaceFolder, "extras")).FullName;
+        var otherCwd = Directory.CreateDirectory(Path.Combine(_root, "other-cwd")).FullName;
+        var runner = new CapturingRunner();
+        var paths = new WlPaths(_root);
+        var service = new LaunchService(runner, new PathsService(paths.PathsConfigFile), new CopilotService(paths));
+        var ws = new Workspace
+        {
+            Name = "test",
+            PrimaryRepo = "repo",
+            AdditionalDirs = ["extras"],
+            FolderPath = workspaceFolder,
+        };
+        var oldCwd = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(otherCwd);
+
+            var (args, skipped, _) = service.BuildLaunchArgs(ws);
+            service.Launch(ws, args);
+
+            Assert.Empty(skipped);
+            Assert.Contains(additional, args);
+            Assert.Equal(repo, runner.WorkingDirectory);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(oldCwd);
+        }
+    }
+
+    [Fact]
     public void BuildLaunchArgs_PromptAndYolo()
     {
         var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing", yolo: true);
@@ -120,5 +155,16 @@ public class LaunchServiceTests : IDisposable
         File.WriteAllText(_ws.LastSessionPath, "test-12345678");
         using var locker = new FileStream(_ws.LastSessionPath, FileMode.Open, FileAccess.Read, FileShare.None);
         Assert.Throws<IOException>(() => LaunchService.LoadLastSession(_ws));
+    }
+
+    private sealed class CapturingRunner : CopilotRunner
+    {
+        public string? WorkingDirectory { get; private set; }
+
+        public override int Run(string workingDirectory, IEnumerable<string> args, IReadOnlyDictionary<string, string>? environment = null)
+        {
+            WorkingDirectory = workingDirectory;
+            return 0;
+        }
     }
 }

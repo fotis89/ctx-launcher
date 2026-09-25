@@ -66,7 +66,7 @@ launchCmd.SetAction(parseResult =>
     var yolo = parseResult.GetValue(yoloOpt);
     var resume = parseResult.GetValue(resumeOpt);
     var forceNew = parseResult.GetValue(newOpt);
-    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService, pathsService).Execute(name, prompt, yolo, resume, forceNew));
+    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, yolo, resume, forceNew));
 });
 
 // create

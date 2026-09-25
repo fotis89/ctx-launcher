@@ -3,7 +3,7 @@ using wl.Services;
 
 namespace wl.Commands;
 
-public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup, PathsService paths)
+public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
     public int Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
     {
@@ -26,7 +26,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return 1;
         }
 
-        var repoExists = Directory.Exists(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get));
+        var repoExists = Directory.Exists(launcher.ResolveWorkspacePath(ws, ws.PrimaryRepo));
         if (!repoExists)
         {
             Console.Error.WriteLine($"Error: primary repo not found: {ws.PrimaryRepo}");

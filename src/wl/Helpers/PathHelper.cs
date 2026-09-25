@@ -4,7 +4,7 @@ namespace wl.Helpers;
 
 public static partial class PathHelper
 {
-    public static string ResolvePath(string path, Func<string, string?>? lookup = null)
+    public static string ResolvePath(string path, Func<string, string?>? lookup = null, string? basePath = null)
     {
         if (lookup is not null && path.Contains('$'))
         {
@@ -20,6 +20,10 @@ public static partial class PathHelper
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var remainder = path[1..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             path = Path.GetFullPath(Path.Combine(home, remainder));
+        }
+        else if (basePath is not null && !Path.IsPathRooted(path))
+        {
+            path = Path.GetFullPath(Path.Combine(basePath, path));
         }
 
         // On Linux/macOS, `\` is a literal character (not a separator), so workspace.json

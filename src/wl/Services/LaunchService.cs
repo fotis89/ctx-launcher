@@ -13,7 +13,7 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
         var skippedDirs = new List<string>();
         foreach (var dir in ws.AdditionalDirs)
         {
-            var resolved = PathHelper.ResolvePath(dir, paths.Get);
+            var resolved = ResolveWorkspacePath(ws, dir);
             if (Directory.Exists(resolved))
                 resolvedDirs.Add(resolved);
             else
@@ -60,6 +60,9 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
     public int Launch(Workspace ws, List<string> args)
     {
         copilot.PrepareLaunch(ws);
-        return runner.Run(PathHelper.ResolvePath(ws.PrimaryRepo, paths.Get), args, copilot.GetEnvironment(ws));
+        return runner.Run(ResolveWorkspacePath(ws, ws.PrimaryRepo), args, copilot.GetEnvironment(ws));
     }
+
+    public string ResolveWorkspacePath(Workspace ws, string path)
+        => PathHelper.ResolvePath(path, paths.Get, ws.FolderPath);
 }

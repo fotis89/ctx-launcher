@@ -124,6 +124,16 @@ public class PathHelperTests
     }
 
     [Fact]
+    public void ResolvePath_RelativePathWithBase_ReturnsAbsolutePathFromBase()
+    {
+        var basePath = Path.Combine(Path.GetTempPath(), "workspace");
+
+        var result = PathHelper.ResolvePath("repo", basePath: basePath);
+
+        Assert.Equal(N(Path.GetFullPath(Path.Combine(basePath, "repo"))), result);
+    }
+
+    [Fact]
     public void ValidatePath_WithLookup_ResolvesVar()
     {
         var (exists, resolved) = PathHelper.ValidatePath("$HOME_ALIAS", name => name == "HOME_ALIAS" ? _home : null);
