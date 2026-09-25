@@ -1,177 +1,265 @@
-# wl v1: simplify around real usage
+# wl v1 plan
 
-## Summary
+Simplify wl around real usage and add folder mode: `wl launch` in any folder
+with your shared skills and instructions, no workspace needed. Breaking
+release; ship as v1.0.0.
 
-Cut wl down to what is actually used day to day, and add the one missing flow:
-running `wl` in any folder with shared skills and instructions, without creating
-a workspace. Four entry points replace fourteen command variants. Workspaces stay
-plain folders that users edit with VS Code or Copilot, not through CLI commands.
-This is a breaking release; recommend v1.0.0.
+The work is split into changes. Each change is one commit, leaves the build
+green, and updates its own tests and docs. Do them in order.
 
-## Evidence
+## Where we end up
 
-Author usage (the primary user; at most one other known user):
-
-- Used: `launch <name>`, `--resume`/`--new`, `create` (Copilot proposes), `clone`,
-  workspace `AGENTS.md`, workspace skills, shared skills, `additionalDirs`.
-- Unused: `launch` with no name, `--yolo`, `-p` (saved or literal), `create --basic`,
-  `list`, `which`, `edit`, `paths set/list/init`, `setup`.
-- Pain: wanting shared skills in an arbitrary folder requires creating a workspace first.
-
-## Decisions
-
-- **Folder mode is the default.** `wl` with no name launches Copilot in the
-  current folder with shared skills and shared instructions attached.
-- **Launching is the default verb.** `wl <name>` launches a workspace; the
-  `launch` subcommand is removed.
-- **Resume is the default.** If a saved session exists it is resumed; `--new`
-  starts fresh and makes that the remembered session. `--resume` and the
-  `resume` field are removed.
-- **Throwaway sessions.** `--temp` starts a fresh session and never touches the
-  saved pointer, so the next plain launch resumes the remembered session as if
-  the throwaway never happened. Useful for quick questions or experiments in a
-  workspace's context. `--temp` and `--new` are mutually exclusive.
-- **Pass-through replaces wl-specific flags.** Everything after `--` goes to
-  Copilot unchanged (for example `wl api -- --yolo -p "fix the build"`). This
-  replaces `--yolo`, `-p`, and saved prompts.
-- **Workspaces are managed as files, not through CLI commands.** Users edit
-  `~/.wl-workspaces/<name>` in VS Code or ask Copilot (via the bundled skill) to
-  change it. Deleting a workspace means deleting its folder. `list`, `which`, and
-  `edit` are removed.
-- **Setup and path variables are automatic.** Bundled skills refresh
-  automatically when the wl version changes. Undefined `$VARS` are prompted for
-  at launch or clone time and saved to `.paths.json`; to change one, edit that
-  file.
-- **No manual migration.** Keep `schemaVersion: 2`. Obsolete fields (`yolo`,
-  `resume`) and a `prompts/` folder are ignored, with a one-line notice naming the
-  file to clean up. They are never rejected. The breaking change is the command
-  surface only.
-
-## Command surface
-
-| Command | Behavior |
+| Command | Does |
 | --- | --- |
-| `wl [--new \| --temp] [-- <copilot args>]` | Folder mode in the current directory (see below). |
-| `wl <name> [--new \| --temp] [-- <copilot args>]` | Launch workspace `<name>`: resume its last session by default, start and remember a fresh one with `--new`, or start a throwaway one with `--temp`. |
-| `wl create [name]` | Copilot proposes a workspace via the bundled skill, defaulting `primaryRepo` to the current folder. Prints the created folder path. |
-| `wl clone <git-url>` | Clone workspace definitions, install bundled skills, prompt for every referenced undefined variable. |
-| `wl --version`, `wl --help` | Unchanged. |
+| `wl` | Print the command list (help). |
+| `wl launch [--new \| --temp] [-- <copilot args>]` | Open Copilot in the current folder (folder mode). |
+| `wl launch <name> [--new \| --temp] [-- <copilot args>]` | Open a workspace. |
+| `wl which [name] [--new \| --temp] [-- <copilot args>]` | Show what that `launch` would run. Changes nothing. |
+| `wl create [name]` | Create a workspace with Copilot. |
+| `wl clone <git-url>` | Set up workspaces on a new PC. |
 
-`create` and `clone` become reserved workspace names; `create` rejects them.
-An unknown name prints the available workspaces (this replaces `list`) and the
-path of the workspaces root. Tab completion moves to the root name argument.
-The shell registration snippets `setup` used to print move to the README
-(PowerShell and bash).
-Removed commands (`launch`, `list`, `which`, `edit`, `paths`, `setup`) print a
-one-line pointer to the new form and exit nonzero.
+Sessions: resume by default, `--new` starts a fresh remembered session,
+`--temp` starts a throwaway one.
 
-## Folder mode
+## Rules for every change
 
-- The primary directory is the current working directory. No `workspace.json`
-  is read or written.
-- Attach the shared plugin dir (`.shared/.copilot`) exactly as workspace
-  launches do today.
-- **Shared instructions (new):** `.shared/AGENTS.md` is loaded by appending
-  `.shared` to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, using the same deduplication as
-  workspace instructions. Shared instructions also apply to workspace launches,
-  before workspace instructions.
-- **Session memory per folder:** store folder sessions in a machine-local
-  `<root>/.folder-sessions.json` map keyed by the normalized full path
-  (case-insensitive on Windows). Same UUID and atomic-write rules as `.last-session`.
-  Add the file to the setup `.gitignore` patterns.
-- **Workspace auto-detection:** if the current folder equals exactly one
-  workspace's resolved `primaryRepo`, launch that workspace instead and print
-  `Using workspace '<name>' (primaryRepo match)`. With several matches, use
-  folder mode and list the matching names. Use `wl <name>` to be explicit.
-- The repository's own instructions and skills keep working unchanged;
-  folder mode only adds the personal shared layer.
+- **No compatibility layer.** No aliases, stubs, notices, or cleanup code for
+  removed features. Removed commands and options fail with the standard
+  System.CommandLine error. Removed `workspace.json` fields are ignored like any
+  unknown field. Keep `schemaVersion: 2`.
+- My own workspaces (`~/.wl-workspaces`) are updated by hand in the same change
+  when it affects them.
+- Build with 0 warnings; unit and E2E tests pass.
 
-## Removed
+## Already done (on master, unreleased)
 
-- Commands: `launch`, `list`, `which`, `edit`, `paths` (all subcommands), `setup`.
-- Options: `--resume`, `--yolo`, `-p`/`--prompt`, `create --basic`.
-- Launching with no name meaning "the last workspace" (replaced by folder mode).
-  Remove the `.last` pointer.
-- Workspace fields `yolo` and `resume` (ignored with a notice). Saved prompts
-  and `PromptService`.
-- Separate `wl-create-workspace` and `wl-update-workspace` skills: merge them
-  into one `wl-workspace` skill covering create and update. Automatic setup
-  removes only the two old bundled skill folders it owns.
+- Workspace `AGENTS.md` is the only instructions file.
+- Shared instructions: `.shared/AGENTS.md` is loaded when it exists.
+- Claude-era legacy handling removed.
 
-## Kept unchanged
+---
 
-`workspace.json` (`name`, `primaryRepo`, `additionalDirs`), workspace `AGENTS.md`,
-workspace and shared skills via explicit `--plugin-dir` with generated `plugin.json`,
-UUID sessions in `.last-session`, `$VAR`/`~/`
-path resolution, `.paths.json`, `WL_WORKSPACES_ROOT` (kept for tests but not
-documented in the README), npm distribution and native binaries.
+## Change 1: Stop `.paths.json` data loss
 
-## Errors
+**Why.** Later changes save path variables at launch, which makes this bug
+likely to hit.
 
-- Undefined variable in a non-interactive shell: error naming the variable and
-  `.paths.json`, and exit nonzero. Never guess a path.
-- `--new` with a saved-session pointer that fails to parse: start fresh. Without
-  `--new`: error with the file path (as today). A missing pointer silently
-  starts fresh.
-- A failed Copilot process never overwrites the saved session (as today).
+**Today.** A malformed or unreadable `.paths.json` is treated as empty, and the
+next save rewrites it with one variable, erasing the rest.
 
-## Session modes
+**After.**
+- Reads still fall back to empty with a warning.
+- Saving after a failed load fails with an error naming the file.
+- Saves write a temp file and `File.Move` it into place.
 
-| Mode | Copilot session | Saved pointer after a successful exit |
-| --- | --- | --- |
-| default | resume the pointer's session, or start a fresh one if there is no pointer | unchanged when resuming; set when a fresh session started |
-| `--new` | fresh, `--name=<folder>-<hex>` | replaced with the new session UUID |
-| `--temp` | fresh, `--name=<folder>-temp-<hex>` | never read, never written |
+**Code.** `PathsService` (`Load`, `Set`).
 
-- Throwaway sessions get an explicit UUID and a `-temp-` name, so they are easy
-  to recognize and resume manually from Copilot's own session list if needed.
-- `--temp` works in folder mode as well: the per-folder entry in
-  `.folder-sessions.json` is left untouched.
-- `--temp` skips reading the pointer entirely, so a malformed pointer does not
-  block a throwaway launch.
+**Tests.** Malformed file + `Set` throws and leaves the file untouched; a normal
+save round-trips; a failed write leaves no temp file.
 
-## Affected surfaces
+## Change 2: Resolve relative paths once
 
-- `Program.cs`: new root command with an optional name argument, `--new`/`--temp`
-  (mutually exclusive), and `--` pass-through; keep `create` and `clone`; add
-  stubs for removed commands.
-- Delete `ListCommand`, `WhichCommand`, `EditCommand`, `PathsCommand`,
-  `SetupCommand`, `PromptService`, `SavedPrompt`. Fold what's left of setup into
-  a version-triggered step in `SetupService`.
-- `LaunchService`/`CopilotService`: accept a folder-mode spec (no `Workspace`);
-  add `.shared` to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`; append pass-through args last.
-- `WlPaths`: add `SharedAgents`, `FolderSessionsFile`; drop
-  `PromptsDirName` and `LastWorkspaceFile`.
-- `PathsService`: add an interactive "prompt and save undefined" path used by
-  launch and clone.
-- Resources: replace the two skill files with `wl-workspace.md`.
-- README: target about a third of the current length. Sections: Install (including
-  tab-completion snippets), Quick start (`wl`, `wl create`, `wl <name>`),
-  Workspaces are folders, Sync across PCs, Build.
+**Why.** Today wl checks `primaryRepo` and `additionalDirs` against the shell's
+current folder, but Copilot resolves `--add-dir` against `primaryRepo`. The same
+workspace can behave differently depending on where you run wl.
 
-## Tests
+**After.** After `$VAR` and `~` expansion, relative paths are made absolute from
+the workspace folder. `launch` and `which` use the same resolved paths.
 
-- Unit: arguments in folder mode, shared-instructions env
-  ordering, per-folder session map (normalization, atomic write), auto-detection
-  (0, 1, or several matches), pass-through ordering, notices for ignored fields,
-  and pointer messages for removed commands.
-- E2E (shim Copilot): `wl` in a temp folder resumes on the second run, `--new`
-  forces a fresh session, `wl <name>` resumes, `--temp` launches a fresh
-  `-temp-` session and the next plain launch still resumes the original,
-  `--temp --new` is rejected, `-- --yolo` reaches the shim,
-  an undefined variable prompts once and persists, `clone` prompts for variables.
+**Code.** `PathHelper.ResolvePath` (base-path parameter), `LaunchService`,
+`LaunchCommand`, `WhichCommand`.
+
+**Tests.** A relative `primaryRepo` and `additionalDirs` resolve the same from
+two different current folders.
+
+## Change 3: Resume by default
+
+**Today.** Resuming needs `--resume` or `"resume": true`.
+
+**After.**
+- `wl launch <name>` resumes the saved session, or starts fresh if there is none.
+- `--new` starts fresh and saves the new session.
+- `--resume`/`-r` and the `resume` field are removed.
+- An unreadable `.last-session` without `--new` is an error naming the file;
+  with `--new` it is ignored.
+
+**Code.** `Program.cs` (drop `--resume`), `LaunchCommand`, `Workspace` (drop
+`Resume`), `WhichCommand` output, README.
+
+**My workspaces.** Delete `"resume"` from all 10 `workspace.json` files.
+
+**Tests.** Resume with a pointer; fresh without one; `--new` replaces the pointer;
+bad pointer + `--new` starts fresh.
+
+## Change 4: Throwaway sessions (`--temp`)
+
+**After.**
+- `--temp` starts a fresh session named `<folder>-temp-<hex>` and never reads
+  or writes the saved pointer.
+- The next plain launch resumes the remembered session as if nothing happened.
+- `--temp` and `--new` together is an error.
+
+**Code.** `Program.cs`, `LaunchCommand`, `CopilotService.BuildArgs` (name).
+
+**Tests.** `--temp` leaves `.last-session` unchanged; the next launch resumes;
+`--temp --new` fails; a malformed pointer doesn't block `--temp`.
+
+## Change 5: `copilotArgs` replaces `yolo`
+
+**Why.** 8 of 10 workspaces use `"yolo": true`. A list of Copilot arguments
+covers that and finer rules without new wl fields.
+
+**After.**
+- Optional `"copilotArgs": [...]` in `workspace.json`, added to every launch,
+  e.g. `["--yolo"]` or `["--allow-tool=shell(git:*)", "--deny-tool=shell(git push)"]`.
+- The `yolo` field and the `--yolo` option are removed.
+
+**Code.** `Workspace` (`CopilotArgs`, drop `Yolo`), `CopilotService.BuildArgs`,
+`Program.cs`, `LaunchCommand`/`WhichCommand` output, bundled create skill
+(emit `copilotArgs`), README.
+
+**My workspaces.** Replace `"yolo": true` with `"copilotArgs": ["--yolo"]`; drop
+`"yolo": false`.
+
+**Tests.** `copilotArgs` appear in order after wl's own arguments; an empty or
+missing list adds nothing.
+
+## Change 6: Pass-through arguments (`--`)
+
+**After.** Everything after `--` goes to Copilot unchanged, after `copilotArgs`,
+e.g. `wl launch api -- --model gpt-5`.
+
+**Code.** `Program.cs` (capture unmatched tokens after `--`), `LaunchSpec`,
+`CopilotService.BuildArgs`.
+
+**Tests.** Order is wl args, then `copilotArgs`, then pass-through; E2E: the shim
+receives `-- --model x`.
+
+## Change 7: Remove prompts
+
+**After.** `-p`, saved prompts (`prompts/*.md`) and their tab completion are
+gone. Use `-- -i "text"` instead.
+
+**Code.** Delete `PromptService`, `SavedPrompt` and their tests; update
+`Program.cs`, `LaunchCommand`, `WhichCommand`, `LaunchSpec`, `WlPaths`
+(`PromptsDirName`, `Prompts`), `Workspace` (`PromptsPath`), README, bundled skills.
+
+**My workspaces.** Decide what to do with `work-os/prompts/vault-hygiene-sweep.md`
+(delete it or turn it into a skill).
+
+## Change 8: Folder mode
+
+**After.**
+- `wl launch` with no name starts Copilot in the current folder, with the shared
+  skills (`.shared/.copilot`) and shared `AGENTS.md`. No `workspace.json` is used.
+- Sessions are remembered per folder in `<root>/.folder-sessions.json`, keyed by
+  the normalized full path (case-insensitive on Windows), with atomic writes.
+  `--new` and `--temp` work the same as for workspaces. Entries are never pruned;
+  delete the file to reset.
+- No workspace auto-detection: folder mode always uses the folder, even inside a
+  workspace's repo.
+- Reopening the last-used workspace is removed, along with the `.last` file.
+
+**Code.** `LaunchSpec` (optional `Workspace`), `LaunchService`, `CopilotService`
+(args and environment without a workspace), `LaunchCommand`, `WlPaths`
+(`FolderSessionsFile`; drop `LastWorkspaceFile`), `WorkspaceService` (drop
+`GetLastUsed`/`SetLastUsed`), `SetupService` default `.gitignore`
+(`.folder-sessions.json` in, `.last` out), README.
+
+**Tests.** Folder args (no workspace `--add-dir`, shared plugin dir present);
+session map normalization and atomic write; inside a workspace repo still uses
+the folder session; E2E: second `wl launch` in a temp folder resumes.
+
+## Change 9: `wl which` matches `launch`
+
+**After.** `wl which [name]` accepts the same options as `launch` and prints the
+paths, environment and exact Copilot command for folder mode or a workspace.
+It never writes files.
+
+**Code.** `Program.cs`, `WhichCommand` (reuse the launch argument building).
+
+**Tests.** E2E: `wl which` in a folder and `wl which <name> -- --model x` print the
+expected command and change nothing.
+
+## Change 10: Remove `list` and `edit`
+
+**After.** Both commands are gone. An unknown workspace name prints the
+available workspaces and the workspaces root path.
+
+**Code.** Delete `ListCommand`, `EditCommand`, `ShellHelper`; `Program.cs`,
+`LaunchCommand`/`WhichCommand` (unknown-name output), README.
+
+**Tests.** E2E: `wl list` fails with the parse error; an unknown name lists workspaces.
+
+## Change 11: Automatic path variables
+
+**After.**
+- When a launch or `which` needs an undefined `$VAR`, wl asks for it once and
+  saves it to `.paths.json`. `clone` asks for every undefined variable.
+- With redirected input (non-interactive), it fails with an error naming the
+  variable and `.paths.json`. It never guesses a path.
+- `wl paths set/list/init` are removed; edit `.paths.json` to change a value.
+
+**Code.** `PathsService` (prompt-and-save with an injectable input reader),
+`LaunchCommand`, `WhichCommand`, `CloneCommand`; delete `PathsCommand`; README.
+
+**Tests.** Unit: prompt-and-save with injected input; E2E: undefined variable with
+redirected input fails with the `.paths.json` error.
+
+## Change 12: Automatic setup
+
+**After.** `wl setup` is removed. Bundled skills install on first use and refresh
+when the wl version changes (already happens on launch, create and clone).
+The tab-completion snippets move to the README.
+
+**Code.** Delete `SetupCommand`; `Program.cs`; `CloneCommand`; README.
+
+**Tests.** E2E: `wl setup` fails with the parse error; clone installs skills.
+
+## Change 13: One bundled skill
+
+**After.** `wl-create-workspace` and `wl-update-workspace` merge into one
+`wl-workspace` skill that creates and updates workspaces. `wl create` invokes it.
+
+**Code.** Replace the two resource files with `wl-workspace.md`; `SetupService`
+(install and `EnsureInstalled` check the new folder; default `.gitignore` lists
+`.shared/.copilot/skills/wl-workspace/`); `CreateCommand`; README.
+
+**My workspaces.** Delete the two old skill folders and their `.gitignore` lines.
+
+## Change 14: Simplify `create`
+
+**After.** `create --basic` is removed. `wl create [name]` runs Copilot with the
+skill, defaulting `primaryRepo` to the current folder, then prints any new
+workspace folder it finds (by comparing the workspaces root before and after).
+
+**Code.** `Program.cs`, `CreateCommand`, README.
+
+## Change 15: README rewrite
+
+About a third of the current length. Sections: Install (with tab-completion
+snippets), Quick start (`wl launch`, `wl create`, `wl launch <name>`),
+Workspaces are folders, Sync across PCs, Build. `WL_WORKSPACES_ROOT` stays
+supported for tests but undocumented.
+
+## Change 16: Release v1.0.0
+
+Tag `v1.0.0` with `/wl-release` after all changes land and CI is green.
+
+---
+
+## Kept as is
+
+`workspace.json` (`name`, `primaryRepo`, `additionalDirs`), workspace and
+shared `AGENTS.md`, workspace and shared skills via `--plugin-dir` with
+generated `plugin.json`, UUID sessions in `.last-session`, `$VAR`/`~` paths,
+`.paths.json`, `wl clone`, npm distribution and native binaries. A failed
+Copilot process never overwrites a saved session.
 
 ## Trade-offs
 
-Removing `list`/`which`/`edit` loses CLI discoverability for new users.
-Unknown-name output and tab completion cover most of it. Pass-through makes
-wl-specific flags unnecessary, but users must know Copilot's own flags.
-Auto-detecting workspaces by `primaryRepo` removes a decision for the common
-case; the printed notice keeps it transparent.
-
-## Open questions
-
-1. Keep `wl launch <name>` as a hidden alias for one minor release, to avoid
-   breaking muscle memory and scripts?
-2. Should the per-folder session also be offered for folders inside a
-   workspace's `primaryRepo` (subfolders), or only exact matches?
+- Removing `list` and `edit` loses some discoverability; unknown-name output,
+  tab completion and `wl which` cover most of it.
+- Pass-through means knowing Copilot's own flags.
+- Without auto-detection, `wl launch` inside a workspace's repo opens folder
+  mode; type the name to get the workspace.
