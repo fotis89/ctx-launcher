@@ -47,14 +47,14 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
         }
 
         var savedPrompts = prompts.ListPrompts(ws);
-        var hasInstructions = File.Exists(ws.InstructionsPath);
+        var hasInstructions = File.Exists(ws.AgentsPath);
         if (hasInstructions || savedPrompts.Count > 0)
         {
             Console.WriteLine();
             if (hasInstructions)
             {
-                var lines = File.ReadLines(ws.InstructionsPath).Count();
-                ConsoleLabel.WriteLine("Instructions:", $"instructions.md ({lines} lines)");
+                var lines = File.ReadLines(ws.AgentsPath).Count();
+                ConsoleLabel.WriteLine("Instructions:", $"AGENTS.md ({lines} lines)");
             }
             else
             {

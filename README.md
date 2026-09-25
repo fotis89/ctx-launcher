@@ -80,8 +80,7 @@ replace the saved session or last-workspace pointer.
 |       `-- skills/
 `-- my-project/
     |-- workspace.json
-    |-- instructions.md         (optional, editable source)
-    |-- AGENTS.md                (generated from instructions.md)
+    |-- AGENTS.md                (workspace instructions)
     |-- .last-session            (machine-local Copilot session reference)
     |-- prompts/
     |   `-- review.md
@@ -116,9 +115,9 @@ reported and skipped. `yolo` and `resume` default to false.
 
 ### Instructions and skills
 
-Edit `instructions.md`, not the generated `AGENTS.md`. Each launch mirrors the
-instructions and appends the workspace folder to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`,
-preserving inherited instruction directories and removing duplicate entries.
+Edit `AGENTS.md` in the workspace folder for workspace instructions. Each launch
+appends the workspace folder to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, preserving
+inherited instruction directories and removing duplicate entries.
 Repository instructions remain separate from your personal workspace context.
 
 Workspace and shared `.copilot` folders with skills are exposed using explicit
@@ -172,8 +171,7 @@ Values live in `.paths.json`. Keep workspace definitions and user-authored skill
 in a private git repository, then use `wl clone <git-url>` on another machine.
 
 Setup ignores machine-local `.last-session`, `.last`, `.version`, `.paths.json`,
-plus generated `*/AGENTS.md`,
-`*/.copilot/plugin.json`, `.shared/.copilot/plugin.json`, and the two bundled
+plus generated `*/.copilot/plugin.json`, `.shared/.copilot/plugin.json`, and the two bundled
 skill directories under `.shared/.copilot/skills`. Other shared skills stay tracked.
 
 ## Build from source

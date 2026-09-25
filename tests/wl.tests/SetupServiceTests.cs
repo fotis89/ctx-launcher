@@ -14,17 +14,18 @@ public class SetupServiceTests
     [InlineData("# Added by `wl setup`\n.last-session\n\n# my custom stuff\n*.bak")]
     public void MergeGitignore_PreservesContentAndUsesOneManagedBlock(string existing)
     {
-        var first = SetupService.MergeGitignore(existing, ["*/AGENTS.md"]);
-        var result = SetupService.MergeGitignore(first, [".config.json"]);
+        var first = SetupService.MergeGitignore(existing, ["*/.copilot/plugin.json"]);
+        var result = SetupService.MergeGitignore(first, [".paths.json"]);
         Assert.Equal(1, result.Split("# Added by `wl setup`").Length - 1);
-        Assert.Contains("*/AGENTS.md", result);
-        Assert.Contains(".config.json", result);
+        Assert.Contains("*/.copilot/plugin.json", result);
+        Assert.DoesNotContain("*/AGENTS.md", result);
+        Assert.Contains(".paths.json", result);
         foreach (var line in existing.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
             Assert.Contains(line, result);
         if (string.IsNullOrWhiteSpace(existing))
             Assert.StartsWith("# Added by `wl setup`", result);
         if (existing.Contains("*.bak"))
-            Assert.True(result.IndexOf(".config.json", StringComparison.Ordinal) < result.IndexOf("*.bak", StringComparison.Ordinal));
+            Assert.True(result.IndexOf(".paths.json", StringComparison.Ordinal) < result.IndexOf("*.bak", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -32,7 +33,7 @@ public class SetupServiceTests
     [InlineData("\r\n")]
     public void MergeGitignore_PreservesNewlineStyle(string newline)
     {
-        var result = SetupService.MergeGitignore("# User stuff" + newline + ".DS_Store" + newline, [".config.json"]);
+        var result = SetupService.MergeGitignore("# User stuff" + newline + ".DS_Store" + newline, [".paths.json"]);
         Assert.Contains(newline, result);
         if (newline == "\r\n") Assert.DoesNotMatch(@"(?<!\r)\n", result);
         else Assert.DoesNotContain("\r\n", result);
@@ -69,6 +70,7 @@ public class SetupServiceTests
                 Assert.DoesNotContain("slash is reserved", expected);
             }
             Assert.Contains(".shared/.copilot/skills/wl-create-workspace/", File.ReadAllText(paths.GitignoreFile));
+            Assert.DoesNotContain("*/AGENTS.md", File.ReadAllText(paths.GitignoreFile));
             Assert.Equal(session, File.ReadAllText(sessionPath));
         }
         finally { Directory.Delete(root, true); }

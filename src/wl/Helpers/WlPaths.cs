@@ -10,8 +10,7 @@ namespace wl.Helpers;
 ///     .version, .last, .paths.json, .gitignore
 ///     &lt;name&gt;/                   ← workspace folder
 ///       workspace.json
-///       instructions.md
-///       AGENTS.md                 (auto-generated for Copilot)
+///       AGENTS.md                 (workspace instructions for Copilot)
 ///       .last-session
 ///       prompts/
 ///       .copilot/
@@ -30,7 +29,6 @@ public class WlPaths
     public const string PromptsDirName = "prompts";
     public const string SkillFileName = "SKILL.md";
     public const string PluginManifestFileName = "plugin.json";
-    public const string InstructionsFileName = "instructions.md";
     public const string AgentsFileName = "AGENTS.md";
     public const string WorkspaceConfigFileName = "workspace.json";
     public const string PathsConfigFileName = ".paths.json";
@@ -71,7 +69,6 @@ public class WlPaths
     public static string SkillsDir(string folderPath) => Path.Combine(CopilotDir(folderPath), SkillsDirName);
     public static string PluginManifest(string folderPath) => Path.Combine(CopilotDir(folderPath), PluginManifestFileName);
     public static string Agents(string folderPath) => Path.Combine(folderPath, AgentsFileName);
-    public static string Instructions(string folderPath) => Path.Combine(folderPath, InstructionsFileName);
     public static string Prompts(string folderPath) => Path.Combine(folderPath, PromptsDirName);
     public static string WorkspaceConfig(string folderPath) => Path.Combine(folderPath, WorkspaceConfigFileName);
     public static string LastSession(string folderPath) => Path.Combine(folderPath, LastSessionFileName);

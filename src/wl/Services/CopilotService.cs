@@ -13,38 +13,8 @@ public class CopilotService(WlPaths paths)
     private const int MaxPluginNameLength = 64;
     private const int PluginNameHashLength = 16;
 
-    public const string AgentsMdMarker = "<!-- managed by wl: this file is auto-generated from instructions.md on each launch — edits will be overwritten -->";
-
     public void PrepareLaunch(Workspace ws)
     {
-        // Mirror instructions.md → AGENTS.md so Copilot's auto-discovery
-        // picks up workspace context (COPILOT_CUSTOM_INSTRUCTIONS_DIRS
-        // points it at this folder). Marker header makes the
-        // auto-generated nature obvious. Best-effort: a locked file
-        // or unwritable folder warns and launches anyway.
-        var agentsPath = ws.AgentsPath;
-        try
-        {
-            if (File.Exists(ws.InstructionsPath))
-            {
-                var instructions = File.ReadAllText(ws.InstructionsPath);
-                // Preserve the source file's newline style so AGENTS.md
-                // isn't a mix of platform and user line endings.
-                var newline = SetupService.DetectNewline(instructions);
-                File.WriteAllText(agentsPath, AgentsMdMarker + newline + newline + instructions);
-            }
-            else if (File.Exists(agentsPath) && IsWlManaged(agentsPath))
-            {
-                // Only delete wl-managed files (marker present). User-managed
-                // AGENTS.md is left alone.
-                File.Delete(agentsPath);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            Console.Error.WriteLine($"Warning: could not refresh {agentsPath} ({ex.GetType().Name}); launching without updated workspace instructions.");
-        }
-
         // Each .copilot/ dir is exposed as a local plugin via --plugin-dir;
         // ensure a plugin.json manifest exists. Per-dir try so one failure
         // doesn't block the others.
@@ -88,21 +58,6 @@ public class CopilotService(WlPaths paths)
             .Any(d => File.Exists(Path.Combine(d, WlPaths.SkillFileName)));
     }
 
-    private static bool IsWlManaged(string agentsPath)
-    {
-        try
-        {
-            using var reader = new StreamReader(agentsPath);
-            var firstLine = reader.ReadLine();
-            return firstLine is not null && firstLine.StartsWith(AgentsMdMarker, StringComparison.Ordinal);
-        }
-        catch
-        {
-            // Defensive: if we can't read, treat as user-managed (don't delete).
-            return false;
-        }
-    }
-
     public static void EnsurePluginManifest(string copilotDir, string pluginName)
     {
         Directory.CreateDirectory(copilotDir);
@@ -133,16 +88,6 @@ public class CopilotService(WlPaths paths)
 
     public IEnumerable<string> DescribeLaunchPrep(Workspace ws)
     {
-        // Mirror what PrepareLaunch will do. Observational IO only.
-        if (File.Exists(ws.InstructionsPath))
-        {
-            yield return $"writes {ws.AgentsPath} (mirror of instructions.md)";
-        }
-        else if (File.Exists(ws.AgentsPath) && IsWlManaged(ws.AgentsPath))
-        {
-            yield return $"deletes {ws.AgentsPath} (was wl-managed; instructions.md no longer present)";
-        }
-
         foreach (var (copilotDir, name) in GetManagedCopilotDirs(ws))
         {
             if (HasSkills(copilotDir))

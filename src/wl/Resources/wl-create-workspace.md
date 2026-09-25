@@ -34,7 +34,7 @@ Keep questions concrete and offer sensible defaults. Do not ask open-ended "tell
 - **Project type**: language, framework, build system (check for `package.json`, `*.csproj`, `Cargo.toml`, `go.mod`, etc.)
 - **Conventions**: coding style, architecture patterns, testing approach observed in the session
 - **Workflows**: what the user has been doing — debugging, reviewing, testing, deploying. Candidates for skills.
-- **Existing docs**: check for `AGENTS.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in instructions.md.
+- **Existing docs**: check for `AGENTS.md` files in the primary repo and additional dirs. Read them — you need to know what they cover so you don't repeat it in the workspace `AGENTS.md`.
 - **Runtime**: verify `copilot --version`.
 
 ## Step 2: Propose
@@ -43,7 +43,7 @@ Keep questions concrete and offer sensible defaults. Do not ask open-ended "tell
 
 Before writing the proposal, walk through these filters. They prevent the two most common failure modes of this skill: duplicating AGENTS.md and inventing thin wrapper skills.
 
-**1. Duplication-diff for instructions.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (AGENTS.md, `.github/instructions/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what AGENTS.md *doesn't* — cross-repo relationships, additional-dir setup, environment quirks — not to restate it.
+**1. Duplication-diff for workspace AGENTS.md.** For each bullet you plan to include, name the specific file or section that does *not* already cover it (repo `AGENTS.md`, `.github/instructions/*`, repo-level skills). If you can't name one, drop the bullet. Workspace instructions exist to capture what repo instructions don't — cross-repo relationships, additional-dir setup, environment quirks — not to restate them.
 
 **2. Make paths portable.** Walk every path you plan to put in `workspace.json` (both `primaryRepo` and each entry in `additionalDirs`) and apply in order:
 
@@ -51,7 +51,7 @@ Before writing the proposal, walk through these filters. They prevent the two mo
   - **Reuse existing path variables.** Run `wl paths list` first. If a variable already maps to the right root (e.g. `$REPOS = D:\repos`), use it instead of inventing a new name. Only define a new variable if no existing one fits.
   - **Envvar-ize absolute paths outside `~/`.** Drive-absolute Windows paths (`D:\repos\...`), or Unix paths like `/opt/...` or `/mnt/...`, should become a `$VAR` reference. Example: `D:\repos\ctx-launcher` → `$REPOS_ROOT/ctx-launcher` plus a `REPOS_ROOT=D:/repos` entry in `~/.wl-workspaces/.paths.json`.
   - **Skip subdirectories of `primaryRepo`.** Everything under the primary repo is already attached via `primaryRepo`. Adding `<primaryRepo>/docs` or `<primaryRepo>/src` as an additional dir is redundant — drop it.
-  - **Same rules for `instructions.md`.** When you reference paths in prose (build outputs, log locations, config files), use `~/` or `$VAR` — never hardcode drive-absolute or root-absolute paths. Paths inside the primary repo should be relative to the repo root.
+  - **Same rules for workspace `AGENTS.md`.** When you reference paths in prose (build outputs, log locations, config files), use `~/` or `$VAR` — never hardcode drive-absolute or root-absolute paths. Paths inside the primary repo should be relative to the repo root.
 
 **3. Skill value threshold.** Only propose a skill if at least one of these holds:
   - It takes **3+ steps** to execute
@@ -62,7 +62,7 @@ One-line command wrappers do not meet this bar. Writing `rush update` or `az rep
 
 **4. Decide the shape of the workspace.** Based on what's left after the three filters above:
 
-- **Minimal workspace** — the repo has a thorough AGENTS.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty `instructions.md` that points to AGENTS.md, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
+- **Minimal workspace** — the repo has a thorough AGENTS.md, no additional dirs, no cross-repo concerns, and nothing passes the skill threshold. Propose a minimal workspace in one shot: launcher config only, a near-empty workspace `AGENTS.md` that points to repo instructions, no skills. Don't scaffold full content and then whittle it down across multiple rounds.
 - **Full workspace** — additional dirs, cross-repo concerns, or genuine workspace-level context to capture. Use the full proposal template below.
 
 ### Proposal templates
@@ -80,7 +80,7 @@ Proposed workspace: <slug>  (minimal — launcher config only)
   Yolo:         yes/no    (skip permission prompts — the CLI runs tools without asking before each action)
   Resume:       yes/no    (restore your prior conversation on each launch, so you pick up where you left off)
 
-  instructions.md: one-liner pointing to AGENTS.md and .github/instructions/*
+  AGENTS.md: one-liner pointing to repo AGENTS.md and .github/instructions/*
   Skills to create: none
 
 Reasoning: <one sentence on why nothing else is warranted — e.g.,
@@ -115,10 +115,10 @@ Does this look right? Any changes before I create it?
 ```
 
 **Copilot notes for the proposal:**
-- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md` (with `COPILOT_CUSTOM_INSTRUCTIONS_DIRS` set so Copilot finds it). Skills are exposed at launch via `--plugin-dir` pointing at the workspace's `.copilot/` and `.shared/.copilot/` directories, with generated `plugin.json` manifests. Treat `instructions.md` and `.copilot/skills/*` as the sources of truth; do not edit generated files.
+- `<workspace-folder>/AGENTS.md` is loaded by `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`. Skills are exposed at launch via `--plugin-dir` pointing at the workspace's `.copilot/` and `.shared/.copilot/` directories, with generated `plugin.json` manifests. Treat `AGENTS.md` and `.copilot/skills/*` as the sources of truth.
 - Copilot can select skills by description, or the user can request one explicitly in a prompt such as `Use the /wl-review skill to review these changes`. This does not require a standalone slash command.
 
-**HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `instructions.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
+**HARD STOP — end your turn here.** Output the proposal as your final message and do not call any tools in the same turn. Do not write `workspace.json`, `AGENTS.md`, or any skill files until the user replies in a new turn approving the proposal (or with edits). This applies even in auto mode — auto mode minimizes interruptions for *routine* decisions, but workspace contents are durable user-facing config and explicit approval is required. A simple "yes" / "looks good" / "go ahead" in the next turn is the green light; anything else is feedback to incorporate before re-proposing.
 
 ### Slug naming
 
@@ -149,14 +149,14 @@ After confirmation:
 
    If the proposal envvar-ized any paths (filter 2 in the pre-proposal checklist) *and the variable does not already appear in `wl paths list`*, run `wl paths set <NAME> <value>` for each new variable so `~/.wl-workspaces/.paths.json` is populated on this PC. Write `$NAME/...` into the JSON fields.
 
-2. Write `instructions.md` — this is the most important file. It should contain:
+2. Write `AGENTS.md` in the workspace folder — this is the most important file. It should contain:
    - **System overview**: what the project is, what each repo/folder contains, how they relate
    - **Architecture**: key patterns, folder structure, dependency direction
    - **Conventions**: naming, formatting, testing expectations, commit style
    - **Debugging**: where logs are, how to trace errors, common failure modes
    - **Workflow**: how to build, test, deploy — the commands and the order
 
-   **Do not duplicate content from repo-level `AGENTS.md` files.** Copilot CLI loads those automatically when working in a repo. Before writing instructions.md, read each repo's AGENTS.md and mentally diff your draft against it. If a fact is already in AGENTS.md, leave it out. Workspace instructions should only contain what AGENTS.md doesn't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos.
+   **Do not duplicate content from repo-level `AGENTS.md` files.** Copilot CLI loads those automatically when working in a repo. Before writing workspace `AGENTS.md`, read each repo's AGENTS.md and mentally diff your draft against it. If a fact is already in a repo AGENTS.md, leave it out. Workspace instructions should only contain what repo instructions don't cover: cross-repo context (how repos relate, shared workflows), workspace-specific setup (additional dirs, environment notes), and decisions or conventions that span multiple repos.
 
    Write from what you observed in this session. Be specific — mention actual file paths, actual commands, actual patterns. 10-30 lines is the sweet spot. Never write placeholder text like "(describe your project)".
 

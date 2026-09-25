@@ -16,7 +16,6 @@ public class Workspace
 
     [JsonIgnore] public string FolderName => Path.GetFileName(FolderPath);
     [JsonIgnore] public string FolderPath { get; set; } = "";
-    [JsonIgnore] public string InstructionsPath => WlPaths.Instructions(FolderPath);
     [JsonIgnore] public string AgentsPath => WlPaths.Agents(FolderPath);
     [JsonIgnore] public string PromptsPath => WlPaths.Prompts(FolderPath);
     [JsonIgnore] public string CopilotDirPath => WlPaths.CopilotDir(FolderPath);

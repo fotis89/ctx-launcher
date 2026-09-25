@@ -182,7 +182,7 @@ public class E2ETests
         using var home = new TempHome();
         Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
         var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
-        File.WriteAllText(System.IO.Path.Combine(folder, "instructions.md"), "Project instructions");
+        File.WriteAllText(System.IO.Path.Combine(folder, "AGENTS.md"), "Project instructions");
         var skills = Directory.CreateDirectory(System.IO.Path.Combine(folder, ".copilot", "skills", "wl-review")).FullName;
         File.WriteAllText(System.IO.Path.Combine(skills, "SKILL.md"), "---\nname: wl-review\ndescription: Review code\n---\nReview this repo.");
         var prompts = Directory.CreateDirectory(System.IO.Path.Combine(folder, "prompts")).FullName;
@@ -326,13 +326,12 @@ public class E2ETests
         Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var folder = System.IO.Path.Combine(root, home.WorkspaceName);
-        File.WriteAllText(System.IO.Path.Combine(folder, "instructions.md"), "Context");
+        File.WriteAllText(System.IO.Path.Combine(folder, "AGENTS.md"), "Context");
         var before = Directory.GetFiles(root, "*", SearchOption.AllDirectories).ToDictionary(p => p, File.ReadAllText);
         var result = WlRunner.Run(home.Path, null, "which", home.WorkspaceName);
         Assert.Equal(0, result.ExitCode);
-        Assert.Contains("Launch prep:", result.Stdout);
+        Assert.Contains("AGENTS.md", result.Stdout);
         Assert.Contains("copilot --name=", result.Stdout);
-        Assert.False(File.Exists(System.IO.Path.Combine(folder, "AGENTS.md")));
         Assert.Equal(before.Keys.Order(), Directory.GetFiles(root, "*", SearchOption.AllDirectories).Order());
         foreach (var (path, content) in before) Assert.Equal(content, File.ReadAllText(path));
     }

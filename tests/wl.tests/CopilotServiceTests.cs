@@ -160,14 +160,15 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void PrepareLaunch_WithInstructions_MirrorsToAgentsFile()
+    public void PrepareLaunch_PreservesUserAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
-            var instructionsPath = Path.Combine(tempDir, "instructions.md");
-            File.WriteAllText(instructionsPath, "workspace context goes here");
+            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
+            const string userContent = "# Workspace instructions";
+            File.WriteAllText(agentsPath, userContent);
 
             var ws = new Workspace
             {
@@ -178,11 +179,7 @@ public class CopilotServiceTests : IDisposable
 
             _adapter.PrepareLaunch(ws);
 
-            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
-            Assert.True(File.Exists(agentsPath));
-            var contents = File.ReadAllText(agentsPath);
-            Assert.Contains("workspace context goes here", contents);
-            Assert.StartsWith(CopilotService.AgentsMdMarker, contents);
+            Assert.Equal(userContent, File.ReadAllText(agentsPath));
         }
         finally
         {
@@ -191,7 +188,7 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void PrepareLaunch_WithoutInstructions_NoAgentsFileWritten()
+    public void PrepareLaunch_NoAgentsFile_DoesNotWriteAgentsFile()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
@@ -252,17 +249,13 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void DescribeLaunchPrep_UserManagedAgentsMd_NoDeleteEntry()
+    public void DescribeLaunchPrep_WithAgentsMd_HasNoAgentsEntry()
     {
-        // Without instructions.md but WITH a user-managed AGENTS.md (no
-        // wl marker), DescribeLaunchPrep must not advertise a deletion
-        // since PrepareLaunch won't perform one. The earlier version
-        // emitted "may delete" for any AGENTS.md, which was misleading.
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tempDir);
         try
         {
-            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "# My hand-written guide");
+            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "user content");
 
             var ws = new Workspace
             {
@@ -273,227 +266,10 @@ public class CopilotServiceTests : IDisposable
 
             var prep = _adapter.DescribeLaunchPrep(ws).ToList();
 
-            Assert.DoesNotContain(prep, line => line.Contains("delete", StringComparison.OrdinalIgnoreCase));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void DescribeLaunchPrep_WlManagedAgentsMd_HasDeleteEntry()
-    {
-        // With a wl-marker AGENTS.md and no instructions.md, the prep
-        // SHOULD advertise the deletion that PrepareLaunch will perform.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), CopilotService.AgentsMdMarker + "\n\nold context");
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            var prep = _adapter.DescribeLaunchPrep(ws).ToList();
-
-            Assert.Contains(prep, line => line.Contains("deletes", StringComparison.OrdinalIgnoreCase));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_NoInstructions_PreservesUserManagedAgentsFile()
-    {
-        // If AGENTS.md exists without the wl marker, it's user-managed (or
-        // written by another tool). PrepareLaunch must not delete it just
-        // because instructions.md is missing.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
-            const string userContent = "# My hand-written agent guide\n\nKeep this file.";
-            File.WriteAllText(agentsPath, userContent);
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            Assert.True(File.Exists(agentsPath));
-            Assert.Equal(userContent, File.ReadAllText(agentsPath));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_NoInstructions_DeletesWlManagedAgentsFile()
-    {
-        // Conversely, if AGENTS.md was previously written by wl (marker
-        // present), PrepareLaunch should clean it up when instructions.md
-        // disappears so we don't keep stale workspace context around.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            var agentsPath = Path.Combine(tempDir, "AGENTS.md");
-            File.WriteAllText(agentsPath, CopilotService.AgentsMdMarker + "\n\nold context");
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            Assert.False(File.Exists(agentsPath));
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_AgentsMdMatchesInstructionsNewlineStyle_LfInput()
-    {
-        // instructions.md is user-controlled and may use any newline
-        // style. The generated AGENTS.md (marker + body) must use the
-        // SAME style throughout — no mixed CRLF/LF.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "line one\nline two\n");
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
-            Assert.DoesNotContain("\r\n", contents);
-            Assert.Contains("\n", contents);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_AgentsMdMatchesInstructionsNewlineStyle_CrlfInput()
-    {
-        // CRLF-authored instructions.md should produce CRLF-only AGENTS.md
-        // even on Linux runners.
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "line one\r\nline two\r\n");
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
-            Assert.Contains("\r\n", contents);
-            Assert.DoesNotMatch(@"(?<!\r)\n", contents);
-        }
-        finally
-        {
-            Directory.Delete(tempDir, true);
-        }
-    }
-
-    [Fact]
-    public void PrepareLaunch_LockedInstructionsMd_DoesNotThrow_PrintsWarning()
-    {
-        // Best-effort IO contract: if instructions.md is locked or
-        // unreadable mid-launch, PrepareLaunch must surface a warning
-        // and return so the launch can still proceed (Copilot will run
-        // without refreshed workspace instructions for this session).
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        var instructionsPath = Path.Combine(tempDir, "instructions.md");
-        File.WriteAllText(instructionsPath, "context");
-
-        var stderr = new StringWriter();
-        var prev = Console.Error;
-        // Hold an exclusive lock so File.ReadAllText fails.
-        using var locker = new FileStream(instructionsPath, FileMode.Open, FileAccess.Read, FileShare.None);
-        try
-        {
-            Console.SetError(stderr);
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            // Should not throw.
-            _adapter.PrepareLaunch(ws);
-        }
-        finally
-        {
-            Console.SetError(prev);
-            locker.Dispose();
-            Directory.Delete(tempDir, true);
-        }
-
-        Assert.Contains("could not refresh", stderr.ToString());
-    }
-
-    [Fact]
-    public void PrepareLaunch_OverwritesStaleAgentsFile()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-copilot-" + Guid.NewGuid().ToString("N")[..8]);
-        Directory.CreateDirectory(tempDir);
-        try
-        {
-            File.WriteAllText(Path.Combine(tempDir, "instructions.md"), "fresh");
-            File.WriteAllText(Path.Combine(tempDir, "AGENTS.md"), "stale");
-
-            var ws = new Workspace
-            {
-                Name = "test",
-                PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
-                FolderPath = tempDir,
-            };
-
-            _adapter.PrepareLaunch(ws);
-
-            var contents = File.ReadAllText(Path.Combine(tempDir, "AGENTS.md"));
-            Assert.Contains("fresh", contents);
-            Assert.DoesNotContain("stale", contents);
+            Assert.DoesNotContain(prep, line => line.Contains("writes", StringComparison.OrdinalIgnoreCase)
+                && line.Contains("AGENTS.md", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(prep, line => line.Contains("deletes", StringComparison.OrdinalIgnoreCase)
+                && line.Contains("AGENTS.md", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {

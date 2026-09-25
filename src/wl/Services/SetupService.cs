@@ -41,8 +41,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
         .shared/.copilot/skills/wl-create-workspace/
         .shared/.copilot/skills/wl-update-workspace/
 
-        # Generated instructions and plugin manifests
-        */AGENTS.md
+        # Generated plugin manifests
         */.copilot/plugin.json
         .shared/.copilot/plugin.json
 

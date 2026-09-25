@@ -13,7 +13,7 @@ This is a breaking release; recommend v1.0.0.
 Author usage (the primary user; at most one other known user):
 
 - Used: `launch <name>`, `--resume`/`--new`, `create` (Copilot proposes), `clone`,
-  `instructions.md` → `AGENTS.md`, workspace skills, shared skills, `additionalDirs`.
+  workspace `AGENTS.md`, workspace skills, shared skills, `additionalDirs`.
 - Unused: `launch` with no name, `--yolo`, `-p` (saved or literal), `create --basic`,
   `list`, `which`, `edit`, `paths set/list/init`, `setup`.
 - Pain: wanting shared skills in an arbitrary folder requires creating a workspace first.
@@ -71,10 +71,10 @@ one-line pointer to the new form and exit nonzero.
   is read or written.
 - Attach the shared plugin dir (`.shared/.copilot`) exactly as workspace
   launches do today.
-- **Shared instructions (new):** `.shared/instructions.md` is mirrored to
-  `.shared/AGENTS.md` and `.shared` is appended to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`,
-  using the same mirroring and deduplication as workspace instructions. Shared
-  instructions also apply to workspace launches, before workspace instructions.
+- **Shared instructions (new):** `.shared/AGENTS.md` is loaded by appending
+  `.shared` to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, using the same deduplication as
+  workspace instructions. Shared instructions also apply to workspace launches,
+  before workspace instructions.
 - **Session memory per folder:** store folder sessions in a machine-local
   `<root>/.folder-sessions.json` map keyed by the normalized full path
   (case-insensitive on Windows). Same UUID and atomic-write rules as `.last-session`.
@@ -100,9 +100,9 @@ one-line pointer to the new form and exit nonzero.
 
 ## Kept unchanged
 
-`workspace.json` (`name`, `primaryRepo`, `additionalDirs`), `instructions.md` →
-`AGENTS.md` mirroring, workspace and shared skills via explicit `--plugin-dir`
-with generated `plugin.json`, UUID sessions in `.last-session`, `$VAR`/`~/`
+`workspace.json` (`name`, `primaryRepo`, `additionalDirs`), workspace `AGENTS.md`,
+workspace and shared skills via explicit `--plugin-dir` with generated `plugin.json`,
+UUID sessions in `.last-session`, `$VAR`/`~/`
 path resolution, `.paths.json`, `WL_WORKSPACES_ROOT` (kept for tests but not
 documented in the README), npm distribution and native binaries.
 
@@ -139,8 +139,8 @@ documented in the README), npm distribution and native binaries.
   `SetupCommand`, `PromptService`, `SavedPrompt`. Fold what's left of setup into
   a version-triggered step in `SetupService`.
 - `LaunchService`/`CopilotService`: accept a folder-mode spec (no `Workspace`);
-  add shared-instructions mirroring; append pass-through args last.
-- `WlPaths`: add `SharedInstructions`, `SharedAgents`, `FolderSessionsFile`; drop
+  add `.shared` to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`; append pass-through args last.
+- `WlPaths`: add `SharedAgents`, `FolderSessionsFile`; drop
   `PromptsDirName` and `LastWorkspaceFile`.
 - `PathsService`: add an interactive "prompt and save undefined" path used by
   launch and clone.
@@ -151,7 +151,7 @@ documented in the README), npm distribution and native binaries.
 
 ## Tests
 
-- Unit: arguments in folder mode, shared-instructions mirroring and env
+- Unit: arguments in folder mode, shared-instructions env
   ordering, per-folder session map (normalization, atomic write), auto-detection
   (0, 1, or several matches), pass-through ordering, notices for ignored fields,
   and pointer messages for removed commands.

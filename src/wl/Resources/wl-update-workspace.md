@@ -15,7 +15,7 @@ Figure out which workspace to update without asking the user:
 
 Read all workspace files:
 - `workspace.json` — repos, dirs, settings
-- `instructions.md` — current instructions
+- `AGENTS.md` — current workspace instructions
 - `.copilot/skills/` — all existing skills
 - Any other workspace files
 
@@ -30,9 +30,9 @@ Compare workspace config against the repo's current state. Don't rely only on co
 
 ### How to investigate
 
-- **Read the repo's `AGENTS.md`** and diff it mentally against `instructions.md`. Flag any content in instructions.md that duplicates what AGENTS.md already covers — Copilot CLI loads AGENTS.md automatically, so workspace instructions should only cover cross-repo context, workspace-specific setup, and multi-repo decisions.
+- **Read the repo's `AGENTS.md`** and diff it mentally against the workspace `AGENTS.md`. Flag any workspace content that duplicates what repo AGENTS.md already covers — Copilot CLI loads both automatically, so workspace instructions should only cover cross-repo context, workspace-specific setup, and multi-repo decisions.
 - **Check `git log --oneline -20`** in the primary repo for recent changes that might invalidate instructions (renamed files, new build steps, moved directories).
-- **Scan the file tree** (`ls` key directories) for new folders, removed files, or structural changes that instructions.md doesn't reflect.
+- **Scan the file tree** (`ls` key directories) for new folders, removed files, or structural changes that workspace AGENTS.md doesn't reflect.
 - **Read each skill's SKILL.md** and verify the commands, paths, and steps it references still exist.
 
 ### Categories of drift
@@ -59,17 +59,17 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Skills missing required frontmatter fields (`name`, `description`) — propose adding the missing fields.
 - `allowed-tools` is optional permission pre-approval. Its absence is not drift. Do not add or broaden approvals automatically; propose changes only for explicit user review, especially shell access.
 - Copilot is unavailable: verify `copilot --version` and suggest installing it or fixing PATH. Do not suggest another runtime.
-- `instructions.md` is mirrored to `<workspace-folder>/AGENTS.md`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `AGENTS.md` and `.copilot/plugin.json` are generated; don't propose editing them. Copilot can select skills by description or use an explicit prompt such as `Use the /wl-review skill to review these changes`.
+- `<workspace-folder>/AGENTS.md` is loaded via `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `.copilot/plugin.json` is generated; don't propose editing it. Copilot can select skills by description or use an explicit prompt such as `Use the /wl-review skill to review these changes`.
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
   - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.
   - Redundant `$VAR` references — `workspace.json` uses a variable that maps to the same root as another already in `wl paths list` (e.g., references `$DEV_REPOS` when `$REPOS` already points to the same directory). Propose consolidating to the existing variable.
   - Subdirectories of `primaryRepo` listed as additional dirs — propose removing; they're already attached via `primaryRepo`.
-- Non-portable paths in `instructions.md` prose — drive-absolute or root-absolute paths that should be `~/`, `$VAR`, or relative-to-repo. Propose rewriting in place.
+- Non-portable paths in workspace `AGENTS.md` prose — drive-absolute or root-absolute paths that should be `~/`, `$VAR`, or relative-to-repo. Propose rewriting in place.
 
 ## Step 3: Propose
 
-Present drift as a structured proposal. Show actual content for instructions.md changes so the user can judge — "updated section X" isn't enough to approve.
+Present drift as a structured proposal. Show actual content for AGENTS.md changes so the user can judge — "updated section X" isn't enough to approve.
 
 ```
 ## Workspace update proposal: <name>
@@ -83,7 +83,7 @@ Present drift as a structured proposal. Show actual content for instructions.md 
 - <path or item> — <why: unused / obsolete>
 
 #### Updated
-- instructions.md: <section name>
+- AGENTS.md: <section name>
   - Before: "<quoted old text>"
   - After: "<quoted new text>"
 - skills/wl-<name>: <what changed and why>
@@ -101,7 +101,7 @@ If nothing needs updating, say so and stop.
 After the user confirms:
 
 1. Apply only the approved changes.
-2. When updating `instructions.md` — edit specific sections, don't rewrite from scratch. Preserve the user's structure and voice.
+2. When updating `AGENTS.md` — edit specific sections, don't rewrite from scratch. Preserve the user's structure and voice.
 3. When updating skills — preserve existing structure and allowed-tools. Update only the commands, paths, and steps that changed.
 4. Run `wl which <name>` to verify paths resolve and config is valid.
 5. Show what was changed:

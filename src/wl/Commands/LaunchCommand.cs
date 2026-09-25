@@ -74,8 +74,8 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             Console.Error.WriteLine($"  Warning: directory not found: {dir} (skipping)");
         }
 
-        var instructionLines = File.Exists(ws.InstructionsPath)
-            ? File.ReadLines(ws.InstructionsPath).Count() : 0;
+        var instructionLines = File.Exists(ws.AgentsPath)
+            ? File.ReadLines(ws.AgentsPath).Count() : 0;
 
         var skillNames = WorkspaceService.ListSkillNames(ws.SkillsPath);
         if (sharedDirResolved is not null)
