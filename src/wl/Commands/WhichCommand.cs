@@ -66,19 +66,18 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
             }
         }
 
-        var lastSession = ws.Resume ? LaunchService.LoadLastSession(ws) : null;
+        var lastSession = LaunchService.LoadLastSession(ws);
 
-        if (ws.Yolo || ws.Resume)
+        if (ws.Yolo || lastSession is not null)
         {
             Console.WriteLine();
             if (ws.Yolo)
             {
                 ConsoleLabel.WriteLine("Permissions:", "yolo");
             }
-            if (ws.Resume)
+            if (lastSession is not null)
             {
-                var suffix = lastSession is null ? " (no saved session — will start fresh)" : "";
-                ConsoleLabel.WriteLine("Resume:", $"auto{suffix}");
+                ConsoleLabel.WriteLine("Session:", "resuming previous");
             }
         }
 

@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
-    public int Execute(string? name, string? promptArg, bool yolo = false, bool resume = false, bool forceNew = false)
+    public int Execute(string? name, string? promptArg, bool yolo = false, bool forceNew = false)
     {
         if (name is null)
         {
@@ -39,31 +39,9 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             resolvedPrompt = prompts.ResolvePrompt(ws, promptArg);
         }
 
-        if (forceNew && resume)
-        {
-            Console.Error.WriteLine("Cannot use --new and --resume together.");
-            return 1;
-        }
-
         var skipPermissions = yolo || ws.Yolo;
-        var shouldResume = !forceNew && (resume || ws.Resume);
-
-        string? resumeSessionId = null;
-        if (shouldResume)
-        {
-            resumeSessionId = LaunchService.LoadLastSession(ws);
-            if (resumeSessionId is null)
-            {
-                if (resume)
-                {
-                    Console.Error.WriteLine("No previous session found for this workspace.");
-                    Console.Error.WriteLine("Run without --resume to start a new session.");
-                    return 1;
-                }
-
-                shouldResume = false;
-            }
-        }
+        var resumeSessionId = forceNew ? null : LaunchService.LoadLastSession(ws);
+        var shouldResume = resumeSessionId is not null;
 
         setup.EnsureInstalled();
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
@@ -107,7 +85,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             ConsoleLabel.WriteLine("Prompt:", truncated);
         }
 
-        if (skipPermissions || shouldResume || (ws.Resume && resumeSessionId is null))
+        if (skipPermissions || shouldResume)
         {
             Console.WriteLine();
             if (skipPermissions)
@@ -116,13 +94,8 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             }
             if (shouldResume)
             {
-                var note = ws.Resume ? "resuming previous (auto)" : "resuming previous";
-                ConsoleLabel.WriteLine("Session:", note);
+                ConsoleLabel.WriteLine("Session:", "resuming previous");
                 ConsoleLabel.WriteContinuation("If not found, run: wl launch --new");
-            }
-            else if (ws.Resume)
-            {
-                ConsoleLabel.WriteLine("Session:", "new (no previous to resume)");
             }
         }
 

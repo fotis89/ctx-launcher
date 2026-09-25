@@ -37,7 +37,6 @@ public class CreateCommand(WorkspaceService workspaces, CopilotRunner runner, Se
             {
                 Name = slug!,
                 PrimaryRepo = Directory.GetCurrentDirectory(),
-                Resume = true,
             };
             workspaces.SaveWorkspace(ws, slug!);
             Console.WriteLine($"Created workspace '{slug}' at {ws.FolderPath}");

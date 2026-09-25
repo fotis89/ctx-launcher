@@ -31,7 +31,7 @@ npm downloads only your platform's binary. Other platforms can
 cd D:\repos\my-project
 wl create my-project
 wl launch my-project
-wl launch my-project --resume
+wl launch my-project --new
 ```
 
 `wl create` asks Copilot to propose a workspace and waits for your approval.
@@ -52,8 +52,7 @@ instructions.
 | `wl create [name]` | Ask Copilot to propose and create a workspace |
 | `wl create <name> --basic` | Write a minimal schema-2 workspace without invoking Copilot |
 | `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
-| `wl launch <name> --resume` | Resume the saved Copilot session; fail if none exists |
-| `wl launch <name> --new` | Start fresh, overriding the workspace's resume default |
+| `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --yolo` | Skip Copilot permission prompts |
 | `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
 | `wl list` | List workspaces, including ones that fail to load (with the error) |
@@ -65,8 +64,7 @@ instructions.
 | `wl clone <git-url>` | Clone workspace definitions, run setup, then initialize path variables |
 | `wl setup` | Install bundled Copilot skills and show completion setup |
 
-`--new` and `--resume` cannot be combined. Invalid configuration and failed
-Copilot processes produce nonzero exit codes. A failed Copilot process does not
+Invalid configuration and failed Copilot processes produce nonzero exit codes. A failed Copilot process does not
 replace the saved session or last-workspace pointer.
 
 ## Workspace layout
@@ -104,15 +102,14 @@ the E2E suite isolates its files from your real profile.
   "name": "My project",
   "primaryRepo": "$REPOS_ROOT/my-project",
   "additionalDirs": ["~/notes"],
-  "yolo": false,
-  "resume": true
+  "yolo": false
 }
 ```
 
 `schemaVersion` must explicitly be `2`. `name` and `primaryRepo` must be non-empty.
 `additionalDirs` defaults to an empty array; its entries must be non-empty paths.
 The primary repository must be a directory. Missing additional directories are
-reported and skipped. `yolo` and `resume` default to false.
+reported and skipped. `yolo` defaults to false.
 
 ### Instructions and skills
 

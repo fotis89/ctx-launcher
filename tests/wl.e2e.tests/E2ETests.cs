@@ -208,7 +208,7 @@ public class E2ETests
         Assert.True(File.Exists(System.IO.Path.Combine(folder, ".copilot", "plugin.json")));
 
         File.Delete(log);
-        var resumed = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--resume");
+        var resumed = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName);
         Assert.Equal(0, resumed.ExitCode);
         Assert.Contains($"--resume={firstSession}", File.ReadAllText(log));
         Assert.DoesNotContain("--name=", File.ReadAllText(log));
@@ -254,7 +254,7 @@ public class E2ETests
         var bin = System.IO.Path.Combine(home.Path, "fake-bin");
         var log = System.IO.Path.Combine(home.Path, "copilot.log");
         FakeCopilot.Install(bin, log);
-        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--resume").ExitCode);
+        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName).ExitCode);
         Assert.Contains("--resume=previous-session-name", File.ReadAllText(log));
         Assert.DoesNotContain("--session-id=", File.ReadAllText(log));
         Assert.Equal("previous-session-name", File.ReadAllText(pointer));
@@ -276,17 +276,14 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void Explicit_resume_without_session_and_conflicting_flags_fail()
+    public void Removed_resume_option_fails()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
         Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
         var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName, "--resume");
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("No previous session", result.Stderr);
-        result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName, "--resume", "--new");
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("Cannot use", result.Stderr);
+        Assert.Contains("--resume", result.Stderr);
     }
 
     [SkippableFact]
