@@ -72,13 +72,11 @@ launchCmd.SetAction(parseResult =>
 
 // create
 var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Copilot will propose one)" };
-var basicOpt = new Option<bool>("--basic") { Description = "Write a minimal workspace.json without invoking an AI CLI" };
-var createCmd = new Command("create", "Create a new workspace (via Copilot, or --basic for a minimal scaffold)") { createNameArg, basicOpt };
+var createCmd = new Command("create", "Create a new workspace via Copilot") { createNameArg };
 createCmd.SetAction(parseResult =>
 {
     return Run(() => new CreateCommand(workspaceService, runner, setupService, copilot).Execute(
-        parseResult.GetValue(createNameArg),
-        parseResult.GetValue(basicOpt)));
+        parseResult.GetValue(createNameArg)));
 });
 
 // which

@@ -36,12 +36,6 @@ wl launch my-project --temp
 ```
 
 `wl create` asks Copilot to propose a workspace and waits for your approval.
-For a minimal configuration without invoking Copilot:
-
-```powershell
-wl create my-project --basic
-```
-
 The first create, launch, or clone installs or refreshes the bundled workspace skills.
 
 ## Commands
@@ -49,7 +43,6 @@ The first create, launch, or clone installs or refreshes the bundled workspace s
 | Command | Purpose |
 | --- | --- |
 | `wl create [name]` | Ask Copilot to propose and create a workspace |
-| `wl create <name> --basic` | Write a minimal schema-2 workspace without invoking Copilot |
 | `wl launch` | Launch Copilot in the current folder with shared context |
 | `wl launch <name>` | Launch a workspace |
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |

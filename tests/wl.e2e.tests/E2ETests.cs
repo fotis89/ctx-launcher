@@ -51,15 +51,13 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void Create_basic_exits_zero()
+    public void Removed_basic_create_option_fails()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
         var result = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
-        Assert.Equal(0, result.ExitCode);
-        var json = File.ReadAllText(System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName, "workspace.json"));
-        Assert.Contains("\"schemaVersion\": 2", json);
-        Assert.DoesNotContain("\"tool\"", json);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("--basic", result.Stderr);
     }
 
     [SkippableFact]
@@ -67,8 +65,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
-        Assert.Equal(0, create.ExitCode);
+        home.CreateBasicWorkspace();
 
         var result = WlRunner.Run(home.Path, extraPathDir: null, "which", home.WorkspaceName);
         Assert.Equal(0, result.ExitCode);
@@ -80,8 +77,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
-        Assert.Equal(0, create.ExitCode);
+        home.CreateBasicWorkspace();
 
         var result = WlRunner.Run(home.Path, extraPathDir: null, "launch", "missing-workspace");
         Assert.NotEqual(0, result.ExitCode);
@@ -104,8 +100,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
-        Assert.Equal(0, create.ExitCode);
+        home.CreateBasicWorkspace();
 
         var fakeBin = Path.Combine(home.Path, "fake-bin");
         var copilotLog = Path.Combine(home.Path, "copilot.log");
@@ -134,8 +129,7 @@ public class E2ETests
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
 
-        var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
-        Assert.Equal(0, create.ExitCode);
+        home.CreateBasicWorkspace();
 
         // Inject a $VAR reference into the scaffolded workspace.json.
         var wsPath = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName, "workspace.json");
@@ -168,7 +162,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
         var wsPath = System.IO.Path.Combine(folder, "workspace.json");
         var wsJson = File.ReadAllText(wsPath);
@@ -244,7 +238,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var pointer = System.IO.Path.Combine(root, home.WorkspaceName, ".last-session");
         File.WriteAllText(pointer, "previous-session");
@@ -261,7 +255,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var pointer = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName, ".last-session");
         File.WriteAllText(pointer, "previous-session-name");
         var bin = System.IO.Path.Combine(home.Path, "fake-bin");
@@ -278,7 +272,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName);
         Assert.NotEqual(0, result.ExitCode);
@@ -313,7 +307,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName, "--resume");
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("--resume", result.Stderr);
@@ -324,7 +318,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
         var session = System.IO.Path.Combine(folder, ".last-session");
         File.WriteAllText(session, "bad\npointer");
@@ -347,7 +341,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        var result = WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic", "--tool", "copilot");
+        var result = WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--tool", "copilot");
         Assert.NotEqual(0, result.ExitCode);
         var help = WlRunner.Run(home.Path, null, "create", "--help");
         Assert.Contains("Copilot", help.Stdout);
@@ -376,7 +370,7 @@ public class E2ETests
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var folder = System.IO.Path.Combine(root, home.WorkspaceName);
         File.WriteAllText(System.IO.Path.Combine(folder, "AGENTS.md"), "Context");
@@ -400,7 +394,7 @@ public class E2ETests
         Assert.Contains("copilot --name=", folderResult.Stdout);
         Assert.False(File.Exists(System.IO.Path.Combine(home.Path, ".wl-workspaces", ".folder-sessions.json")));
 
-        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        home.CreateBasicWorkspace();
         var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
         var before = Directory.GetFiles(root, "*", SearchOption.AllDirectories).ToDictionary(p => p, File.ReadAllText);
 
@@ -416,6 +410,21 @@ public class E2ETests
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("wl-e2e-").FullName;
         public string WorkspaceName { get; } = "e2e-" + Guid.NewGuid().ToString("N")[..8];
+
+        public void CreateBasicWorkspace()
+        {
+            var folder = System.IO.Path.Combine(Path, ".wl-workspaces", WorkspaceName);
+            Directory.CreateDirectory(folder);
+            var json = $$"""
+                {
+                  "schemaVersion": 2,
+                  "name": "{{WorkspaceName}}",
+                  "primaryRepo": "{{Path.Replace("\\", "\\\\")}}",
+                  "additionalDirs": []
+                }
+                """;
+            File.WriteAllText(System.IO.Path.Combine(folder, "workspace.json"), json);
+        }
 
         public void Dispose()
         {

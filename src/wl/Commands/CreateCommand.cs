@@ -6,14 +6,8 @@ namespace wl.Commands;
 
 public class CreateCommand(WorkspaceService workspaces, CopilotRunner runner, SetupService setup, CopilotService copilot)
 {
-    public int Execute(string? name, bool basic = false)
+    public int Execute(string? name)
     {
-        if (basic && name is null)
-        {
-            Console.Error.WriteLine("Name required with --basic.");
-            return 1;
-        }
-
         string? slug = null;
         if (name is not null)
         {
@@ -29,20 +23,19 @@ public class CreateCommand(WorkspaceService workspaces, CopilotRunner runner, Se
                 return 1;
             }
         }
-
         setup.EnsureInstalled();
-        if (basic)
+        setup.EnsureInstalled();
+        var before = Directory.Exists(workspaces.GetWorkspacesRoot())
+            ? Directory.GetDirectories(workspaces.GetWorkspacesRoot()).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
+        var exitCode = copilot.InvokeCreateSkill("wl-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), runner);
+        if (exitCode == 0 && Directory.Exists(workspaces.GetWorkspacesRoot()))
         {
-            var ws = new Workspace
+            foreach (var dir in Directory.GetDirectories(workspaces.GetWorkspacesRoot()).Where(d => !before.Contains(d)))
             {
-                Name = slug!,
-                PrimaryRepo = Directory.GetCurrentDirectory(),
-            };
-            workspaces.SaveWorkspace(ws, slug!);
-            Console.WriteLine($"Created workspace '{slug}' at {ws.FolderPath}");
-            return 0;
+                Console.WriteLine($"Created workspace at {dir}");
         }
-
-        return copilot.InvokeCreateSkill("wl-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), runner);
+        }
+        return exitCode;
     }
 }
