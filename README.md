@@ -26,7 +26,8 @@ copilot --version
 
 Prebuilt binaries are available for Windows x64, Linux x64, and macOS arm64.
 npm downloads only your platform's binary. Other platforms can
-[build from source](#build-from-source).
+[build from source](#build-from-source). On Windows without npm access, use the
+[local install script](#local-install-from-source-windows).
 
 ## Quick start
 
@@ -232,6 +233,31 @@ Use `linux-x64` or `osx-arm64` and native path separators on the other supported
 platforms. CI runs unit tests and E2E tests against the native binary on all three.
 No real Copilot account is needed for the automated shim-based E2E suite.
 
+### Local install from source (Windows)
+
+Use this when npm isn't available (for example behind a registry proxy that lags
+releases). It runs in Windows PowerShell 5.1 or PowerShell 7 and needs the
+prerequisites above:
+
+```powershell
+.\scripts\install-local.ps1                # HEAD of this checkout (e.g. latest master after git pull)
+.\scripts\install-local.ps1 -Ref v0.9.0    # a release tag (or any branch/commit)
+.\scripts\install-local.ps1 -List          # installed versions; * marks the active one
+.\scripts\install-local.ps1 -Use 0.9.0     # switch or roll back without rebuilding
+```
+
+The script builds that commit in a temporary git worktree (uncommitted changes are
+not included), runs the unit and E2E tests against the native binary, installs it
+to `%LOCALAPPDATA%\Programs\wl\<version>\` (change with `-InstallRoot`), and points
+the `current` junction there. Release tags install as their version (`0.9.0`); other
+commits get a MinVer pre-release version such as `0.9.1-dev.0.1`, so they never
+overwrite a release. `current` is added to your user PATH once (skip with `-NoPath`).
+Upgrades and rollbacks only move the junction, so running sessions keep their binary
+and PATH never changes again. Run `wl setup` after switching.
+
+Remove any other `wl` first (for example `npm uninstall -g @ctx-launcher/wl`).
+The script warns if another `wl` still takes precedence on PATH. For all options, run
+`Get-Help .\scripts\install-local.ps1 -Detailed`.
 ## Contributing and license
 
 Issues and PRs welcome at [fotis89/ctx-launcher](https://github.com/fotis89/ctx-launcher).
