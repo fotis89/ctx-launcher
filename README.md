@@ -65,6 +65,10 @@ Useful commands:
 
 Bundled skills install or refresh automatically on first launch, create, or clone.
 
+For the details — every file wl uses, what a launch does, sessions, and
+troubleshooting — see [docs/reference.md](docs/reference.md). Upgrading from
+0.9.x? See the [changelog](CHANGELOG.md).
+
 ## Workspaces are folders
 
 A workspace is just files under `~/.wl-workspaces/<name>`:

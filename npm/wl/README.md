@@ -19,11 +19,11 @@ npm will only download the binary matching your platform. For other platforms, [
 ## Quick start
 
 ```bash
-wl setup                 # install workspace skills
 wl create my-project     # ask Copilot to propose a workspace
-wl launch my-project     # start a Copilot session
+wl launch                # Copilot in the current folder, with shared skills
+wl launch my-project     # start or resume a Copilot session
 ```
 
 Requires GitHub Copilot CLI 1.0.86 or newer on PATH.
 
-See the [full documentation](https://github.com/fotis89/ctx-launcher#readme).
+See the [README](https://github.com/fotis89/ctx-launcher#readme), the [reference](https://github.com/fotis89/ctx-launcher/blob/master/docs/reference.md) (files, sessions, troubleshooting), and the [changelog](https://github.com/fotis89/ctx-launcher/blob/master/CHANGELOG.md).
