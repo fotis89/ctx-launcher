@@ -95,12 +95,18 @@ editCmd.SetAction(parseResult =>
 });
 
 // which
-var whichNameArg = new Argument<string>("name") { Description = "Workspace name" };
+var whichNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
 whichNameArg.CompletionSources.Add(WorkspaceCompletions);
-var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
+var whichNewOpt = new Option<bool>("--new", "-n") { Description = "Show a fresh-session launch" };
+var whichTempOpt = new Option<bool>("--temp") { Description = "Show a throwaway-session launch" };
+var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg, whichNewOpt, whichTempOpt };
 whichCmd.SetAction(parseResult =>
 {
-    return Run(() => new WhichCommand(workspaceService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!, passThroughArgs));
+    return Run(() => new WhichCommand(workspaceService, launchService, pathsService, copilot).Execute(
+        parseResult.GetValue(whichNameArg),
+        parseResult.GetValue(whichNewOpt),
+        parseResult.GetValue(whichTempOpt),
+        passThroughArgs));
 });
 
 // setup

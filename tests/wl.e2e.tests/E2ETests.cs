@@ -401,6 +401,29 @@ public class E2ETests
         foreach (var (path, content) in before) Assert.Equal(content, File.ReadAllText(path));
     }
 
+    [SkippableFact]
+    public void Which_folder_mode_and_workspace_passthrough_are_read_only()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+        var folderResult = WlRunner.Run(home.Path, null, "which");
+        Assert.Equal(0, folderResult.ExitCode);
+        Assert.Contains("Folder:", folderResult.Stdout);
+        Assert.Contains("copilot --name=", folderResult.Stdout);
+        Assert.False(File.Exists(System.IO.Path.Combine(home.Path, ".wl-workspaces", ".folder-sessions.json")));
+
+        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        var root = System.IO.Path.Combine(home.Path, ".wl-workspaces");
+        var before = Directory.GetFiles(root, "*", SearchOption.AllDirectories).ToDictionary(p => p, File.ReadAllText);
+
+        var workspaceResult = WlRunner.Run(home.Path, null, "which", home.WorkspaceName, "--", "--model", "x");
+
+        Assert.Equal(0, workspaceResult.ExitCode);
+        Assert.Contains("--model x", workspaceResult.Stdout);
+        Assert.Equal(before.Keys.Order(), Directory.GetFiles(root, "*", SearchOption.AllDirectories).Order());
+        foreach (var (path, content) in before) Assert.Equal(content, File.ReadAllText(path));
+    }
+
     private sealed class TempHome : IDisposable
     {
         public string Path { get; } = Directory.CreateTempSubdirectory("wl-e2e-").FullName;

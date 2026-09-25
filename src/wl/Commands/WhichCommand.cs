@@ -5,8 +5,19 @@ namespace wl.Commands;
 
 public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, PathsService paths, CopilotService copilot)
 {
-    public int Execute(string name, IReadOnlyList<string>? passThroughArgs = null)
+    public int Execute(string? name, bool forceNew = false, bool temporary = false, IReadOnlyList<string>? passThroughArgs = null)
     {
+        if (forceNew && temporary)
+        {
+            Console.Error.WriteLine("Cannot use --new and --temp together.");
+            return 1;
+        }
+
+        if (name is null)
+        {
+            return ExecuteFolderMode(forceNew, temporary, passThroughArgs);
+        }
+
         var ws = workspaces.LoadWorkspace(name);
         if (ws is null)
         {
@@ -54,7 +65,7 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
             ConsoleLabel.WriteLine("Instructions:", $"AGENTS.md ({lines} lines)");
         }
 
-        var lastSession = LaunchService.LoadLastSession(ws);
+        var lastSession = forceNew || temporary ? null : LaunchService.LoadLastSession(ws);
 
         if (lastSession is not null)
         {
@@ -91,6 +102,49 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
         Console.WriteLine($"    {launcher.BuildCommandString(ws, resumeSessionId: lastSession, sharedDirPath: sharedDir, passThroughArgs: passThroughArgs)}");
         Console.WriteLine();
         return repoOk ? 0 : 1;
+    }
+
+    private int ExecuteFolderMode(bool forceNew, bool temporary, IReadOnlyList<string>? passThroughArgs)
+    {
+        var folderPath = Directory.GetCurrentDirectory();
+        var lastSession = forceNew || temporary ? null : launcher.LoadFolderSession(folderPath);
+        var sharedDir = workspaces.GetSharedDirIfExists();
+
+        Console.WriteLine();
+        ConsoleLabel.WriteLine("Folder:", folderPath);
+        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
+
+        var sharedSkills = sharedDir is not null
+            ? WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath())
+            : [];
+        if (sharedSkills.Count > 0)
+        {
+            Console.WriteLine();
+            ConsoleLabel.WriteLine("wl skills:", string.Join(", ", sharedSkills));
+        }
+
+        if (lastSession is not null)
+        {
+            Console.WriteLine();
+            ConsoleLabel.WriteLine("Session:", "resuming previous");
+        }
+
+        var env = copilot.GetEnvironment(folderPath);
+        if (env.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("  Environment:");
+            foreach (var (k, v) in env)
+            {
+                Console.WriteLine($"    {k}={v}");
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("  Command:");
+        Console.WriteLine($"    {launcher.BuildFolderCommandString(folderPath, lastSession, sharedDir, passThroughArgs)}");
+        Console.WriteLine();
+        return 0;
     }
 
     private string PathStatus(string rawPath, bool exists)
