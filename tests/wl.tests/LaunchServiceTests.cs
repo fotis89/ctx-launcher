@@ -81,9 +81,10 @@ public class LaunchServiceTests : IDisposable
     }
 
     [Fact]
-    public void BuildLaunchArgs_PromptAndYolo()
+    public void BuildLaunchArgs_PromptAndCopilotArgs()
     {
-        var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing", yolo: true);
+        _ws.CopilotArgs = ["--yolo"];
+        var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing");
         Assert.Contains("--yolo", args);
         Assert.Equal("-i", args[^2]);
         Assert.Equal("do the thing", args[^1]);

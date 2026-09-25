@@ -26,7 +26,7 @@ public class CopilotServiceTests : IDisposable
 
     private static LaunchSpec MakeSpec(
         string? prompt = null,
-        bool yolo = false,
+        List<string>? copilotArgs = null,
         string? resumeSessionId = null,
         List<string>? additionalDirs = null,
         string? sharedDir = null,
@@ -38,6 +38,7 @@ public class CopilotServiceTests : IDisposable
             Name = "test",
             PrimaryRepo = Path.Combine(Path.GetTempPath(), "wl-test-repo"),
             AdditionalDirs = [],
+            CopilotArgs = copilotArgs ?? [],
             FolderPath = folderPath ?? Path.Combine(Path.GetTempPath(), "wl-test-ws"),
         };
 
@@ -46,7 +47,6 @@ public class CopilotServiceTests : IDisposable
             ResolvedAdditionalDirs: additionalDirs ?? [],
             ResolvedSharedDir: sharedDir,
             Prompt: prompt,
-            Yolo: yolo,
             ResumeSessionId: resumeSessionId,
             TemporarySession: temporary);
     }
@@ -107,18 +107,20 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
-    public void Yolo_EmitsYoloFlag()
+    public void CopilotArgs_EmitsArgsInOrder()
     {
-        var result = _adapter.BuildArgs(MakeSpec(yolo: true));
+        var result = _adapter.BuildArgs(MakeSpec(copilotArgs: ["--yolo", "--model", "gpt-test"]));
 
-        Assert.Contains("--yolo", result.Args);
-        Assert.DoesNotContain("--dangerously-skip-permissions", result.Args);
+        var yoloIndex = result.Args.IndexOf("--yolo");
+        Assert.True(yoloIndex > result.Args.LastIndexOf("--add-dir"));
+        Assert.Equal("--model", result.Args[yoloIndex + 1]);
+        Assert.Equal("gpt-test", result.Args[yoloIndex + 2]);
     }
 
     [Fact]
-    public void NoYolo_NoYoloFlag()
+    public void NoCopilotArgs_AddsNothing()
     {
-        var result = _adapter.BuildArgs(MakeSpec(yolo: false));
+        var result = _adapter.BuildArgs(MakeSpec());
 
         Assert.DoesNotContain("--yolo", result.Args);
     }

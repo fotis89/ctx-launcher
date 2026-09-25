@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
-    public int Execute(string? name, string? promptArg, bool yolo = false, bool forceNew = false, bool temporary = false)
+    public int Execute(string? name, string? promptArg, bool forceNew = false, bool temporary = false)
     {
         if (name is null)
         {
@@ -45,13 +45,12 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             return 1;
         }
 
-        var skipPermissions = yolo || ws.Yolo;
         var resumeSessionId = forceNew || temporary ? null : LaunchService.LoadLastSession(ws);
         var shouldResume = resumeSessionId is not null;
 
         setup.EnsureInstalled();
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
-        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, temporary);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, resumeSessionId, sharedDirResolved, temporary);
 
         foreach (var dir in skippedDirs)
         {
@@ -91,13 +90,9 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             ConsoleLabel.WriteLine("Prompt:", truncated);
         }
 
-        if (skipPermissions || shouldResume)
+        if (shouldResume)
         {
             Console.WriteLine();
-            if (skipPermissions)
-            {
-                ConsoleLabel.WriteLine("Permissions:", "yolo");
-            }
             if (shouldResume)
             {
                 ConsoleLabel.WriteLine("Session:", "resuming previous");

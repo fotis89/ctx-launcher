@@ -199,6 +199,8 @@ public class WorkspaceService(WlPaths paths)
             if (string.IsNullOrWhiteSpace(ws.Name) || string.IsNullOrWhiteSpace(ws.PrimaryRepo) ||
                 ws.AdditionalDirs is null || ws.AdditionalDirs.Any(string.IsNullOrWhiteSpace))
                 throw new InvalidDataException($"{jsonPath}: name and primaryRepo must be non-empty strings; additionalDirs must be an array of non-empty paths.");
+            if (ws.CopilotArgs is null || ws.CopilotArgs.Any(string.IsNullOrWhiteSpace))
+                throw new InvalidDataException($"{jsonPath}: copilotArgs must be an array of non-empty strings.");
 
             ws.FolderPath = folderPath;
             return ws;

@@ -150,10 +150,7 @@ public class CopilotService(WlPaths paths)
             }
         }
 
-        if (spec.Yolo)
-        {
-            args.Add("--yolo");
-        }
+        args.AddRange(ws.CopilotArgs);
 
         if (!string.IsNullOrEmpty(spec.Prompt))
         {

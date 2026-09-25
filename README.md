@@ -55,7 +55,6 @@ instructions.
 | `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
-| `wl launch <name> --yolo` | Skip Copilot permission prompts |
 | `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
 | `wl list` | List workspaces, including ones that fail to load (with the error) |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
@@ -104,14 +103,14 @@ the E2E suite isolates its files from your real profile.
   "name": "My project",
   "primaryRepo": "$REPOS_ROOT/my-project",
   "additionalDirs": ["~/notes"],
-  "yolo": false
+  "copilotArgs": ["--yolo"]
 }
 ```
 
 `schemaVersion` must explicitly be `2`. `name` and `primaryRepo` must be non-empty.
 `additionalDirs` defaults to an empty array; its entries must be non-empty paths.
 The primary repository must be a directory. Missing additional directories are
-reported and skipped. `yolo` defaults to false.
+reported and skipped. `copilotArgs` defaults to an empty array and is appended to every Copilot launch.
 
 ### Instructions and skills
 

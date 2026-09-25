@@ -55,18 +55,16 @@ promptOpt.CompletionSources.Add(ctx =>
 
     return promptService.ListPrompts(ws).Select(p => new CompletionItem(p.Slug));
 });
-var yoloOpt = new Option<bool>("--yolo") { Description = "Skip Copilot permission prompts" };
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session" };
 var tempOpt = new Option<bool>("--temp") { Description = "Start a throwaway session without changing the saved session" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, yoloOpt, newOpt, tempOpt };
+var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, promptOpt, newOpt, tempOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
     var prompt = parseResult.GetValue(promptOpt);
-    var yolo = parseResult.GetValue(yoloOpt);
     var forceNew = parseResult.GetValue(newOpt);
     var temporary = parseResult.GetValue(tempOpt);
-    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, yolo, forceNew, temporary));
+    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, forceNew, temporary));
 });
 
 // create

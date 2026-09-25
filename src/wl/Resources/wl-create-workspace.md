@@ -67,7 +67,7 @@ One-line command wrappers do not meet this bar. Writing `rush update` or `az rep
 
 ### Proposal templates
 
-Present a proposal with enough detail for the user to judge. The inline hint next to `Yolo` is there on purpose — first-time users need it to judge the default.
+Present a proposal with enough detail for the user to judge. The inline hint next to `Copilot args` is there on purpose — first-time users need it to judge the default.
 
 **Minimal template** (the common case when AGENTS.md is comprehensive and there are no additional dirs):
 
@@ -77,7 +77,7 @@ Proposed workspace: <slug>  (minimal — launcher config only)
   Name:         <display name>
   Primary repo: <path>
   Additional:   none
-  Yolo:         yes/no    (skip permission prompts — the CLI runs tools without asking before each action)
+  Copilot args: none / ["--yolo"] / other reviewed Copilot flags
 
   AGENTS.md: one-liner pointing to repo AGENTS.md and .github/instructions/*
   Skills to create: none
@@ -87,7 +87,7 @@ Reasoning: <one sentence on why nothing else is warranted — e.g.,
 cover workflows">
 
 Good to create it?
-(Flag explained above. Change it by telling me "yolo off".)
+(Flag explained above. Change it by telling me "no Copilot args" or naming the exact Copilot flags.)
 ```
 
 **Full template** (when there are additional dirs, cross-repo context, or genuine workspace-level knowledge to capture):
@@ -98,7 +98,7 @@ Proposed workspace: <slug>
   Name:         <display name>
   Primary repo: <path>
   Additional:   <path1>, <path2>
-  Yolo:         yes/no    (skip permission prompts — the CLI runs tools without asking before each action)
+  Copilot args: none / ["--yolo"] / other reviewed Copilot flags
 
   Instructions will cover:
     - <bullet — and the section of AGENTS.md/.github/instructions that does NOT cover it>
@@ -109,7 +109,7 @@ Proposed workspace: <slug>
     (or omit this section entirely if nothing cleared the threshold)
 
 Does this look right? Any changes before I create it?
-(Flag explained above. Change it by telling me "yolo off".)
+(Flag explained above. Change it by telling me "no Copilot args" or naming the exact Copilot flags.)
 ```
 
 **Copilot notes for the proposal:**
@@ -122,9 +122,9 @@ Does this look right? Any changes before I create it?
 
 Pick a slug that identifies the project, not the task. Use lowercase with hyphens. Prefer short, recognizable names: `backend-api`, `fullstack-platform`, `data-pipeline`. If the user has been working across multiple repos, name it after the overall system, not one repo.
 
-### Yolo default
+### Copilot args default
 
-- **Yolo**: set to `true` if the user's current session already has permissions bypass enabled (`--yolo`). Otherwise `false`.
+- **Copilot args**: set to `["--yolo"]` if the user's current session already has permissions bypass enabled (`--yolo`). Otherwise use an empty array. Include only reviewed Copilot CLI flags.
 
 ## Step 3: Create the workspace
 
@@ -139,7 +139,7 @@ After confirmation:
      "name": "<display name>",
      "primaryRepo": "<repo path>",
      "additionalDirs": ["<dir1>", "<dir2>"],
-     "yolo": true
+     "copilotArgs": ["--yolo"]
    }
    ```
 

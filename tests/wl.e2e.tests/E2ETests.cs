@@ -182,6 +182,10 @@ public class E2ETests
         using var home = new TempHome();
         Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
         var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
+        var wsPath = System.IO.Path.Combine(folder, "workspace.json");
+        var wsJson = File.ReadAllText(wsPath);
+        wsJson = wsJson.TrimEnd().TrimEnd('}') + ",\n  \"copilotArgs\": [\"--yolo\"]\n}";
+        File.WriteAllText(wsPath, wsJson);
         File.WriteAllText(System.IO.Path.Combine(folder, "AGENTS.md"), "Project instructions");
         var skills = Directory.CreateDirectory(System.IO.Path.Combine(folder, ".copilot", "skills", "wl-review")).FullName;
         File.WriteAllText(System.IO.Path.Combine(skills, "SKILL.md"), "---\nname: wl-review\ndescription: Review code\n---\nReview this repo.");
@@ -190,7 +194,7 @@ public class E2ETests
         var bin = System.IO.Path.Combine(home.Path, "fake-bin");
         var log = System.IO.Path.Combine(home.Path, "copilot.log");
         FakeCopilot.Install(bin, log);
-        var fresh = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--yolo", "-p", "review");
+        var fresh = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "-p", "review");
         Assert.Equal(0, fresh.ExitCode);
         var sessionPath = System.IO.Path.Combine(folder, ".last-session");
         var firstSession = File.ReadAllText(sessionPath);

@@ -68,13 +68,9 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
 
         var lastSession = LaunchService.LoadLastSession(ws);
 
-        if (ws.Yolo || lastSession is not null)
+        if (lastSession is not null)
         {
             Console.WriteLine();
-            if (ws.Yolo)
-            {
-                ConsoleLabel.WriteLine("Permissions:", "yolo");
-            }
             if (lastSession is not null)
             {
                 ConsoleLabel.WriteLine("Session:", "resuming previous");
@@ -104,7 +100,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
 
         Console.WriteLine();
         Console.WriteLine("  Command:");
-        Console.WriteLine($"    {launcher.BuildCommandString(ws, yolo: ws.Yolo, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
+        Console.WriteLine($"    {launcher.BuildCommandString(ws, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
         Console.WriteLine();
         return repoOk ? 0 : 1;
     }

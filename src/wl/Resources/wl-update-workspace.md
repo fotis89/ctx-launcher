@@ -54,7 +54,7 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - Paths changed (build output, binary locations)
 - Workflow steps changed (new commands, different order)
 - Skills with outdated commands or paths
-- Settings (`yolo`) that no longer match how the workspace is used
+- Settings (`copilotArgs`) that no longer match how the workspace is used
 - Skills not using the `wl-` naming prefix (workspace skills should always be prefixed `wl-` to distinguish them from repo-level skills)
 - Skills missing required frontmatter fields (`name`, `description`) — propose adding the missing fields.
 - `allowed-tools` is optional permission pre-approval. Its absence is not drift. Do not add or broaden approvals automatically; propose changes only for explicit user review, especially shell access.

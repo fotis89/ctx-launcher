@@ -124,6 +124,8 @@ public class WorkspaceServiceTests : IDisposable
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":null}")]
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"additionalDirs\":[null]}")]
     [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":null}")]
+    [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"copilotArgs\":null}")]
+    [InlineData("{\"schemaVersion\":2,\"name\":\"test\",\"primaryRepo\":\"repo\",\"copilotArgs\":[null]}")]
     public void InvalidWorkspace_IsRejectedAndStillListed(string json)
     {
         var folder = Directory.CreateDirectory(Path.Combine(_root, "invalid")).FullName;

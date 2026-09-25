@@ -6,7 +6,7 @@ namespace wl.Services;
 public class LaunchService(CopilotRunner runner, PathsService paths, CopilotService copilot)
 {
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildLaunchArgs(
-        Workspace ws, string? prompt = null, bool yolo = false,
+        Workspace ws, string? prompt = null,
         string? resumeSessionId = null, string? sharedDirPath = null, bool temporary = false)
     {
         var resolvedDirs = new List<string>();
@@ -20,15 +20,15 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
                 skippedDirs.Add(dir);
         }
 
-        var spec = new LaunchSpec(ws, resolvedDirs, sharedDirPath, prompt, yolo, resumeSessionId, temporary);
+        var spec = new LaunchSpec(ws, resolvedDirs, sharedDirPath, prompt, resumeSessionId, temporary);
         var result = copilot.BuildArgs(spec);
         return (result.Args, skippedDirs, result.NewSessionId);
     }
 
-    public string BuildCommandString(Workspace ws, string? prompt = null, bool yolo = false,
+    public string BuildCommandString(Workspace ws, string? prompt = null,
         string? resumeSessionId = null, string? sharedDirPath = null)
     {
-        var (args, _, _) = BuildLaunchArgs(ws, prompt, yolo, resumeSessionId, sharedDirPath);
+        var (args, _, _) = BuildLaunchArgs(ws, prompt, resumeSessionId, sharedDirPath);
         return "copilot " + string.Join(" ", args.Select(PathHelper.QuotePath));
     }
 

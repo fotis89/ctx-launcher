@@ -5,7 +5,6 @@ public record LaunchSpec(
     List<string> ResolvedAdditionalDirs,
     string? ResolvedSharedDir,
     string? Prompt,
-    bool Yolo,
     string? ResumeSessionId,
     bool TemporarySession = false)
 {
