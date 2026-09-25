@@ -94,6 +94,7 @@ public static partial class PathHelper
             pathExtEnv = ".COM;.EXE;.BAT;.CMD";
         }
 
+        var extensions = new List<string>();
         var seenExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var extension in pathExtEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
@@ -103,10 +104,28 @@ public static partial class PathHelper
                 continue;
             }
 
-            var match = FindOnPath(commandName + normalized, pathEnv);
-            if (match is not null)
+            extensions.Add(normalized);
+        }
+
+        pathEnv ??= Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(pathEnv))
+        {
+            foreach (var entry in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
-                return match;
+                var dir = entry.Trim('"');
+                if (dir.Length == 0)
+                {
+                    continue;
+                }
+
+                foreach (var extension in extensions)
+                {
+                    var candidate = Path.Combine(dir, commandName + extension);
+                    if (File.Exists(candidate))
+                    {
+                        return candidate;
+                    }
+                }
             }
         }
 

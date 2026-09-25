@@ -233,6 +233,40 @@ public class PathHelperTests
     }
 
     [Fact]
+    public void FindCommandOnPath_SearchesDirectoriesBeforePathextOrder()
+    {
+        var dir1 = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        var dir2 = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+        try
+        {
+            var cmdPath = Path.Combine(dir1, "copilot.cmd");
+            var exePath = Path.Combine(dir2, "copilot.exe");
+            File.WriteAllText(cmdPath, "@echo off");
+            File.WriteAllText(exePath, "");
+
+            var result = PathHelper.FindCommandOnPath("copilot", string.Join(Path.PathSeparator, dir1, dir2), ".COM;.EXE;.BAT;.CMD");
+
+            if (OperatingSystem.IsWindows())
+            {
+                Assert.NotNull(result);
+                Assert.Equal(cmdPath, result, ignoreCase: true, ignoreLineEndingDifferences: false, ignoreWhiteSpaceDifferences: false);
+            }
+            else
+            {
+                Assert.Null(result);
+            }
+        }
+        finally
+        {
+            Directory.Delete(dir1, true);
+            Directory.Delete(dir2, true);
+        }
+    }
+
+
+    [Fact]
     public void FindCommandOnPath_NormalizesPathextEntriesWithoutDots()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "wl-test-path-" + Guid.NewGuid().ToString("N")[..8]);
