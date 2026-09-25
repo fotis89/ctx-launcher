@@ -57,9 +57,7 @@ instructions.
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
 | `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
-| `wl list` | List workspaces, including ones that fail to load (with the error) |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
-| `wl edit <name>` | Open the workspace folder |
 | `wl paths set <name> <value>` | Define a machine-local path variable |
 | `wl paths list` | Show defined and referenced variables |
 | `wl paths init` | Prompt for undefined variables |

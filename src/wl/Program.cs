@@ -81,19 +81,6 @@ createCmd.SetAction(parseResult =>
         parseResult.GetValue(basicOpt)));
 });
 
-// list
-var listCmd = new Command("list", "List all workspaces");
-listCmd.SetAction(_ => Run(() => { new ListCommand(workspaceService).Execute(); return 0; }));
-
-// edit
-var editNameArg = new Argument<string>("name") { Description = "Workspace name" };
-editNameArg.CompletionSources.Add(WorkspaceCompletions);
-var editCmd = new Command("edit", "Open workspace folder in file explorer") { editNameArg };
-editCmd.SetAction(parseResult =>
-{
-    return Run(() => new EditCommand(workspaceService).Execute(parseResult.GetValue(editNameArg)!));
-});
-
 // which
 var whichNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
 whichNameArg.CompletionSources.Add(WorkspaceCompletions);
@@ -145,8 +132,6 @@ cloneCmd.SetAction(parseResult =>
 
 root.Add(launchCmd);
 root.Add(createCmd);
-root.Add(listCmd);
-root.Add(editCmd);
 root.Add(whichCmd);
 root.Add(setupCmd);
 root.Add(pathsCmd);

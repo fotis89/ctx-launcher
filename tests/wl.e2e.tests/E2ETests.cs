@@ -41,12 +41,13 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void List_in_empty_home_exits_zero()
+    public void List_command_is_removed()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
         var result = WlRunner.Run(home.Path, extraPathDir: null, "list");
-        Assert.Equal(0, result.ExitCode);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("list", result.Stderr, StringComparison.OrdinalIgnoreCase);
     }
 
     [SkippableFact]
@@ -75,26 +76,27 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void List_after_create_shows_workspace()
+    public void Unknown_workspace_lists_available_workspaces()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
         var create = WlRunner.Run(home.Path, extraPathDir: null, "create", home.WorkspaceName, "--basic");
         Assert.Equal(0, create.ExitCode);
 
-        var result = WlRunner.Run(home.Path, extraPathDir: null, "list");
-        Assert.Equal(0, result.ExitCode);
-        Assert.Contains(home.WorkspaceName, result.Stdout, StringComparison.Ordinal);
+        var result = WlRunner.Run(home.Path, extraPathDir: null, "launch", "missing-workspace");
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Workspaces root:", result.Stderr, StringComparison.Ordinal);
+        Assert.Contains(home.WorkspaceName, result.Stderr, StringComparison.Ordinal);
     }
 
     [SkippableFact]
-    public void Edit_unknown_workspace_reports_error()
+    public void Edit_command_is_removed()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
         var result = WlRunner.Run(home.Path, extraPathDir: null, "edit", "nonexistent-ws");
-        Assert.Contains("not found", result.Stderr, StringComparison.OrdinalIgnoreCase);
         Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("edit", result.Stderr, StringComparison.OrdinalIgnoreCase);
     }
 
     [SkippableFact]

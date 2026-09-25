@@ -22,6 +22,7 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
         if (ws is null)
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
+            PrintAvailableWorkspaces();
             return 1;
         }
 
@@ -145,6 +146,23 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
         Console.WriteLine($"    {launcher.BuildFolderCommandString(folderPath, lastSession, sharedDir, passThroughArgs)}");
         Console.WriteLine();
         return 0;
+    }
+
+    private void PrintAvailableWorkspaces()
+    {
+        Console.Error.WriteLine($"Workspaces root: {workspaces.GetWorkspacesRoot()}");
+        var entries = workspaces.ListEntries();
+        if (entries.Count == 0)
+        {
+            Console.Error.WriteLine("Available workspaces: (none)");
+            return;
+        }
+
+        Console.Error.WriteLine("Available workspaces:");
+        foreach (var entry in entries)
+        {
+            Console.Error.WriteLine($"  {entry.FolderName}");
+        }
     }
 
     private string PathStatus(string rawPath, bool exists)

@@ -10,7 +10,7 @@ Detect when the active workspace no longer matches real usage and propose safe, 
 Figure out which workspace to update without asking the user:
 
 1. Check attached directories — look for a `~/.wl-workspaces/<name>/` path in the session's additional dirs.
-2. If unclear, run `wl list` and match against the current working directory's repo.
+2. If unclear, inspect the workspaces root folder and match against the current working directory's repo.
 3. Only ask the user if neither approach resolves to a single workspace.
 
 Read all workspace files:

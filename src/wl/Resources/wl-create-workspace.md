@@ -7,7 +7,7 @@ Analyze the current session and propose a workspace for the `wl` AI context laun
 
 ## Step 0: Pre-check
 
-Run `wl list` and `wl which <slug>` first. If the workspace exists, suggest using the wl-update-workspace skill instead. Do not overwrite an existing workspace because `wl which` reports a load error. Only proceed with creation if no workspace exists for this project.
+Inspect the workspaces root folder and run `wl which <slug>` first. If the workspace exists, suggest using the wl-update-workspace skill instead. Do not overwrite an existing workspace because `wl which` reports a load error. Only proceed with creation if no workspace exists for this project.
 
 Always write `"schemaVersion": 2` in `workspace.json`. Use `WL_WORKSPACES_ROOT` when set; otherwise use `~/.wl-workspaces` for workspace storage. This also applies to the update skill.
 

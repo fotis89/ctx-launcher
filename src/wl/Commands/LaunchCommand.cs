@@ -22,7 +22,7 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
         if (ws is null)
         {
             Console.Error.WriteLine($"Workspace '{name}' not found.");
-            Console.Error.WriteLine("Run 'wl list' to see available workspaces.");
+            PrintAvailableWorkspaces();
             return 1;
         }
 
@@ -75,11 +75,8 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
         if (shouldResume)
         {
             Console.WriteLine();
-            if (shouldResume)
-            {
-                ConsoleLabel.WriteLine("Session:", "resuming previous");
-                ConsoleLabel.WriteContinuation("If not found, run: wl launch --new");
-            }
+            ConsoleLabel.WriteLine("Session:", "resuming previous");
+            ConsoleLabel.WriteContinuation("If not found, run: wl launch --new");
         }
 
         Console.WriteLine();
@@ -124,5 +121,22 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
             launcher.SaveFolderSession(folderPath, newSessionId);
         }
         return exitCode;
+    }
+
+    private void PrintAvailableWorkspaces()
+    {
+        Console.Error.WriteLine($"Workspaces root: {workspaces.GetWorkspacesRoot()}");
+        var entries = workspaces.ListEntries();
+        if (entries.Count == 0)
+        {
+            Console.Error.WriteLine("Available workspaces: (none)");
+            return;
+        }
+
+        Console.Error.WriteLine("Available workspaces:");
+        foreach (var entry in entries)
+        {
+            Console.Error.WriteLine($"  {entry.FolderName}");
+        }
     }
 }
