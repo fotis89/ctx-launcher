@@ -100,30 +100,9 @@ whichCmd.SetAction(parseResult =>
 var setupCmd = new Command("setup", "Install Copilot skills and show tab completion setup");
 setupCmd.SetAction(_ => Run(() => new SetupCommand(setupService, runner).Execute()));
 
-// paths (group)
-var pathsCmd = new Command("paths", "Manage path variables used in workspace.json");
-
-var pathsSetNameArg = new Argument<string>("name") { Description = "Variable name (e.g. REPOS_ROOT)" };
-var pathsSetValueArg = new Argument<string>("value") { Description = "Value to assign" };
-var pathsSetCmd = new Command("set", "Set a path variable") { pathsSetNameArg, pathsSetValueArg };
-pathsSetCmd.SetAction(parseResult => Run(() =>
-    new PathsCommand(workspaceService, pathsService).Set(
-        parseResult.GetValue(pathsSetNameArg)!,
-        parseResult.GetValue(pathsSetValueArg)!) ? 0 : 1));
-
-var pathsListCmd = new Command("list", "List defined and referenced path variables");
-pathsListCmd.SetAction(_ => Run(() => { new PathsCommand(workspaceService, pathsService).List(); return 0; }));
-
-var pathsInitCmd = new Command("init", "Prompt for any path variables referenced but not defined");
-pathsInitCmd.SetAction(_ => Run(() => { new PathsCommand(workspaceService, pathsService).Init(); return 0; }));
-
-pathsCmd.Subcommands.Add(pathsSetCmd);
-pathsCmd.Subcommands.Add(pathsListCmd);
-pathsCmd.Subcommands.Add(pathsInitCmd);
-
 // clone
 var cloneUrlArg = new Argument<string>("git-url") { Description = "Git URL to clone" };
-var cloneCmd = new Command("clone", "Clone a workspaces repo into ~/.wl-workspaces and run setup + paths init") { cloneUrlArg };
+var cloneCmd = new Command("clone", "Clone a workspaces repo into ~/.wl-workspaces and initialize path variables") { cloneUrlArg };
 cloneCmd.SetAction(parseResult =>
 {
     return Run(() => new CloneCommand(workspaceService, pathsService, setupService).Execute(
@@ -134,7 +113,6 @@ root.Add(launchCmd);
 root.Add(createCmd);
 root.Add(whichCmd);
 root.Add(setupCmd);
-root.Add(pathsCmd);
 root.Add(cloneCmd);
 
 return await root.Parse(parseArgs).InvokeAsync();

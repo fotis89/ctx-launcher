@@ -113,6 +113,10 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
     public string ResolveWorkspacePath(Workspace ws, string path)
         => PathHelper.ResolvePath(path, paths.Get, ws.FolderPath);
 
+    public void EnsureWorkspaceVariables(Workspace ws)
+        => paths.EnsureVariables(PathHelper.ExtractVariables(ws.PrimaryRepo)
+            .Concat(ws.AdditionalDirs.SelectMany(PathHelper.ExtractVariables)));
+
     private Dictionary<string, string> LoadFolderSessions()
     {
         if (!File.Exists(wlPaths.FolderSessionsFile))

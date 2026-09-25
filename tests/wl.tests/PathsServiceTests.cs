@@ -200,4 +200,21 @@ public class PathsServiceTests
             if (File.Exists(file)) File.Delete(file);
         }
     }
+
+    [Fact]
+    public void EnsureVariables_WithInput_SavesMissingValue()
+    {
+        var file = TempFile();
+        try
+        {
+            var svc = new PathsService(file);
+            svc.EnsureVariables(["REPOS"], new StringReader("D:/repos\n"));
+
+            Assert.Equal("D:/repos", new PathsService(file).Get("REPOS"));
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
 }

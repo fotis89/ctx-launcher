@@ -62,8 +62,8 @@ Compare workspace config against the repo's current state. Don't rely only on co
 - `<workspace-folder>/AGENTS.md` is loaded via `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, and `.copilot/skills/*` directories are loaded per launch via `--plugin-dir`, not by editing global settings. `.copilot/plugin.json` is generated; don't propose editing it. Copilot can select skills by description or use an explicit prompt such as `Use the /wl-review skill to review these changes`.
 - Non-portable paths in `primaryRepo` or `additionalDirs`, in priority order:
   - Paths under the user's home that aren't `~/`-rooted (`/Users/foo/x`, `C:\Users\foo\x`) — propose rewriting as `~/x`.
-  - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, run `wl paths list` and reuse an existing one if it maps to the right root; otherwise run `wl paths set <NAME> <value>` to populate `~/.wl-workspaces/.paths.json`.
-  - Redundant `$VAR` references — `workspace.json` uses a variable that maps to the same root as another already in `wl paths list` (e.g., references `$DEV_REPOS` when `$REPOS` already points to the same directory). Propose consolidating to the existing variable.
+  - Absolute paths outside `~/` (drive letters, `/opt`, `/mnt`) — propose rewriting as `$VAR` references. Before defining a new variable, read `~/.wl-workspaces/.paths.json` and reuse an existing one if it maps to the right root; otherwise edit `.paths.json` to add `<NAME>: <value>`.
+  - Redundant `$VAR` references — `workspace.json` uses a variable that maps to the same root as another already in `.paths.json` (e.g., references `$DEV_REPOS` when `$REPOS` already points to the same directory). Propose consolidating to the existing variable.
   - Subdirectories of `primaryRepo` listed as additional dirs — propose removing; they're already attached via `primaryRepo`.
 - Non-portable paths in workspace `AGENTS.md` prose — drive-absolute or root-absolute paths that should be `~/`, `$VAR`, or relative-to-repo. Propose rewriting in place.
 

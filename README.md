@@ -58,9 +58,6 @@ instructions.
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
 | `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
-| `wl paths set <name> <value>` | Define a machine-local path variable |
-| `wl paths list` | Show defined and referenced variables |
-| `wl paths init` | Prompt for undefined variables |
 | `wl clone <git-url>` | Clone workspace definitions, run setup, then initialize path variables |
 | `wl setup` | Install bundled Copilot skills and show completion setup |
 
@@ -148,13 +145,8 @@ Copilot exits successfully can leave the previous pointer unchanged.
 ## Syncing across PCs
 
 Use `$VAR` or `${VAR}` references for machine-specific roots, and `~/` for
-home-relative paths. Define variables per machine:
-
-```powershell
-wl paths set REPOS_ROOT D:\repos
-wl paths set DOCS_ROOT ~\Documents
-wl paths list
-```
+home-relative paths. `wl launch` and `wl clone` prompt once for undefined
+variables and save them in `.paths.json`; edit that file to change values.
 
 Values live in `.paths.json`. Keep workspace definitions and user-authored skills
 in a private git repository, then use `wl clone <git-url>` on another machine.

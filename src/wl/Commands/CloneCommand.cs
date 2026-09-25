@@ -1,5 +1,6 @@
 using System.Diagnostics;
 
+using wl.Helpers;
 using wl.Services;
 
 namespace wl.Commands;
@@ -48,7 +49,9 @@ public class CloneCommand(WorkspaceService workspaces, PathsService paths, Setup
         }
 
         setup.RunSetup();
-        new PathsCommand(workspaces, paths).Init();
+        paths.EnsureVariables(workspaces.ListWorkspaces()
+            .SelectMany(ws => PathHelper.ExtractVariables(ws.PrimaryRepo)
+                .Concat(ws.AdditionalDirs.SelectMany(PathHelper.ExtractVariables))));
         return 0;
     }
 }

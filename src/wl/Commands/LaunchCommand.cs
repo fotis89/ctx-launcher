@@ -26,6 +26,7 @@ public class LaunchCommand(WorkspaceService workspaces, LaunchService launcher, 
             return 1;
         }
 
+        launcher.EnsureWorkspaceVariables(ws);
         var repoExists = Directory.Exists(launcher.ResolveWorkspacePath(ws, ws.PrimaryRepo));
         if (!repoExists)
         {

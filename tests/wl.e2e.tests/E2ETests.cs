@@ -118,29 +118,14 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void Paths_set_and_list_shows_variable()
+    public void Paths_command_is_removed()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
 
-        var set = WlRunner.Run(home.Path, extraPathDir: null, "paths", "set", "MYREPOS", "/tmp/x");
-        Assert.Equal(0, set.ExitCode);
-
-        var list = WlRunner.Run(home.Path, extraPathDir: null, "paths", "list");
-        Assert.Equal(0, list.ExitCode);
-        Assert.Contains("MYREPOS", list.Stdout, StringComparison.Ordinal);
-        Assert.Contains("/tmp/x", list.Stdout, StringComparison.Ordinal);
-    }
-
-    [SkippableFact]
-    public void Paths_set_invalid_name_exits_nonzero_with_error()
-    {
-        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
-        using var home = new TempHome();
-
-        var result = WlRunner.Run(home.Path, extraPathDir: null, "paths", "set", "bad name", "/tmp/x");
+        var result = WlRunner.Run(home.Path, extraPathDir: null, "paths", "list");
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("Invalid variable name", result.Stderr, StringComparison.Ordinal);
+        Assert.Contains("paths", result.Stderr, StringComparison.OrdinalIgnoreCase);
     }
 
     [SkippableFact]

@@ -54,6 +54,32 @@ public partial class PathsService(string filePath)
 
     public IReadOnlyDictionary<string, string> All() => Load();
 
+    public void EnsureVariables(IEnumerable<string> names, TextReader? input = null)
+    {
+        input ??= Console.In;
+        foreach (var name in names.Distinct(StringComparer.Ordinal).OrderBy(n => n))
+        {
+            if (Get(name) is not null)
+            {
+                continue;
+            }
+
+            if (Console.IsInputRedirected && input == Console.In)
+            {
+                throw new InvalidOperationException($"Path variable ${name} is undefined. Edit {filePath} or run interactively to set it.");
+            }
+
+            Console.Error.Write($"Set ${name}: ");
+            var value = input.ReadLine();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException($"Path variable ${name} is undefined. Edit {filePath} and try again.");
+            }
+
+            Set(name, StripQuotes(value.Trim()));
+        }
+    }
+
     public void Set(string name, string value)
     {
         if (!ValidNameRegex().IsMatch(name))
@@ -84,5 +110,16 @@ public partial class PathsService(string filePath)
         {
             if (File.Exists(tmp)) File.Delete(tmp);
         }
+    }
+
+    private static string StripQuotes(string value)
+    {
+        if (value.Length >= 2 &&
+            ((value[0] == '"' && value[^1] == '"') ||
+             (value[0] == '\'' && value[^1] == '\'')))
+        {
+            return value[1..^1];
+        }
+        return value;
     }
 }

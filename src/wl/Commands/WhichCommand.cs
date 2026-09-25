@@ -176,7 +176,7 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
 
         if (unsetVars.Count > 0)
         {
-            return $"unset: {string.Join(", ", unsetVars.Select(v => "$" + v))} — run 'wl paths init'";
+            return $"unset: {string.Join(", ", unsetVars.Select(v => "$" + v))} — launch or clone interactively to set it";
         }
 
         return "NOT FOUND";
