@@ -6,7 +6,8 @@ public record LaunchSpec(
     string? ResolvedSharedDir,
     string? Prompt,
     bool Yolo,
-    string? ResumeSessionId)
+    string? ResumeSessionId,
+    bool TemporarySession = false)
 {
     // PrimaryRepo is the cwd, not an --add-dir.
     public void AppendAddDirArgs(List<string> args)

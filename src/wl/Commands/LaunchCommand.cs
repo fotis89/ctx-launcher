@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
-    public int Execute(string? name, string? promptArg, bool yolo = false, bool forceNew = false)
+    public int Execute(string? name, string? promptArg, bool yolo = false, bool forceNew = false, bool temporary = false)
     {
         if (name is null)
         {
@@ -39,13 +39,19 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
             resolvedPrompt = prompts.ResolvePrompt(ws, promptArg);
         }
 
+        if (forceNew && temporary)
+        {
+            Console.Error.WriteLine("Cannot use --new and --temp together.");
+            return 1;
+        }
+
         var skipPermissions = yolo || ws.Yolo;
-        var resumeSessionId = forceNew ? null : LaunchService.LoadLastSession(ws);
+        var resumeSessionId = forceNew || temporary ? null : LaunchService.LoadLastSession(ws);
         var shouldResume = resumeSessionId is not null;
 
         setup.EnsureInstalled();
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
-        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, skipPermissions, resumeSessionId, sharedDirResolved, temporary);
 
         foreach (var dir in skippedDirs)
         {
@@ -106,7 +112,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
         if (exitCode == 0)
         {
             workspaces.SetLastUsed(name);
-            if (newSessionId is not null)
+            if (newSessionId is not null && !temporary)
             {
                 LaunchService.SaveLastSession(ws, newSessionId);
             }

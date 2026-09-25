@@ -30,7 +30,8 @@ public class CopilotServiceTests : IDisposable
         string? resumeSessionId = null,
         List<string>? additionalDirs = null,
         string? sharedDir = null,
-        string? folderPath = null)
+        string? folderPath = null,
+        bool temporary = false)
     {
         var ws = new Workspace
         {
@@ -46,7 +47,8 @@ public class CopilotServiceTests : IDisposable
             ResolvedSharedDir: sharedDir,
             Prompt: prompt,
             Yolo: yolo,
-            ResumeSessionId: resumeSessionId);
+            ResumeSessionId: resumeSessionId,
+            TemporarySession: temporary);
     }
 
     [Fact]
@@ -74,6 +76,20 @@ public class CopilotServiceTests : IDisposable
         Assert.NotNull(result.NewSessionId);
         Assert.True(Guid.TryParse(result.NewSessionId, out _));
         Assert.Contains(result.Args, a => a.StartsWith("--name=wl-"));
+    }
+
+    [Fact]
+    public void TemporarySession_EmitsTempNameAndSessionId()
+    {
+        var spec = MakeSpec(folderPath: Path.Combine(Path.GetTempPath(), "sei"), temporary: true);
+
+        var result = _adapter.BuildArgs(spec);
+
+        Assert.NotNull(result.NewSessionId);
+        Assert.True(Guid.TryParseExact(result.NewSessionId, "D", out var id));
+        Assert.Contains($"--session-id={id}", result.Args);
+        Assert.Contains($"--name=sei-temp-{id.ToString("N")[..8]}", result.Args);
+        Assert.DoesNotContain(result.Args, a => a.StartsWith("--resume"));
     }
 
     [Theory]

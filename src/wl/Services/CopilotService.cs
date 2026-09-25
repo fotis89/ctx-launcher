@@ -128,9 +128,12 @@ public class CopilotService(WlPaths paths)
             var slug = string.IsNullOrEmpty(ws.FolderName) ? "wl" : ws.FolderName;
             var id = Guid.NewGuid();
             newSessionId = id.ToString();
+            var name = spec.TemporarySession
+                ? $"{slug}-temp-{id.ToString("N")[..8]}"
+                : $"{slug}-{id.ToString("N")[..8]}";
             // Keep a readable picker label, but persist the immutable ID
             // so /rename cannot invalidate the saved resume pointer.
-            args.Add($"--name={slug}-{id.ToString("N")[..8]}");
+            args.Add($"--name={name}");
             args.Add($"--session-id={newSessionId}");
         }
 

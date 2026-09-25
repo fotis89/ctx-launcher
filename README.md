@@ -32,6 +32,7 @@ cd D:\repos\my-project
 wl create my-project
 wl launch my-project
 wl launch my-project --new
+wl launch my-project --temp
 ```
 
 `wl create` asks Copilot to propose a workspace and waits for your approval.
@@ -53,6 +54,7 @@ instructions.
 | `wl create <name> --basic` | Write a minimal schema-2 workspace without invoking Copilot |
 | `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
+| `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
 | `wl launch <name> --yolo` | Skip Copilot permission prompts |
 | `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
 | `wl list` | List workspaces, including ones that fail to load (with the error) |

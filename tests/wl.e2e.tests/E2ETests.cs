@@ -222,6 +222,19 @@ public class E2ETests
         Assert.Contains($"--session-id={File.ReadAllText(sessionPath)}", File.ReadAllText(log));
         Assert.Contains("--name=", File.ReadAllText(log));
         Assert.DoesNotContain("--resume=", File.ReadAllText(log));
+        var rememberedSession = File.ReadAllText(sessionPath);
+
+        File.Delete(log);
+        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--temp").ExitCode);
+        var tempArgs = File.ReadAllText(log);
+        Assert.Contains($"--name={home.WorkspaceName}-temp-", tempArgs);
+        Assert.Contains("--session-id=", tempArgs);
+        Assert.DoesNotContain("--resume=", tempArgs);
+        Assert.Equal(rememberedSession, File.ReadAllText(sessionPath));
+
+        File.Delete(log);
+        Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName).ExitCode);
+        Assert.Contains($"--resume={rememberedSession}", File.ReadAllText(log));
     }
 
     [SkippableFact]
@@ -284,6 +297,29 @@ public class E2ETests
         var result = WlRunner.Run(home.Path, null, "launch", home.WorkspaceName, "--resume");
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("--resume", result.Stderr);
+    }
+
+    [SkippableFact]
+    public void Temp_with_new_fails_and_temp_ignores_malformed_pointer()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+        Assert.Equal(0, WlRunner.Run(home.Path, null, "create", home.WorkspaceName, "--basic").ExitCode);
+        var folder = System.IO.Path.Combine(home.Path, ".wl-workspaces", home.WorkspaceName);
+        var session = System.IO.Path.Combine(folder, ".last-session");
+        File.WriteAllText(session, "bad\npointer");
+        var bin = System.IO.Path.Combine(home.Path, "fake-bin");
+        var log = System.IO.Path.Combine(home.Path, "copilot.log");
+        FakeCopilot.Install(bin, log);
+
+        var conflict = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--temp", "--new");
+        Assert.NotEqual(0, conflict.ExitCode);
+        Assert.Contains("Cannot use", conflict.Stderr);
+
+        var temp = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--temp");
+        Assert.Equal(0, temp.ExitCode);
+        Assert.Contains("--name=", File.ReadAllText(log));
+        Assert.Equal("bad\npointer", File.ReadAllText(session));
     }
 
     [SkippableFact]
