@@ -31,7 +31,8 @@ public class CopilotServiceTests : IDisposable
         List<string>? additionalDirs = null,
         string? sharedDir = null,
         string? folderPath = null,
-        bool temporary = false)
+        bool temporary = false,
+        IReadOnlyList<string>? passThroughArgs = null)
     {
         var ws = new Workspace
         {
@@ -48,7 +49,8 @@ public class CopilotServiceTests : IDisposable
             ResolvedSharedDir: sharedDir,
             Prompt: prompt,
             ResumeSessionId: resumeSessionId,
-            TemporarySession: temporary);
+            TemporarySession: temporary,
+            PassThroughArgs: passThroughArgs);
     }
 
     [Fact]
@@ -115,6 +117,22 @@ public class CopilotServiceTests : IDisposable
         Assert.True(yoloIndex > result.Args.LastIndexOf("--add-dir"));
         Assert.Equal("--model", result.Args[yoloIndex + 1]);
         Assert.Equal("gpt-test", result.Args[yoloIndex + 2]);
+    }
+
+    [Fact]
+    public void PromptCopilotArgsAndPassThrough_KeepExpectedOrder()
+    {
+        var result = _adapter.BuildArgs(MakeSpec(
+            prompt: "from prompt",
+            copilotArgs: ["--model", "configured"],
+            passThroughArgs: ["--model", "runtime"]));
+
+        var promptIndex = result.Args.IndexOf("-i");
+        var configuredIndex = result.Args.IndexOf("configured") - 1;
+        var runtimeIndex = result.Args.LastIndexOf("--model");
+        Assert.True(promptIndex < configuredIndex);
+        Assert.True(configuredIndex < runtimeIndex);
+        Assert.Equal("runtime", result.Args[runtimeIndex + 1]);
     }
 
     [Fact]

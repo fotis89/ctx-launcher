@@ -150,13 +150,13 @@ public class CopilotService(WlPaths paths)
             }
         }
 
-        args.AddRange(ws.CopilotArgs);
-
         if (!string.IsNullOrEmpty(spec.Prompt))
         {
             args.Add("-i");
             args.Add(spec.Prompt);
         }
+        args.AddRange(ws.CopilotArgs);
+        args.AddRange(spec.PassThroughArgs ?? []);
 
         return new LaunchArgs(args, newSessionId);
     }

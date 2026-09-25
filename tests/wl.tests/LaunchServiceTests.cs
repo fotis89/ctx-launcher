@@ -86,8 +86,10 @@ public class LaunchServiceTests : IDisposable
         _ws.CopilotArgs = ["--yolo"];
         var (args, _, _) = _service.BuildLaunchArgs(_ws, "do the thing");
         Assert.Contains("--yolo", args);
-        Assert.Equal("-i", args[^2]);
-        Assert.Equal("do the thing", args[^1]);
+        var promptIndex = args.IndexOf("-i");
+        var yoloIndex = args.IndexOf("--yolo");
+        Assert.True(promptIndex < yoloIndex);
+        Assert.Equal("do the thing", args[promptIndex + 1]);
     }
 
     [Fact]

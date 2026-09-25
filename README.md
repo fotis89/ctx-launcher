@@ -55,6 +55,7 @@ instructions.
 | `wl launch [name]` | Launch a workspace; omit the name to use the last successfully launched workspace |
 | `wl launch <name> --new` | Start a fresh session instead of resuming the saved one |
 | `wl launch <name> --temp` | Start a throwaway session without changing the saved one |
+| `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
 | `wl launch <name> -p <name-or-text>` | Use a saved prompt or literal prompt text |
 | `wl list` | List workspaces, including ones that fail to load (with the error) |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |

@@ -6,7 +6,8 @@ public record LaunchSpec(
     string? ResolvedSharedDir,
     string? Prompt,
     string? ResumeSessionId,
-    bool TemporarySession = false)
+    bool TemporarySession = false,
+    IReadOnlyList<string>? PassThroughArgs = null)
 {
     // PrimaryRepo is the cwd, not an --add-dir.
     public void AppendAddDirArgs(List<string> args)

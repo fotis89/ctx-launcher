@@ -220,6 +220,18 @@ public class E2ETests
         Assert.Equal(firstSession, File.ReadAllText(sessionPath));
 
         File.Delete(log);
+        var lastUsedPassThrough = WlRunner.Run(home.Path, bin, "launch", "--", "--model", "x");
+        Assert.Equal(0, lastUsedPassThrough.ExitCode);
+        Assert.Contains("--model x", File.ReadAllText(log));
+        Assert.Contains($"--resume={firstSession}", File.ReadAllText(log));
+
+        File.Delete(log);
+        var workspacePassThrough = WlRunner.Run(home.Path, bin, "launch", home.WorkspaceName, "--", "-i", "a b");
+        Assert.Equal(0, workspacePassThrough.ExitCode);
+        Assert.Contains("-i", File.ReadAllText(log));
+        Assert.Contains("a b", File.ReadAllText(log));
+
+        File.Delete(log);
         Assert.Equal(0, WlRunner.Run(home.Path, bin, "launch", "--new").ExitCode);
         Assert.NotEqual(firstSession, File.ReadAllText(sessionPath));
         Assert.True(Guid.TryParseExact(File.ReadAllText(sessionPath), "D", out _));

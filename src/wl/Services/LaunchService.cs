@@ -7,7 +7,8 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
 {
     public (List<string> Args, List<string> SkippedDirs, string? NewSessionId) BuildLaunchArgs(
         Workspace ws, string? prompt = null,
-        string? resumeSessionId = null, string? sharedDirPath = null, bool temporary = false)
+        string? resumeSessionId = null, string? sharedDirPath = null, bool temporary = false,
+        IReadOnlyList<string>? passThroughArgs = null)
     {
         var resolvedDirs = new List<string>();
         var skippedDirs = new List<string>();
@@ -20,15 +21,15 @@ public class LaunchService(CopilotRunner runner, PathsService paths, CopilotServ
                 skippedDirs.Add(dir);
         }
 
-        var spec = new LaunchSpec(ws, resolvedDirs, sharedDirPath, prompt, resumeSessionId, temporary);
+        var spec = new LaunchSpec(ws, resolvedDirs, sharedDirPath, prompt, resumeSessionId, temporary, passThroughArgs);
         var result = copilot.BuildArgs(spec);
         return (result.Args, skippedDirs, result.NewSessionId);
     }
 
     public string BuildCommandString(Workspace ws, string? prompt = null,
-        string? resumeSessionId = null, string? sharedDirPath = null)
+        string? resumeSessionId = null, string? sharedDirPath = null, IReadOnlyList<string>? passThroughArgs = null)
     {
-        var (args, _, _) = BuildLaunchArgs(ws, prompt, resumeSessionId, sharedDirPath);
+        var (args, _, _) = BuildLaunchArgs(ws, prompt, resumeSessionId, sharedDirPath, passThroughArgs: passThroughArgs);
         return "copilot " + string.Join(" ", args.Select(PathHelper.QuotePath));
     }
 

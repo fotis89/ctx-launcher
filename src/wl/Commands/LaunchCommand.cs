@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, SetupService setup)
 {
-    public int Execute(string? name, string? promptArg, bool forceNew = false, bool temporary = false)
+    public int Execute(string? name, string? promptArg, bool forceNew = false, bool temporary = false, IReadOnlyList<string>? passThroughArgs = null)
     {
         if (name is null)
         {
@@ -50,7 +50,7 @@ public class LaunchCommand(WorkspaceService workspaces, PromptService prompts, L
 
         setup.EnsureInstalled();
         var sharedDirResolved = workspaces.GetSharedDirIfExists();
-        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, resumeSessionId, sharedDirResolved, temporary);
+        var (args, skippedDirs, newSessionId) = launcher.BuildLaunchArgs(ws, resolvedPrompt, resumeSessionId, sharedDirResolved, temporary, passThroughArgs);
 
         foreach (var dir in skippedDirs)
         {

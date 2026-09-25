@@ -15,6 +15,7 @@ var copilot = new CopilotService(paths);
 var launchService = new LaunchService(runner, pathsService, copilot);
 var versionService = new VersionService(paths);
 var setupService = new SetupService(versionService, paths);
+var (parseArgs, passThroughArgs) = SplitPassThrough(args);
 
 static int Run(Func<int> action)
 {
@@ -28,6 +29,27 @@ static int Run(Func<int> action)
         Console.Error.WriteLine($"Error: {ex.Message}");
         return 1;
     }
+}
+
+static (string[] ParseArgs, List<string> PassThroughArgs) SplitPassThrough(string[] rawArgs)
+{
+    if (rawArgs.Any(arg => arg.StartsWith("[suggest:", StringComparison.Ordinal)))
+    {
+        return (rawArgs, []);
+    }
+
+    if (rawArgs.Length == 0 || rawArgs[0] is not ("launch" or "which"))
+    {
+        return (rawArgs, []);
+    }
+
+    var separator = Array.IndexOf(rawArgs, "--");
+    if (separator < 0)
+    {
+        return (rawArgs, []);
+    }
+
+    return (rawArgs[..separator], rawArgs[(separator + 1)..].ToList());
 }
 
 IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
@@ -64,7 +86,7 @@ launchCmd.SetAction(parseResult =>
     var prompt = parseResult.GetValue(promptOpt);
     var forceNew = parseResult.GetValue(newOpt);
     var temporary = parseResult.GetValue(tempOpt);
-    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, forceNew, temporary));
+    return Run(() => new LaunchCommand(workspaceService, promptService, launchService, setupService).Execute(name, prompt, forceNew, temporary, passThroughArgs));
 });
 
 // create
@@ -97,7 +119,7 @@ whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg };
 whichCmd.SetAction(parseResult =>
 {
-    return Run(() => new WhichCommand(workspaceService, promptService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!));
+    return Run(() => new WhichCommand(workspaceService, promptService, launchService, pathsService, copilot).Execute(parseResult.GetValue(whichNameArg)!, passThroughArgs));
 });
 
 // setup
@@ -143,4 +165,4 @@ root.Add(setupCmd);
 root.Add(pathsCmd);
 root.Add(cloneCmd);
 
-return await root.Parse(args).InvokeAsync();
+return await root.Parse(parseArgs).InvokeAsync();

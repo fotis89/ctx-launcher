@@ -5,7 +5,7 @@ namespace wl.Commands;
 
 public class WhichCommand(WorkspaceService workspaces, PromptService prompts, LaunchService launcher, PathsService paths, CopilotService copilot)
 {
-    public int Execute(string name)
+    public int Execute(string name, IReadOnlyList<string>? passThroughArgs = null)
     {
         var ws = workspaces.LoadWorkspace(name);
         if (ws is null)
@@ -100,7 +100,7 @@ public class WhichCommand(WorkspaceService workspaces, PromptService prompts, La
 
         Console.WriteLine();
         Console.WriteLine("  Command:");
-        Console.WriteLine($"    {launcher.BuildCommandString(ws, resumeSessionId: lastSession, sharedDirPath: sharedDir)}");
+        Console.WriteLine($"    {launcher.BuildCommandString(ws, resumeSessionId: lastSession, sharedDirPath: sharedDir, passThroughArgs: passThroughArgs)}");
         Console.WriteLine();
         return repoOk ? 0 : 1;
     }
