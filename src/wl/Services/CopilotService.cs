@@ -76,8 +76,10 @@ public class CopilotService(WlPaths paths)
     public IReadOnlyDictionary<string, string> GetEnvironment(Workspace ws, string? inheritedInstructionDirs)
     {
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var sharedDirs = File.Exists(WlPaths.Agents(paths.SharedDir)) ? [paths.SharedDir] : Array.Empty<string>();
         var directories = (inheritedInstructionDirs ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Concat(sharedDirs)
             .Append(ws.FolderPath)
             .Distinct(comparer);
         return new Dictionary<string, string>

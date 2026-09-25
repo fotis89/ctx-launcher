@@ -241,6 +241,28 @@ public class CopilotServiceTests : IDisposable
     }
 
     [Fact]
+    public void GetEnvironment_WithSharedAgentsMd_AddsSharedDirBeforeWorkspace()
+    {
+        var sharedDir = Path.Combine(_root, ".shared");
+        Directory.CreateDirectory(sharedDir);
+        File.WriteAllText(Path.Combine(sharedDir, "AGENTS.md"), "shared");
+        var ws = new Workspace { FolderPath = "/workspace" };
+
+        var env = _adapter.GetEnvironment(ws, "/personal");
+
+        Assert.Equal($"/personal,{sharedDir},/workspace", env["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
+    }
+
+    [Fact]
+    public void GetEnvironment_SharedDirWithoutAgentsMd_IsNotAdded()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, ".shared", ".copilot"));
+        var ws = new Workspace { FolderPath = "/workspace" };
+
+        Assert.Equal("/workspace", _adapter.GetEnvironment(ws, null)["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"]);
+    }
+
+    [Fact]
     public void GetEnvironment_UsesPlatformPathComparison()
     {
         var ws = new Workspace { FolderPath = "/workspace" };

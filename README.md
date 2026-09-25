@@ -75,6 +75,7 @@ replace the saved session or last-workspace pointer.
 ~/.wl-workspaces/
 |-- .paths.json                  (machine-local variables)
 |-- .shared/
+|   |-- AGENTS.md            (optional, instructions for every workspace)
 |   `-- .copilot/
 |       |-- plugin.json          (generated)
 |       `-- skills/
@@ -115,9 +116,11 @@ reported and skipped. `yolo` and `resume` default to false.
 
 ### Instructions and skills
 
-Edit `AGENTS.md` in the workspace folder for workspace instructions. Each launch
-appends the workspace folder to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, preserving
-inherited instruction directories and removing duplicate entries.
+Edit `AGENTS.md` in the workspace folder for workspace instructions, and
+`.shared/AGENTS.md` for instructions that apply to every workspace. Each launch
+appends `.shared` (when `.shared/AGENTS.md` exists) and then the workspace folder
+to `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`, preserving inherited instruction directories
+and removing duplicate entries.
 Repository instructions remain separate from your personal workspace context.
 
 Workspace and shared `.copilot` folders with skills are exposed using explicit
