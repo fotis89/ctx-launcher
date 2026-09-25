@@ -365,7 +365,7 @@ public class E2ETests
         var result = WlRunner.Run(home.Path, bin, "create", "My Workspace");
         Assert.Equal(7, result.ExitCode);
         var args = File.ReadAllText(log);
-        Assert.Contains("wl-create-workspace", args);
+        Assert.Contains("wl-workspace", args);
         Assert.Contains("my-workspace", args);
         Assert.Contains("--plugin-dir", args);
         Assert.Contains("--add-dir", args);

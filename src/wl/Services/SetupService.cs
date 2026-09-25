@@ -4,12 +4,11 @@ using wl.Helpers;
 
 namespace wl.Services;
 
-public record SetupResult(bool CreateWorkspaceFresh, bool UpdateWorkspaceFresh, string? PreviousVersion, string CurrentVersion);
+public record SetupResult(bool WorkspaceSkillFresh, string? PreviousVersion, string CurrentVersion);
 
 public class SetupService(VersionService versionService, WlPaths paths)
 {
-    private const string CreateSkillName = "wl-create-workspace";
-    private const string UpdateSkillName = "wl-update-workspace";
+    private const string WorkspaceSkillName = "wl-workspace";
 
     private static string LoadResource(string name)
     {
@@ -38,8 +37,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
         .paths.json
 
         # wl-managed skills
-        .shared/.copilot/skills/wl-create-workspace/
-        .shared/.copilot/skills/wl-update-workspace/
+        .shared/.copilot/skills/wl-workspace/
 
         # Generated plugin manifests
         */.copilot/plugin.json
@@ -52,11 +50,10 @@ public class SetupService(VersionService versionService, WlPaths paths)
     {
         var previous = versionService.GetInstalledVersion();
         var current = versionService.GetCurrentVersion();
-        var createFresh = WriteSkill(WlPaths.Skill(paths.SharedSkillsDir, CreateSkillName), $"{CreateSkillName}.md");
-        var updateFresh = WriteSkill(WlPaths.Skill(paths.SharedSkillsDir, UpdateSkillName), $"{UpdateSkillName}.md");
+        var fresh = WriteSkill(WlPaths.Skill(paths.SharedSkillsDir, WorkspaceSkillName), $"{WorkspaceSkillName}.md");
         EnsureGitignore();
         versionService.StampVersion();
-        return new SetupResult(createFresh, updateFresh, previous, current);
+        return new SetupResult(fresh, previous, current);
     }
 
     private void EnsureGitignore()
@@ -109,9 +106,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
 
     public bool EnsureInstalled()
     {
-        var skillsPresent =
-            File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, CreateSkillName)) &&
-            File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, UpdateSkillName));
+        var skillsPresent = File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, WorkspaceSkillName));
         if (skillsPresent && versionService.GetInstalledVersion() == versionService.GetCurrentVersion())
             return false;
 

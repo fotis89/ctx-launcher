@@ -122,9 +122,8 @@ Skills require `name` and `description` frontmatter; use a `wl-` prefix for work
 The bundled skills do not pre-approve tools. Only add narrow approvals after
 reviewing and trusting a skill and its scripts.
 
-The bundled **wl-create-workspace** and **wl-update-workspace** skills propose
-changes before writing files. Ask Copilot to use them by name or describe the
-task, or use a prompt such as `Use the /wl-update-workspace skill`.
+The bundled **wl-workspace** skill proposes workspace create/update changes before
+writing files. Ask Copilot to use it by name or describe the task.
 
 Pass a one-off Copilot prompt after `--`, for example
 `wl launch my-project -- -i "investigate the failing test"`.

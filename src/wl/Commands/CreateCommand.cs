@@ -43,6 +43,6 @@ public class CreateCommand(WorkspaceService workspaces, CopilotRunner runner, Se
             return 0;
         }
 
-        return copilot.InvokeCreateSkill("wl-create-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), runner);
+        return copilot.InvokeCreateSkill("wl-workspace", slug, Directory.GetCurrentDirectory(), workspaces.GetSharedDirPath(), runner);
     }
 }

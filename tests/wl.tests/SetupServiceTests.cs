@@ -53,11 +53,11 @@ public class SetupServiceTests
             var service = new SetupService(new VersionService(paths), paths);
             Assert.True(service.EnsureInstalled());
             Assert.False(service.EnsureInstalled());
-            Assert.True(File.Exists(Path.Combine(root, ".shared", ".copilot", "skills", "wl-create-workspace", "SKILL.md")));
-            foreach (var name in new[] { "wl-create-workspace", "wl-update-workspace" })
+            var name = "wl-workspace";
+            Assert.True(File.Exists(WlPaths.SkillFile(paths.SharedSkillsDir, name)));
+            using (var resource = typeof(SetupService).Assembly.GetManifestResourceStream($"wl.Resources.{name}.md")!)
+            using (var reader = new StreamReader(resource))
             {
-                using var resource = typeof(SetupService).Assembly.GetManifestResourceStream($"wl.Resources.{name}.md")!;
-                using var reader = new StreamReader(resource);
                 var expected = reader.ReadToEnd();
                 Assert.Equal(expected, File.ReadAllText(WlPaths.SkillFile(paths.SharedSkillsDir, name)));
                 Assert.Contains(".copilot/skills", expected);
@@ -66,10 +66,9 @@ public class SetupServiceTests
                 var frontmatter = expected.Split("---")[1];
                 Assert.DoesNotContain("allowed-tools:", frontmatter);
                 Assert.Contains("optional permission pre-approval", expected);
-                Assert.Contains("Use the /wl-review skill", expected);
-                Assert.DoesNotContain("slash is reserved", expected);
+                Assert.Contains("wl which", expected);
             }
-            Assert.Contains(".shared/.copilot/skills/wl-create-workspace/", File.ReadAllText(paths.GitignoreFile));
+            Assert.Contains(".shared/.copilot/skills/wl-workspace/", File.ReadAllText(paths.GitignoreFile));
             Assert.DoesNotContain("*/AGENTS.md", File.ReadAllText(paths.GitignoreFile));
             Assert.Equal(session, File.ReadAllText(sessionPath));
         }
@@ -87,7 +86,7 @@ public class SetupServiceTests
             var service = new SetupService(version, paths);
             service.RunSetup();
             File.WriteAllText(paths.VersionFile, "0.0.0");
-            var skill = WlPaths.SkillFile(paths.SharedSkillsDir, "wl-create-workspace");
+            var skill = WlPaths.SkillFile(paths.SharedSkillsDir, "wl-workspace");
             File.WriteAllText(skill, "stale content");
             Assert.True(service.EnsureInstalled());
             Assert.Equal(version.GetCurrentVersion(), File.ReadAllText(paths.VersionFile));
