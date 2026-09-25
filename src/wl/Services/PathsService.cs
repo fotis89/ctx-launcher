@@ -8,6 +8,7 @@ namespace wl.Services;
 public partial class PathsService(string filePath)
 {
     private Dictionary<string, string>? _cache;
+    private bool _loadFailed;
 
     [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*$")]
     private static partial Regex ValidNameRegex();
@@ -34,6 +35,7 @@ public partial class PathsService(string filePath)
         {
             Console.Error.WriteLine($"Warning: {filePath} is not valid JSON; treating as empty.");
             _cache = new Dictionary<string, string>(StringComparer.Ordinal);
+            _loadFailed = true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {
@@ -41,6 +43,7 @@ public partial class PathsService(string filePath)
             // crashing wl on every command that resolves a $VAR path.
             Console.Error.WriteLine($"Warning: cannot read {filePath} ({ex.GetType().Name}); treating as empty.");
             _cache = new Dictionary<string, string>(StringComparer.Ordinal);
+            _loadFailed = true;
         }
 
         return _cache;
@@ -60,10 +63,26 @@ public partial class PathsService(string filePath)
                 nameof(name));
         }
 
-        var map = Load();
+        var existing = Load();
+        if (_loadFailed)
+        {
+            throw new InvalidOperationException($"{filePath}: cannot save path variables because the existing file could not be loaded. Fix or delete this file and try again.");
+        }
+
+        var map = new Dictionary<string, string>(existing, StringComparer.Ordinal);
         map[name] = value;
         var json = JsonSerializer.Serialize(map, WlJsonContext.Default.DictionaryStringString);
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        File.WriteAllText(filePath, json);
+        var tmp = filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, filePath, overwrite: true);
+            _cache = map;
+        }
+        finally
+        {
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
     }
 }

@@ -36,6 +36,49 @@ public class PathsServiceTests
     }
 
     [Fact]
+    public void Set_AfterInvalidJson_ThrowsAndLeavesFileUntouched()
+    {
+        var file = TempFile();
+        try
+        {
+            const string broken = "{ not valid json";
+            File.WriteAllText(file, broken);
+            var svc = new PathsService(file);
+            Assert.Null(svc.Get("REPOS"));
+
+            var ex = Assert.Throws<InvalidOperationException>(() => svc.Set("REPOS", "D:/repos"));
+
+            Assert.Contains(file, ex.Message);
+            Assert.Equal(broken, File.ReadAllText(file));
+        }
+        finally
+        {
+            if (File.Exists(file)) File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public void Set_WhenSaveFails_RemovesTempFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"wl-paths-root-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var parentFile = Path.Combine(root, "not-a-dir");
+            File.WriteAllText(parentFile, "");
+            var file = Path.Combine(parentFile, ".paths.json");
+
+            Assert.ThrowsAny<Exception>(() => new PathsService(file).Set("REPOS", "D:/repos"));
+
+            Assert.Empty(Directory.GetFiles(root, "*.tmp", SearchOption.AllDirectories));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
     public void Set_UpsertsExistingKey()
     {
         var file = TempFile();
