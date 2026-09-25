@@ -2,7 +2,7 @@
 
 Simplify wl around real usage and add folder mode: `wl launch` in any folder
 with your shared skills and instructions, no workspace needed. Breaking
-release; ship as v1.0.0.
+release; ship as v0.10.0.
 
 The work is split into changes. Each change is one commit, leaves the build
 green, and updates its own tests and docs. Do them in order.
@@ -242,9 +242,9 @@ snippets), Quick start (`wl launch`, `wl create`, `wl launch <name>`),
 Workspaces are folders, Sync across PCs, Build. `WL_WORKSPACES_ROOT` stays
 supported for tests but undocumented.
 
-## Change 16: Release v1.0.0
+## Change 16: Release v0.10.0
 
-Tag `v1.0.0` with `/wl-release` after all changes land and CI is green.
+Tag `v0.10.0` with `/wl-release` after all changes land and CI is green.
 
 ---
 
