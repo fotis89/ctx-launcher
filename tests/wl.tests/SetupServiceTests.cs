@@ -10,20 +10,20 @@ public class SetupServiceTests
     [InlineData("   \n\t\n  ")]
     [InlineData("# User stuff\n.DS_Store\nsecret.env")]
     [InlineData("# User stuff\r\n.DS_Store\r\nsecret.env")]
-    [InlineData(".last-session\n\n# Added by `wl setup`")]
-    [InlineData("# Added by `wl setup`\n.last-session\n\n# my custom stuff\n*.bak")]
+    [InlineData(".last-session\n\n# Added by wl")]
+    [InlineData("# Added by wl\n.last-session\n\n# my custom stuff\n*.bak")]
     public void MergeGitignore_PreservesContentAndUsesOneManagedBlock(string existing)
     {
         var first = SetupService.MergeGitignore(existing, ["*/.copilot/plugin.json"]);
         var result = SetupService.MergeGitignore(first, [".paths.json"]);
-        Assert.Equal(1, result.Split("# Added by `wl setup`").Length - 1);
+        Assert.Equal(1, result.Split("# Added by wl").Length - 1);
         Assert.Contains("*/.copilot/plugin.json", result);
         Assert.DoesNotContain("*/AGENTS.md", result);
         Assert.Contains(".paths.json", result);
         foreach (var line in existing.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0))
             Assert.Contains(line, result);
         if (string.IsNullOrWhiteSpace(existing))
-            Assert.StartsWith("# Added by `wl setup`", result);
+            Assert.StartsWith("# Added by wl", result);
         if (existing.Contains("*.bak"))
             Assert.True(result.IndexOf(".paths.json", StringComparison.Ordinal) < result.IndexOf("*.bak", StringComparison.Ordinal));
     }

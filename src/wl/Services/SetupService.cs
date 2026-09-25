@@ -45,7 +45,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
         */.copilot/plugin.json
         .shared/.copilot/plugin.json
 
-        # Added by `wl setup`
+        # Added by wl
         """;
 
     public SetupResult RunSetup()
@@ -75,7 +75,7 @@ public class SetupService(VersionService versionService, WlPaths paths)
             File.WriteAllText(paths.GitignoreFile, MergeGitignore(existing, missing));
     }
 
-    private const string AddedByHeader = "# Added by `wl setup`";
+    private const string AddedByHeader = "# Added by wl";
 
     public static string MergeGitignore(string existing, IEnumerable<string> missing)
     {

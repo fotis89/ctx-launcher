@@ -190,5 +190,5 @@ finally {
 if (-not $NoSwitch) {
     Set-Current $version
     Confirm-OnPath
-    Write-Host "Run 'wl setup' to refresh bundled skills for $version."
+    Write-Host "Bundled skills refresh automatically on first wl launch/create/clone."
 }

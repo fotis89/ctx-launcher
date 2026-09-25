@@ -39,7 +39,7 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
         }
 
         var sharedDir = workspaces.GetSharedDirIfExists();
-        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
+        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl launch or wl create")})");
 
         var sharedSkills = sharedDir is not null
             ? WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath())
@@ -113,7 +113,7 @@ public class WhichCommand(WorkspaceService workspaces, LaunchService launcher, P
 
         Console.WriteLine();
         ConsoleLabel.WriteLine("Folder:", folderPath);
-        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl setup")})");
+        ConsoleLabel.WriteLine("Shared:", $"{workspaces.GetSharedDirPath()} ({(sharedDir is not null ? "ok" : "NOT FOUND — run wl launch or wl create")})");
 
         var sharedSkills = sharedDir is not null
             ? WorkspaceService.ListSkillNames(workspaces.GetSharedSkillsPath())

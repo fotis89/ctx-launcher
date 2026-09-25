@@ -42,9 +42,7 @@ For a minimal configuration without invoking Copilot:
 wl create my-project --basic
 ```
 
-The first create or launch installs the bundled workspace skills. `wl setup`
-refreshes them explicitly, checks Copilot availability, and prints tab-completion
-instructions.
+The first create, launch, or clone installs or refreshes the bundled workspace skills.
 
 ## Commands
 
@@ -59,7 +57,6 @@ instructions.
 | `wl launch <name> -- <args>` | Pass remaining arguments directly to Copilot |
 | `wl which <name>` | Preview resolved paths, preparation, environment, and launch command without writing files |
 | `wl clone <git-url>` | Clone workspace definitions, run setup, then initialize path variables |
-| `wl setup` | Install bundled Copilot skills and show completion setup |
 
 Invalid configuration and failed Copilot processes produce nonzero exit codes. A failed Copilot process does not
 replace the saved session or last-workspace pointer.
@@ -197,7 +194,7 @@ the `current` junction there. Release tags install as their version (`0.9.0`); o
 commits get a MinVer pre-release version such as `0.9.1-dev.0.1`, so they never
 overwrite a release. `current` is added to your user PATH once (skip with `-NoPath`).
 Upgrades and rollbacks only move the junction, so running sessions keep their binary
-and PATH never changes again. Run `wl setup` after switching.
+and PATH never changes again. Bundled skills refresh automatically on first use.
 
 Remove any other `wl` first (for example `npm uninstall -g @ctx-launcher/wl`).
 The script warns if another `wl` still takes precedence on PATH. For all options, run

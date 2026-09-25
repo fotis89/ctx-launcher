@@ -150,7 +150,7 @@ public class E2ETests
     }
 
     [SkippableFact]
-    public void Setup_exits_zero_when_copilot_on_path()
+    public void Setup_command_is_removed()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
         using var home = new TempHome();
@@ -159,7 +159,8 @@ public class E2ETests
         FakeCopilot.Install(fakeBin, copilotLog);
 
         var result = WlRunner.Run(home.Path, extraPathDir: fakeBin, "setup");
-        Assert.Equal(0, result.ExitCode);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("setup", result.Stderr, StringComparison.OrdinalIgnoreCase);
     }
 
     [SkippableFact]

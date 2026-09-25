@@ -96,10 +96,6 @@ whichCmd.SetAction(parseResult =>
         passThroughArgs));
 });
 
-// setup
-var setupCmd = new Command("setup", "Install Copilot skills and show tab completion setup");
-setupCmd.SetAction(_ => Run(() => new SetupCommand(setupService, runner).Execute()));
-
 // clone
 var cloneUrlArg = new Argument<string>("git-url") { Description = "Git URL to clone" };
 var cloneCmd = new Command("clone", "Clone a workspaces repo into ~/.wl-workspaces and initialize path variables") { cloneUrlArg };
@@ -112,7 +108,6 @@ cloneCmd.SetAction(parseResult =>
 root.Add(launchCmd);
 root.Add(createCmd);
 root.Add(whichCmd);
-root.Add(setupCmd);
 root.Add(cloneCmd);
 
 return await root.Parse(parseArgs).InvokeAsync();

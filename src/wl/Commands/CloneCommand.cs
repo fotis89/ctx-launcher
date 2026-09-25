@@ -14,7 +14,7 @@ public class CloneCommand(WorkspaceService workspaces, PathsService paths, Setup
         if (Directory.Exists(destination) && Directory.EnumerateFileSystemEntries(destination).Any())
         {
             Console.Error.WriteLine($"Workspaces directory is not empty: {destination}");
-            Console.Error.WriteLine("Remove contents before cloning, or clone manually and run 'wl setup'.");
+            Console.Error.WriteLine("Remove contents before cloning, or clone manually.");
             return 1;
         }
 
