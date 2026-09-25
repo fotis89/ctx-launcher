@@ -32,6 +32,18 @@ public class E2ETests
     }
 
     [SkippableFact]
+    public void Bare_wl_prints_help_and_exits_zero()
+    {
+        Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);
+        using var home = new TempHome();
+        var result = WlRunner.Run(home.Path, extraPathDir: null);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("launch <name>", result.Stdout);
+        Assert.DoesNotContain("<cri-", result.Stdout);
+        Assert.DoesNotContain("Required command", result.Stdout + result.Stderr);
+    }
+
+    [SkippableFact]
     public void Unknown_command_exits_nonzero()
     {
         Skip.If(BinaryFixture.ExePath is null, BinaryFixture.SkipReason);

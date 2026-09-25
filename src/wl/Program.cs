@@ -57,11 +57,11 @@ IEnumerable<CompletionItem> WorkspaceCompletions(CompletionContext _) =>
 var root = new RootCommand("wl — GitHub Copilot workspace launcher");
 
 // launch
-var launchNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
+var launchNameArg = new Argument<string?>("name") { Arity = ArgumentArity.ZeroOrOne, DefaultValueFactory = _ => null, HelpName = "name", Description = "Workspace name (omit to launch in the current folder)" };
 launchNameArg.CompletionSources.Add(WorkspaceCompletions);
 var newOpt = new Option<bool>("--new", "-n") { Description = "Start a fresh session" };
 var tempOpt = new Option<bool>("--temp") { Description = "Start a throwaway session without changing the saved session" };
-var launchCmd = new Command("launch", "Launch a workspace") { launchNameArg, newOpt, tempOpt };
+var launchCmd = new Command("launch", "Launch a workspace, or Copilot in the current folder") { launchNameArg, newOpt, tempOpt };
 launchCmd.SetAction(parseResult =>
 {
     var name = parseResult.GetValue(launchNameArg);
@@ -71,7 +71,7 @@ launchCmd.SetAction(parseResult =>
 });
 
 // create
-var createNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Copilot will propose one)" };
+var createNameArg = new Argument<string?>("name") { Arity = ArgumentArity.ZeroOrOne, DefaultValueFactory = _ => null, Description = "Workspace slug (optional — Copilot will propose one)" };
 var createCmd = new Command("create", "Create a new workspace via Copilot") { createNameArg };
 createCmd.SetAction(parseResult =>
 {
@@ -80,11 +80,11 @@ createCmd.SetAction(parseResult =>
 });
 
 // which
-var whichNameArg = new Argument<string?>("name") { DefaultValueFactory = _ => null, Description = "Workspace name" };
+var whichNameArg = new Argument<string?>("name") { Arity = ArgumentArity.ZeroOrOne, DefaultValueFactory = _ => null, HelpName = "name", Description = "Workspace name (omit for the current folder)" };
 whichNameArg.CompletionSources.Add(WorkspaceCompletions);
 var whichNewOpt = new Option<bool>("--new", "-n") { Description = "Show a fresh-session launch" };
 var whichTempOpt = new Option<bool>("--temp") { Description = "Show a throwaway-session launch" };
-var whichCmd = new Command("which", "Show launch command and validate paths") { whichNameArg, whichNewOpt, whichTempOpt };
+var whichCmd = new Command("which", "Show what launch would run, without changing anything") { whichNameArg, whichNewOpt, whichTempOpt };
 whichCmd.SetAction(parseResult =>
 {
     return Run(() => new WhichCommand(workspaceService, launchService, pathsService, copilot).Execute(
@@ -108,4 +108,4 @@ root.Add(createCmd);
 root.Add(whichCmd);
 root.Add(cloneCmd);
 
-return await root.Parse(parseArgs).InvokeAsync();
+return await root.Parse(parseArgs.Length == 0 ? ["--help"] : parseArgs).InvokeAsync();
